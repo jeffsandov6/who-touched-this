@@ -1,0 +1,35 @@
+---
+import Navigation from '../components/Navigation.astro';
+import SiteStatus from '../components/SiteStatus.astro';
+import '../../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'Who Touched This',
+  description = 'A sequential social coding experiment.',
+} = Astro.props;
+const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched This`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content={description} />
+    <meta name="generator" content={Astro.generator} />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="platform-header">
+      <Navigation />
+      <SiteStatus />
+    </header>
+    <main id="main-content"><slot /></main>
+  </body>
+</html>

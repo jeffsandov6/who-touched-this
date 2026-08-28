@@ -1,0 +1,78 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #202124;
+  background: #f7f7f5;
+  line-height: 1.6;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 18rem; }
+a { color: #244d78; }
+a:focus-visible { outline: 3px solid #8ab4e0; outline-offset: 3px; border-radius: 0.125rem; }
+
+.skip-link {
+  position: fixed;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 10;
+  padding: 0.5rem 0.75rem;
+  background: #fff;
+  transform: translateY(-200%);
+}
+.skip-link:focus { transform: translateY(0); }
+
+.platform-header { border-bottom: 1px solid #d9d9d4; background: #fff; }
+.platform-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  width: min(100% - 2rem, 72rem);
+  margin-inline: auto;
+  padding-block: 1rem;
+}
+.site-name { color: #202124; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.platform-navigation ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.platform-navigation a[aria-current='page'] {
+  color: #202124;
+  font-weight: 650;
+  text-decoration-thickness: 0.125rem;
+  text-underline-offset: 0.3rem;
+}
+.site-status {
+  width: min(100% - 2rem, 72rem);
+  margin-inline: auto;
+  padding-block: 0.75rem;
+  border-top: 1px solid #ecece8;
+  color: #50535a;
+  font-size: 0.875rem;
+}
+.site-status dl { display: flex; flex-wrap: wrap; gap: 0.5rem 2rem; margin: 0; }
+.site-status dl > div { display: flex; gap: 0.4rem; }
+.site-status dt { font-weight: 650; }
+.site-status dd { margin: 0; }
+main { min-height: 50vh; }
+.page-content {
+  width: min(100% - 2rem, 48rem);
+  margin-inline: auto;
+  padding-block: clamp(2rem, 6vw, 4rem);
+}
+h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 1.2; }
+.notice, .empty-state { padding: 0.75rem 1rem; border-left: 0.25rem solid #737570; background: #eeeeeb; }
+.faq-list { margin: 2rem 0 0; }
+.faq-list div + div { margin-top: 1.5rem; }
+.faq-list dt { font-weight: 700; }
+.faq-list dd { margin: 0.25rem 0 0; }
+
+@media (max-width: 40rem) {
+  .platform-navigation { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
+}

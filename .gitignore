@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Astro and build output
+dist/
+.astro/
+
+# Environment variables and local secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
+# Firebase local artifacts (configuration and rules remain trackable)
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+database-debug.log*
+ui-debug.log*
+firebase-export-*/
+firebase-emulator-data/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+*.tmp
+*.temp
