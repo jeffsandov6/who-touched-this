@@ -20,4 +20,6 @@ Who Touched This will eventually accept one community contribution at a time thr
 - `src/canvas/**` is the future contributor-editable area.
 - `src/platform/**`, protected route wrappers in `src/pages/**`, project configuration, build and deployment configuration, Firebase configuration, and GitHub workflows are protected.
 
+Ownership follows directory boundaries, not file extensions. React/TSX under `src/platform/**` remains protected, while future canvas contributors may use any configured framework within `src/canvas/**`.
+
 The machine-readable source of these boundaries is `src/platform/config/contribution-boundaries.ts`. Enforcement tooling will be added in a later milestone. Until public contributions formally open, this repository is project scaffolding only.

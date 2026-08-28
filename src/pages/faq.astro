@@ -1,15 +1,7 @@
 ---
 import PlatformLayout from '../platform/layouts/PlatformLayout.astro';
+import FaqPage from '../platform/pages/FaqPage';
 ---
 <PlatformLayout title="FAQ">
-  <section class="page-content" aria-labelledby="faq-heading">
-    <h1 id="faq-heading">Frequently asked questions</h1>
-    <dl class="faq-list">
-      <div><dt>What is Who Touched This?</dt><dd>A social coding experiment in which contributors sequentially modify one public website.</dd></div>
-      <div><dt>How does a turn work?</dt><dd>A selected contributor forks the repository, makes one small change, and opens a pull request for review.</dd></div>
-      <div><dt>Can everyone change the site at once?</dt><dd>No. Only one community contributor has an active turn at a time.</dd></div>
-      <div><dt>Is the full queue public?</dt><dd>No. The contribution queue will be private.</dd></div>
-      <div><dt>Does contributing require repository write access?</dt><dd>No. Contributors will work from forks and will not receive direct write access.</dd></div>
-    </dl>
-  </section>
+  <FaqPage />
 </PlatformLayout>

@@ -10,8 +10,9 @@ The editable PR #000 canvas has intentionally not been designed yet. Firebase an
 
 ## Technology
 
-- Astro with strict TypeScript
-- React, Vue, Svelte, and Solid through official Astro integrations
+- Astro file-based routing and static generation with strict TypeScript
+- React and TypeScript for most owner-maintained platform UI
+- Vue, Svelte, and Solid support through official Astro integrations
 - Plain CSS
 - npm
 
@@ -36,16 +37,16 @@ npm run preview
 
 The application deliberately separates two ownership areas:
 
-- `src/platform/**` contains protected navigation, layouts, status, configuration, services, and types. Future contributors must not modify this infrastructure.
+- `src/platform/**` contains protected navigation, page UI, layouts, status, configuration, services, and types. Most owner-maintained UI is static React/TSX; `PlatformLayout.astro` remains the thin Astro document shell.
 - `src/canvas/**` is the future contributor-editable area. It has designated component directories for Astro, React, Vue, Svelte, and Solid.
 
-Protected routes in `src/pages/**` compose the platform shell around page content. The homepage is the key example: `src/pages/index.astro` renders the canvas-owned `Home.astro` inside the protected `PlatformLayout.astro`.
+Protected Astro routes in `src/pages/**` remain thin and compose the platform shell around React page components. Astro owns routing and static generation; React Router and client hydration are not used. The homepage is the key example: `src/pages/index.astro` renders the canvas-owned `Home.tsx` inside the protected `PlatformLayout.astro`.
 
 ```text
 src/
-  canvas/              Future contributor-editable pages and components
-  platform/            Protected application infrastructure
-  pages/               Protected Astro route wrappers
+  canvas/              Future contributor-editable pages and multi-framework components
+  platform/            Protected React UI and application infrastructure
+  pages/               Thin protected Astro route wrappers
   styles/              Protected global/platform styles
 public/                Static public assets
 ```
