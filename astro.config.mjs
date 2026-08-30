@@ -7,7 +7,13 @@ import vue from '@astrojs/vue';
 export default defineConfig({
   output: 'static',
   integrations: [
-    react({ include: ['**/src/canvas/components/react/**/*.{jsx,tsx}'] }),
+    react({
+      include: [
+        '**/src/platform/**/*.tsx',
+        '**/src/canvas/pages/**/*.tsx',
+        '**/src/canvas/components/react/**/*.{jsx,tsx}',
+      ],
+    }),
     solid({ include: ['**/src/canvas/components/solid/**/*.{jsx,tsx}'] }),
     vue(),
     svelte(),

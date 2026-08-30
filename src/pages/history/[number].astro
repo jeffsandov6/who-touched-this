@@ -1,11 +1,12 @@
 ---
 import type { GetStaticPaths } from 'astro';
 import PlatformLayout from '../../platform/layouts/PlatformLayout.astro';
+import ContributionDetailPage from '../../platform/pages/ContributionDetailPage';
 
 // Real contribution data will generate these detail pages in a later milestone.
 // No fake records are emitted now.
 export const getStaticPaths = (() => []) satisfies GetStaticPaths;
 ---
 <PlatformLayout title="Contribution history">
-  <section class="page-content"><h1>Contribution history</h1></section>
+  <ContributionDetailPage />
 </PlatformLayout>

@@ -1,0 +1,364 @@
+/** @jsxImportSource react */
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AdminServiceError, getOwnAdminAuthorization } from '../firebase/admin';
+import {
+  loadSeasonOneAdminQueue,
+  promoteWaitingQueueEntry,
+  restoreWaitingQueueEntry,
+  type AdminQueueItem,
+} from '../firebase/admin-queue';
+import {
+  filterQueueEntries,
+  sortByEffectiveQueueOrder,
+} from '../firebase/admin-queue-logic';
+import {
+  AuthenticationError,
+  observeAuthState,
+  resolveGitHubIdentity,
+  signInWithGitHub,
+  signOutOfPlatform,
+} from '../firebase/auth';
+import {
+  reconcileGitHubIdentity,
+  type GitHubIdentity,
+} from '../firebase/github-identity';
+import { QUEUE_STATUSES, type AdminRole } from '../firebase/models';
+
+type AccessState = 'checking' | 'signed-out' | 'denied' | 'authorized';
+
+function safeErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof AdminServiceError || error instanceof AuthenticationError
+    ? error.message
+    : fallback;
+}
+
+function formatJoinedAt(date: Date): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+export default function AdminPage() {
+  const requestSequence = useRef(0);
+  const [accessState, setAccessState] = useState<AccessState>('checking');
+  const [identity, setIdentity] = useState<GitHubIdentity | null>(null);
+  const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
+  const [queue, setQueue] = useState<AdminQueueItem[]>([]);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  async function refreshQueue(sequence = requestSequence.current) {
+    setQueueLoading(true);
+    try {
+      const nextQueue = await loadSeasonOneAdminQueue();
+      if (sequence === requestSequence.current) setQueue(nextQueue);
+    } catch (error) {
+      if (sequence === requestSequence.current) {
+        setQueue([]);
+        setErrorMessage(safeErrorMessage(error, 'The private queue could not be loaded.'));
+      }
+    } finally {
+      if (sequence === requestSequence.current) setQueueLoading(false);
+    }
+  }
+
+  async function loadAdminState(nextIdentity: GitHubIdentity) {
+    const sequence = ++requestSequence.current;
+    setIdentity((current) => reconcileGitHubIdentity(current, nextIdentity));
+    setAdminRole(null);
+    setQueue([]);
+    setQueueLoading(false);
+    setAccessState('checking');
+    setErrorMessage(null);
+
+    try {
+      const authorization = await getOwnAdminAuthorization(nextIdentity.githubUserId);
+      if (sequence !== requestSequence.current) return;
+
+      if (!authorization.authorized || !authorization.role) {
+        setAccessState('denied');
+        return;
+      }
+
+      setAdminRole(authorization.role);
+      setAccessState('authorized');
+      await refreshQueue(sequence);
+    } catch (error) {
+      if (sequence !== requestSequence.current) return;
+      setAccessState('denied');
+      setQueue([]);
+      setErrorMessage(safeErrorMessage(error, 'Admin authorization could not be verified.'));
+    }
+  }
+
+  useEffect(() => {
+    let active = true;
+    let unsubscribe = () => {};
+
+    try {
+      unsubscribe = observeAuthState((user) => {
+        void (async () => {
+          if (!user) {
+            ++requestSequence.current;
+            if (active) {
+              setIdentity(null);
+              setAdminRole(null);
+              setQueue([]);
+              setAccessState('signed-out');
+              setErrorMessage(null);
+            }
+            return;
+          }
+
+          try {
+            const nextIdentity = await resolveGitHubIdentity(user);
+            if (active) await loadAdminState(nextIdentity);
+          } catch {
+            if (active) {
+              ++requestSequence.current;
+              setIdentity(null);
+              setAdminRole(null);
+              setQueue([]);
+              setAccessState('denied');
+              setErrorMessage(null);
+            }
+          }
+        })();
+      });
+    } catch {
+      setAccessState('denied');
+      setErrorMessage('Firebase configuration is unavailable. Check the local environment setup.');
+    }
+
+    return () => {
+      active = false;
+      ++requestSequence.current;
+      unsubscribe();
+    };
+  }, []);
+
+  const orderedQueue = useMemo(() => sortByEffectiveQueueOrder(queue), [queue]);
+  const positionedQueue = useMemo(
+    () => orderedQueue.map((entry, index) => ({ ...entry, effectivePosition: index + 1 })),
+    [orderedQueue],
+  );
+  const visibleQueue = useMemo(
+    () => filterQueueEntries(positionedQueue, searchTerm, statusFilter),
+    [positionedQueue, searchTerm, statusFilter],
+  );
+
+  async function handleSignIn() {
+    setAuthBusy(true);
+    setErrorMessage(null);
+    try {
+      const nextIdentity = await signInWithGitHub();
+      await loadAdminState(nextIdentity);
+    } catch (error) {
+      setErrorMessage(safeErrorMessage(error, 'GitHub sign-in could not be completed.'));
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handleSignOut() {
+    setAuthBusy(true);
+    setErrorMessage(null);
+    ++requestSequence.current;
+    setQueue([]);
+    try {
+      await signOutOfPlatform();
+    } catch {
+      setErrorMessage('Sign out could not be completed. Please try again.');
+    } finally {
+      setAuthBusy(false);
+    }
+  }
+
+  async function handlePriorityAction(entry: AdminQueueItem) {
+    setBusyEntryId(entry.githubUserId);
+    setErrorMessage(null);
+    try {
+      if (entry.priority > 0) {
+        await restoreWaitingQueueEntry(entry.githubUserId);
+      } else {
+        await promoteWaitingQueueEntry(entry.githubUserId);
+      }
+      await refreshQueue();
+    } catch (error) {
+      setErrorMessage(safeErrorMessage(error, 'The queue priority could not be changed.'));
+    } finally {
+      setBusyEntryId(null);
+    }
+  }
+
+  return (
+    <section className="page-content admin-page" aria-labelledby="admin-heading">
+      <h1 id="admin-heading">Admin</h1>
+
+      {errorMessage && (
+        <p className="notice notice-error" role="alert">
+          {errorMessage}
+        </p>
+      )}
+
+      {accessState === 'checking' ? (
+        <p role="status">Verifying admin access…</p>
+      ) : accessState === 'signed-out' ? (
+        <div className="admin-auth-panel">
+          <p>Authenticate with GitHub to access protected project administration.</p>
+          <button className="button" type="button" onClick={handleSignIn} disabled={authBusy}>
+            {authBusy ? 'Opening GitHub…' : 'Continue with GitHub'}
+          </button>
+        </div>
+      ) : accessState === 'denied' ? (
+        <div className="admin-auth-panel">
+          <p className="notice" role="status">Access denied.</p>
+          <button className="button-link" type="button" onClick={handleSignOut} disabled={authBusy}>
+            Sign out
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="admin-toolbar">
+            <div>
+              <p className="admin-authenticated-as">
+                Authorized as{' '}
+                {identity?.githubUsername
+                  ? `@${identity.githubUsername}`
+                  : 'GitHub administrator'}
+                {adminRole ? ` (${adminRole})` : ''}.
+              </p>
+              <p className="admin-private-note">Queue positions and contact details are private.</p>
+            </div>
+            <div className="admin-toolbar-actions">
+              <button
+                className="button button-secondary"
+                type="button"
+                onClick={() => void refreshQueue()}
+                disabled={queueLoading || busyEntryId !== null}
+              >
+                {queueLoading ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button
+                className="button-link"
+                type="button"
+                onClick={handleSignOut}
+                disabled={authBusy}
+              >
+                Sign out
+              </button>
+            </div>
+          </div>
+
+          <div className="admin-filters" aria-label="Queue filters">
+            <div className="form-field">
+              <label htmlFor="queue-search">Search queue</label>
+              <input
+                id="queue-search"
+                type="search"
+                placeholder="Name, GitHub username, or email"
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <label htmlFor="queue-status">Status</label>
+              <select
+                id="queue-status"
+                value={statusFilter ?? ''}
+                onChange={(event) => setStatusFilter(event.target.value || null)}
+              >
+                <option value="">All statuses</option>
+                {QUEUE_STATUSES.map((status) => (
+                  <option value={status} key={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {queueLoading && queue.length === 0 ? (
+            <p role="status">Loading private queue…</p>
+          ) : queue.length === 0 ? (
+            <p className="empty-state">No Season 1 queue entries.</p>
+          ) : visibleQueue.length === 0 ? (
+            <p className="empty-state">No queue entries match these filters.</p>
+          ) : (
+            <div className="admin-table-wrapper">
+              <table className="admin-queue-table">
+                <caption className="visually-hidden">Private Season 1 contribution queue</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Position</th>
+                    <th scope="col">Contributor</th>
+                    <th scope="col">GitHub</th>
+                    <th scope="col">Contact</th>
+                    <th scope="col">Joined</th>
+                    <th scope="col">Priority</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleQueue.map((entry) => (
+                    <tr key={entry.githubUserId}>
+                      <td>{entry.effectivePosition}</td>
+                      <td>
+                        <strong>{entry.displayName}</strong>
+                        {entry.socialUrl && (
+                          <>
+                            <br />
+                            <a href={entry.socialUrl} rel="noreferrer">
+                              Social link
+                            </a>
+                          </>
+                        )}
+                      </td>
+                      <td>
+                        <a href={entry.githubProfileUrl} rel="noreferrer">
+                          @{entry.githubUsername}
+                        </a>
+                      </td>
+                      <td>{entry.email}</td>
+                      <td>{formatJoinedAt(entry.joinedAt)}</td>
+                      <td>
+                        {entry.priority}
+                        {entry.priority > 0 && <span className="promoted-label"> Promoted</span>}
+                      </td>
+                      <td>{entry.status}</td>
+                      <td>
+                        {entry.status === 'waiting' ? (
+                          <button
+                            className="button button-secondary admin-action"
+                            type="button"
+                            onClick={() => void handlePriorityAction(entry)}
+                            disabled={busyEntryId !== null}
+                          >
+                            {busyEntryId === entry.githubUserId
+                              ? 'Updating…'
+                              : entry.priority > 0
+                                ? 'Restore natural order'
+                                : 'Move to top'}
+                          </button>
+                        ) : (
+                          <span>—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}

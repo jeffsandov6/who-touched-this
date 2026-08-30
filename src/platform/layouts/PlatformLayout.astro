@@ -1,6 +1,6 @@
 ---
-import Navigation from '../components/Navigation.astro';
-import SiteStatus from '../components/SiteStatus.astro';
+import Navigation from '../components/Navigation';
+import SiteStatus from '../components/SiteStatus';
 import '../../styles/global.css';
 
 interface Props {
@@ -27,7 +27,7 @@ const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="platform-header">
-      <Navigation />
+      <Navigation currentPath={Astro.url.pathname} />
       <SiteStatus />
     </header>
     <main id="main-content"><slot /></main>
