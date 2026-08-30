@@ -1,5 +1,17 @@
 import type { Timestamp } from 'firebase/firestore';
 
+export const ADMIN_ROLES = ['owner', 'admin'] as const;
+
+export type AdminRole = (typeof ADMIN_ROLES)[number];
+
+/** Private trusted configuration: admins/{githubUserId}. Never client-writable. */
+export interface AdminRecord {
+  githubUserId: string;
+  role: AdminRole;
+  active: boolean;
+  createdAt?: Timestamp;
+}
+
 export const PARTICIPATION_STATUSES = [
   'waiting',
   'invited',
@@ -72,9 +84,9 @@ export interface QueueEntry {
   season: number;
   status: QueueStatus;
   joinedAt: Timestamp;
-  /** Higher values may be considered before lower values by future admin tooling. */
+  /** V1 ordering uses priority descending, then joinedAt ascending. */
   priority: number;
-  /** Explicit admin ordering takes precedence when supplied. */
+  /** Reserved for future arbitrary ordering; ignored by the V1 ordering algorithm. */
   sortOrder?: number;
   promotedAt?: Timestamp;
   updatedAt: Timestamp;

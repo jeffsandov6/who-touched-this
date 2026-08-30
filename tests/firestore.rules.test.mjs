@@ -7,6 +7,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  deleteField,
   deleteDoc,
   doc,
   getDoc,
@@ -24,6 +25,11 @@ const defaultIdentity = {
   githubUserId: '1001',
   githubUsername: 'octocat-one',
 };
+const adminIdentity = {
+  firebaseUid: 'firebase-admin-1',
+  githubUserId: '9001',
+  githubUsername: 'project-owner',
+};
 
 let testEnvironment;
 
@@ -40,6 +46,27 @@ function githubFirestore(identity = defaultIdentity) {
   return testEnvironment
     .authenticatedContext(identity.firebaseUid, githubClaims(identity.githubUserId))
     .firestore();
+}
+
+async function seedAdmin(identity = adminIdentity, overrides = {}) {
+  await testEnvironment.withSecurityRulesDisabled((context) =>
+    setDoc(doc(context.firestore(), `admins/${identity.githubUserId}`), {
+      githubUserId: identity.githubUserId,
+      role: 'owner',
+      active: true,
+      ...overrides,
+    }),
+  );
+}
+
+async function seedTurn() {
+  await testEnvironment.withSecurityRulesDisabled((context) =>
+    setDoc(doc(context.firestore(), 'turns/turn-1'), {
+      githubUserId: defaultIdentity.githubUserId,
+      contributionNumber: 1,
+      status: 'active',
+    }),
+  );
 }
 
 function validContributor(identity = defaultIdentity, overrides = {}, omittedFields = []) {
@@ -376,6 +403,206 @@ test('a second join for the same Season 1 GitHub identity is rejected', async ()
   const firestore = githubFirestore();
   await assertSucceeds(joinBatch(firestore));
   await assertFails(joinBatch(firestore));
+});
+
+test('anonymous users cannot read admin records', async () => {
+  await seedAdmin();
+  const firestore = testEnvironment.unauthenticatedContext().firestore();
+  await assertFails(getDoc(doc(firestore, 'admins/9001')));
+});
+
+test('ordinary GitHub users cannot list admins or read another admin record', async () => {
+  await seedAdmin();
+  const firestore = githubFirestore();
+  await assertFails(getDocs(collection(firestore, 'admins')));
+  await assertFails(getDoc(doc(firestore, 'admins/9001')));
+});
+
+test('an authenticated GitHub user may get only their own admin authorization record', async () => {
+  await seedAdmin();
+  const firestore = githubFirestore(adminIdentity);
+  await assertSucceeds(getDoc(doc(firestore, 'admins/9001')));
+  await assertFails(getDoc(doc(firestore, 'admins/1001')));
+});
+
+test('clients cannot create admin records', async () => {
+  const firestore = githubFirestore(adminIdentity);
+  await assertFails(
+    setDoc(doc(firestore, 'admins/9001'), {
+      githubUserId: '9001',
+      role: 'owner',
+      active: true,
+    }),
+  );
+});
+
+test('clients cannot update or delete admin records', async () => {
+  await seedAdmin();
+  const firestore = githubFirestore(adminIdentity);
+  await assertFails(updateDoc(doc(firestore, 'admins/9001'), { active: false }));
+  await assertFails(deleteDoc(doc(firestore, 'admins/9001')));
+});
+
+test('an inactive admin is not authorized for private admin reads', async () => {
+  await seedAdmin(adminIdentity, { active: false });
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const firestore = githubFirestore(adminIdentity);
+  await assertFails(getDocs(collection(firestore, 'queue')));
+  await assertFails(getDocs(collection(firestore, 'contributors')));
+});
+
+test('an active allowlisted admin can read and list the private queue', async () => {
+  await seedAdmin();
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const firestore = githubFirestore(adminIdentity);
+  await assertSucceeds(getDoc(doc(firestore, 'queue/1_1001')));
+  await assertSucceeds(getDocs(collection(firestore, 'queue')));
+});
+
+test('matching an admin username is insufficient without the matching stable GitHub ID', async () => {
+  await seedAdmin();
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const impersonator = {
+    firebaseUid: 'firebase-impersonator',
+    githubUserId: '8008',
+    githubUsername: adminIdentity.githubUsername,
+  };
+  await assertFails(getDocs(collection(githubFirestore(impersonator), 'queue')));
+});
+
+test('an active admin can read contributor and participation records', async () => {
+  await seedAdmin();
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const firestore = githubFirestore(adminIdentity);
+  await assertSucceeds(getDoc(doc(firestore, 'contributors/1001')));
+  await assertSucceeds(getDocs(collection(firestore, 'contributors')));
+  await assertSucceeds(getDoc(doc(firestore, 'participation/1_1001')));
+  await assertSucceeds(getDocs(collection(firestore, 'participation')));
+});
+
+test('an active admin can read turns but cannot write them', async () => {
+  await seedAdmin();
+  await seedTurn();
+  const firestore = githubFirestore(adminIdentity);
+  await assertSucceeds(getDoc(doc(firestore, 'turns/turn-1')));
+  await assertSucceeds(getDocs(collection(firestore, 'turns')));
+  await assertFails(updateDoc(doc(firestore, 'turns/turn-1'), { status: 'merged' }));
+});
+
+test('an active admin can promote an existing waiting queue entry', async () => {
+  await seedAdmin();
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const firestore = githubFirestore(adminIdentity);
+  await assertSucceeds(
+    updateDoc(doc(firestore, 'queue/1_1001'), {
+      priority: 1,
+      promotedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('an active admin can restore natural order and remove promotedAt', async () => {
+  await seedAdmin();
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const firestore = githubFirestore(adminIdentity);
+  const queueReference = doc(firestore, 'queue/1_1001');
+  await assertSucceeds(
+    updateDoc(queueReference, {
+      priority: 1,
+      promotedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(
+    updateDoc(queueReference, {
+      priority: 0,
+      promotedAt: deleteField(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('ordinary users cannot alter queue priority', async () => {
+  const firestore = githubFirestore();
+  await assertSucceeds(joinBatch(firestore));
+  await assertFails(
+    updateDoc(doc(firestore, 'queue/1_1001'), {
+      priority: 1,
+      promotedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+for (const [description, updates] of [
+  ['GitHub identity', { githubUserId: '2002' }],
+  ['season', { season: 2 }],
+  ['join timestamp', { joinedAt: serverTimestamp() }],
+  ['status', { status: 'active' }],
+  ['unsupported field', { contributionNumber: 42 }],
+]) {
+  test(`an admin cannot change queue ${description}`, async () => {
+    await seedAdmin();
+    await assertSucceeds(joinBatch(githubFirestore()));
+    await assertFails(
+      updateDoc(doc(githubFirestore(adminIdentity), 'queue/1_1001'), {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      }),
+    );
+  });
+}
+
+test('an admin cannot set invalid priority or promotion metadata', async () => {
+  await seedAdmin();
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const queueReference = doc(githubFirestore(adminIdentity), 'queue/1_1001');
+  await assertFails(
+    updateDoc(queueReference, { priority: -1, updatedAt: serverTimestamp() }),
+  );
+  await assertFails(
+    updateDoc(queueReference, { priority: 1, updatedAt: serverTimestamp() }),
+  );
+  await assertFails(
+    updateDoc(queueReference, {
+      priority: 2147483648,
+      promotedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }),
+  );
+});
+
+test('an admin cannot create or delete queue entries', async () => {
+  await seedAdmin();
+  const firestore = githubFirestore(adminIdentity);
+  await assertFails(
+    setDoc(doc(firestore, 'queue/1_2002'), {
+      githubUserId: '2002',
+      season: 1,
+      status: 'waiting',
+      joinedAt: serverTimestamp(),
+      priority: 0,
+      updatedAt: serverTimestamp(),
+    }),
+  );
+  await assertSucceeds(joinBatch(githubFirestore()));
+  await assertFails(deleteDoc(doc(firestore, 'queue/1_1001')));
+});
+
+test('an admin cannot update contributors or participation records', async () => {
+  await seedAdmin();
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const firestore = githubFirestore(adminIdentity);
+  await assertFails(updateDoc(doc(firestore, 'contributors/1001'), { email: 'new@example.test' }));
+  await assertFails(updateDoc(doc(firestore, 'participation/1_1001'), { status: 'active' }));
+});
+
+test('an admin still cannot write public contribution history or site state', async () => {
+  await seedAdmin();
+  const firestore = githubFirestore(adminIdentity);
+  await assertFails(setDoc(doc(firestore, 'contributions/2'), { public: false }));
+  await assertFails(setDoc(doc(firestore, 'site/public'), { public: false }));
 });
 
 test('authenticated clients cannot write public contribution history', async () => {

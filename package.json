@@ -17,6 +17,7 @@
     "firebase:emulators:import": "firebase emulators:start --only auth,firestore,hosting --import=.firebase/emulator-data --export-on-exit=.firebase/emulator-data",
     "firebase:rules:test": "firebase emulators:exec --only firestore \"node --test tests/firestore.rules.test.mjs\"",
     "test:auth-state": "node --experimental-strip-types --test tests/github-identity.test.ts",
+    "test:admin-queue": "node --experimental-strip-types --test tests/admin-queue-logic.test.ts",
     "test:join-validation": "node --experimental-strip-types --test tests/join-validation.test.ts"
   },
   "dependencies": {

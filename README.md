@@ -4,9 +4,11 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #3 adds Firebase GitHub Authentication and the self-service Season 1 join flow. Public contributions beyond this controlled signup flow are not open.
+Milestone #4 adds stable-GitHub-ID admin authorization and private Season 1 queue management. Public
+contributions beyond the controlled signup flow are not open.
 
-The editable PR #000 canvas has intentionally not been designed yet. Admin functionality, queue management, turns, GitHub repository automation, and production deployment remain deferred.
+The editable PR #000 canvas has intentionally not been designed yet. Turn activation, GitHub
+repository automation, notifications, and production deployment remain deferred.
 
 ## Technology
 
@@ -67,6 +69,7 @@ npm run firebase:emulators
 npm run firebase:emulators:export
 npm run firebase:emulators:import
 npm run firebase:rules:test
+npm run test:admin-queue
 ```
 
 The local suite provides Authentication on port 9099, Firestore on 8080, Hosting on 5002, and the
@@ -110,14 +113,64 @@ another season, participation state, contribution number, queue priority, promot
 sort order. Returning users read only their deterministic participation document; the queue and
 numeric queue position remain private.
 
+### Admin authorization and provisioning
+
+`/admin` reuses Firebase GitHub Authentication and is the second intentionally hydrated platform
+route. Authorization requires the stable GitHub provider ID in the Firebase token to match an
+active private `admins/{githubUserId}` document whose role is `owner` or `admin`. Username, email,
+display name, UI state, and environment variables never grant admin access.
+
+Admin records are trusted configuration. Browser clients may get only their own authorization
+document and cannot create, update, delete, or list admin records.
+
+For local emulator testing, first authenticate the intended owner with the mock GitHub provider and
+find that stable provider ID in the Authentication Emulator UI or the matching contributor document
+ID. In the Firestore Emulator UI at `http://localhost:4000`, manually create:
+
+```text
+admins/{githubUserId}
+  githubUserId: "{the same GitHub provider ID}"  (string)
+  role: "owner"                                 (string)
+  active: true                                  (boolean)
+```
+
+An optional `createdAt` timestamp may also be added. Do not add secrets. Before production admin
+use, perform the equivalent manual provisioning in the existing project’s Firestore console after
+determining the owner’s stable authenticated GitHub provider ID. No owner ID belongs in source code,
+and this repository does not provision or deploy the production record.
+
+### Private queue management
+
+After authorization succeeds, the admin interface reads Season 1 queue entries and only the
+corresponding private contributor records. It displays internal effective position, contact email,
+GitHub attribution, join time, status, priority, and optional social link. Search is local and can
+match display name, GitHub username, or contact email. None of this private data is requested before
+authorization or projected publicly.
+
+V1 effective ordering is:
+
+1. `priority` descending
+2. `joinedAt` ascending within equal priority
+
+Ordinary joins start at priority `0`, preserving FIFO order. **Move to top** transactionally assigns
+the selected waiting entry one more than the current highest waiting priority and records
+`promotedAt`. **Restore natural order** resets only that entry to priority `0`, removes
+`promotedAt`, and lets its original `joinedAt` determine its natural position. Effective positions
+are computed in the admin UI and are never stored. The reserved optional `sortOrder` field is not
+used in this milestone.
+
 ### Firestore boundaries
 
 - `contributions/{contributionNumber}` and `site/public` are public-readable projections. Client
   writes are denied.
 - `contributors/**`, `participation/**`, `queue/**`, and `turns/**` are private operational data.
   A GitHub-authenticated user may get their own contributor and Season 1 participation documents
-  and create the initial three-document join transaction. Queue reads and all operational updates,
-  deletes, and list queries remain denied.
+  and create the initial three-document join transaction. Active allowlisted admins may read the
+  private operational collections, but their only browser write is a tightly validated priority
+  update to an existing waiting queue entry. Queue creation/deletion and contributor,
+  participation, turn, history, site-state, and admin writes remain denied.
+- `admins/**` is private trusted authorization configuration. A GitHub-authenticated account may get
+  only its own document; listing and all client writes are denied.
 
 Rules deny every unrecognized path. Composite indexes remain empty until implemented queries prove
 which indexes are actually required.
@@ -129,7 +182,10 @@ The application deliberately separates two ownership areas:
 - `src/platform/**` contains protected navigation, page UI, layouts, status, configuration, services, and types. Most owner-maintained UI is static React/TSX; `PlatformLayout.astro` remains the thin Astro document shell.
 - `src/canvas/**` is the future contributor-editable area. It has designated component directories for Astro, React, Vue, Svelte, and Solid.
 
-Protected Astro routes in `src/pages/**` remain thin and compose the platform shell around React page components. Astro owns routing and static generation; React Router is not used. The interactive Join page is hydrated deliberately, while unrelated protected pages remain static. The homepage renders the canvas-owned `Home.tsx` inside the protected `PlatformLayout.astro`.
+Protected Astro routes in `src/pages/**` remain thin and compose the platform shell around React
+page components. Astro owns routing and static generation; React Router is not used. Only the
+interactive Join and Admin pages are hydrated; unrelated protected pages remain static. The
+homepage renders the canvas-owned `Home.tsx` inside the protected `PlatformLayout.astro`.
 
 ```text
 src/

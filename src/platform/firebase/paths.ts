@@ -1,4 +1,5 @@
 export const FIRESTORE_COLLECTIONS = {
+  admins: 'admins',
   contributors: 'contributors',
   participation: 'participation',
   queue: 'queue',
@@ -39,6 +40,10 @@ export function contributorDocumentId(githubUserId: string): string {
   return assertPathSegment(githubUserId, 'GitHub user ID');
 }
 
+export function adminDocumentId(githubUserId: string): string {
+  return contributorDocumentId(githubUserId);
+}
+
 export function participationDocumentId(season: number, githubUserId: string): string {
   return `${assertSeason(season)}_${contributorDocumentId(githubUserId)}`;
 }
@@ -49,6 +54,10 @@ export function queueDocumentId(season: number, githubUserId: string): string {
 
 export function contributorDocumentPath(githubUserId: string): string {
   return `${FIRESTORE_COLLECTIONS.contributors}/${contributorDocumentId(githubUserId)}`;
+}
+
+export function adminDocumentPath(githubUserId: string): string {
+  return `${FIRESTORE_COLLECTIONS.admins}/${adminDocumentId(githubUserId)}`;
 }
 
 export function participationDocumentPath(season: number, githubUserId: string): string {

@@ -33,6 +33,18 @@ service cloud.firestore {
       return /databases/$(database)/documents/queue/$(seasonOneDocumentId());
     }
 
+    function adminPath() {
+      return /databases/$(database)/documents/admins/$(githubUserId());
+    }
+
+    function isActiveAdmin() {
+      return hasGitHubIdentity()
+        && exists(adminPath())
+        && get(adminPath()).data.githubUserId == githubUserId()
+        && get(adminPath()).data.active == true
+        && (get(adminPath()).data.role == 'owner' || get(adminPath()).data.role == 'admin');
+    }
+
     // A self-service join is valid only when all three documents are new before
     // the request and all three exist after the same atomic transaction.
     function isCompleteNewJoin() {
@@ -140,6 +152,45 @@ service cloud.firestore {
         && data.updatedAt == request.time;
     }
 
+    function validAdminQueuePriorityUpdate() {
+      return resource.data.status == 'waiting'
+        && request.resource.data.keys().hasAll([
+          'githubUserId',
+          'season',
+          'status',
+          'joinedAt',
+          'priority',
+          'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'githubUserId',
+          'season',
+          'status',
+          'joinedAt',
+          'priority',
+          'sortOrder',
+          'promotedAt',
+          'updatedAt'
+        ])
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['priority', 'promotedAt', 'updatedAt'])
+        && request.resource.data.githubUserId == resource.data.githubUserId
+        && request.resource.data.season == resource.data.season
+        && request.resource.data.season == 1
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.joinedAt == resource.data.joinedAt
+        && request.resource.data.priority is int
+        && request.resource.data.priority >= 0
+        && request.resource.data.priority <= 2147483647
+        && request.resource.data.updatedAt is timestamp
+        && request.resource.data.updatedAt == request.time
+        && ((request.resource.data.priority == 0
+            && !('promotedAt' in request.resource.data))
+          || (request.resource.data.priority > resource.data.priority
+            && request.resource.data.promotedAt is timestamp
+            && request.resource.data.promotedAt == request.time));
+    }
+
     match /contributions/{contributionNumber} {
       allow read: if true;
       allow write: if false;
@@ -150,35 +201,48 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /admins/{adminGithubUserId} {
+      // This narrow self-get supports the authorization UI. Admin configuration is trusted and
+      // can only be provisioned manually through Firebase Console or the local Emulator UI.
+      allow get: if hasGitHubIdentity() && adminGithubUserId == githubUserId();
+      allow list, create, update, delete: if false;
+    }
+
     match /contributors/{githubUserIdDocument} {
-      allow get: if hasGitHubIdentity() && githubUserIdDocument == githubUserId();
+      allow get: if (hasGitHubIdentity() && githubUserIdDocument == githubUserId())
+        || isActiveAdmin();
+      allow list: if isActiveAdmin();
       allow create: if hasGitHubIdentity()
         && githubUserIdDocument == githubUserId()
         && isCompleteNewJoin()
         && validContributor(request.resource.data);
-      allow list, update, delete: if false;
+      allow update, delete: if false;
     }
 
     match /participation/{participationDocument} {
-      allow get: if hasGitHubIdentity() && participationDocument == seasonOneDocumentId();
+      allow get: if (hasGitHubIdentity() && participationDocument == seasonOneDocumentId())
+        || isActiveAdmin();
+      allow list: if isActiveAdmin();
       allow create: if hasGitHubIdentity()
         && participationDocument == seasonOneDocumentId()
         && isCompleteNewJoin()
         && validParticipation(request.resource.data);
-      allow list, update, delete: if false;
+      allow update, delete: if false;
     }
 
     match /queue/{queueDocument} {
-      allow get, list: if false;
+      allow get, list: if isActiveAdmin();
       allow create: if hasGitHubIdentity()
         && queueDocument == seasonOneDocumentId()
         && isCompleteNewJoin()
         && validQueueEntry(request.resource.data);
-      allow update, delete: if false;
+      allow update: if isActiveAdmin() && validAdminQueuePriorityUpdate();
+      allow delete: if false;
     }
 
     match /turns/{document=**} {
-      allow read, write: if false;
+      allow read: if isActiveAdmin();
+      allow write: if false;
     }
 
     match /{document=**} {
