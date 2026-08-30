@@ -9,6 +9,7 @@ export const FIRESTORE_COLLECTIONS = {
 } as const;
 
 export const PUBLIC_SITE_DOCUMENT_ID = 'public' as const;
+export const PRIVATE_SITE_DOCUMENT_ID = 'admin' as const;
 
 function assertPathSegment(value: string, label: string): string {
   const normalized = value.trim();
@@ -78,3 +79,5 @@ export function contributionDocumentPath(contributionNumber: number): string {
 
 export const PUBLIC_SITE_DOCUMENT_PATH =
   `${FIRESTORE_COLLECTIONS.site}/${PUBLIC_SITE_DOCUMENT_ID}` as const;
+export const PRIVATE_SITE_DOCUMENT_PATH =
+  `${FIRESTORE_COLLECTIONS.site}/${PRIVATE_SITE_DOCUMENT_ID}` as const;

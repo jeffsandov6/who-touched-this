@@ -18,6 +18,10 @@ export function sortByEffectiveQueueOrder<T extends QueueOrderable>(entries: rea
   );
 }
 
+export function getEffectiveWaitingQueue<T extends QueueSearchable>(entries: readonly T[]): T[] {
+  return sortByEffectiveQueueOrder(entries.filter((entry) => entry.status === 'waiting'));
+}
+
 export function filterQueueEntries<T extends QueueSearchable>(
   entries: readonly T[],
   searchTerm: string,

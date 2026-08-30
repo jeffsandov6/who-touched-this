@@ -10,6 +10,7 @@ import {
 } from '../firebase/admin-queue';
 import {
   filterQueueEntries,
+  getEffectiveWaitingQueue,
   sortByEffectiveQueueOrder,
 } from '../firebase/admin-queue-logic';
 import {
@@ -24,6 +25,12 @@ import {
   type GitHubIdentity,
 } from '../firebase/github-identity';
 import { QUEUE_STATUSES, type AdminRole } from '../firebase/models';
+import {
+  loadAdminCurrentTurn,
+  startTurn,
+  type AdminCurrentTurn,
+} from '../firebase/turns';
+import Countdown from '../components/Countdown';
 
 type AccessState = 'checking' | 'signed-out' | 'denied' | 'authorized';
 
@@ -40,28 +47,44 @@ function formatJoinedAt(date: Date): string {
   }).format(date);
 }
 
+function defaultDeadlineValue(): string {
+  const deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000);
+  const localTime = new Date(deadline.getTime() - deadline.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
 export default function AdminPage() {
   const requestSequence = useRef(0);
   const [accessState, setAccessState] = useState<AccessState>('checking');
   const [identity, setIdentity] = useState<GitHubIdentity | null>(null);
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [queue, setQueue] = useState<AdminQueueItem[]>([]);
+  const [currentTurn, setCurrentTurn] = useState<AdminCurrentTurn | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [deadline, setDeadline] = useState(defaultDeadlineValue);
+  const [turnBusy, setTurnBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  async function refreshQueue(sequence = requestSequence.current) {
+  async function refreshAdminData(sequence = requestSequence.current) {
     setQueueLoading(true);
     try {
-      const nextQueue = await loadSeasonOneAdminQueue();
-      if (sequence === requestSequence.current) setQueue(nextQueue);
+      const [nextQueue, nextTurn] = await Promise.all([
+        loadSeasonOneAdminQueue(),
+        loadAdminCurrentTurn(),
+      ]);
+      if (sequence === requestSequence.current) {
+        setQueue(nextQueue);
+        setCurrentTurn(nextTurn);
+      }
     } catch (error) {
       if (sequence === requestSequence.current) {
         setQueue([]);
-        setErrorMessage(safeErrorMessage(error, 'The private queue could not be loaded.'));
+        setCurrentTurn(null);
+        setErrorMessage(safeErrorMessage(error, 'Admin turn data could not be loaded.'));
       }
     } finally {
       if (sequence === requestSequence.current) setQueueLoading(false);
@@ -73,6 +96,7 @@ export default function AdminPage() {
     setIdentity((current) => reconcileGitHubIdentity(current, nextIdentity));
     setAdminRole(null);
     setQueue([]);
+    setCurrentTurn(null);
     setQueueLoading(false);
     setAccessState('checking');
     setErrorMessage(null);
@@ -88,7 +112,7 @@ export default function AdminPage() {
 
       setAdminRole(authorization.role);
       setAccessState('authorized');
-      await refreshQueue(sequence);
+      await refreshAdminData(sequence);
     } catch (error) {
       if (sequence !== requestSequence.current) return;
       setAccessState('denied');
@@ -110,6 +134,7 @@ export default function AdminPage() {
               setIdentity(null);
               setAdminRole(null);
               setQueue([]);
+              setCurrentTurn(null);
               setAccessState('signed-out');
               setErrorMessage(null);
             }
@@ -125,6 +150,7 @@ export default function AdminPage() {
               setIdentity(null);
               setAdminRole(null);
               setQueue([]);
+              setCurrentTurn(null);
               setAccessState('denied');
               setErrorMessage(null);
             }
@@ -143,10 +169,24 @@ export default function AdminPage() {
     };
   }, []);
 
-  const orderedQueue = useMemo(() => sortByEffectiveQueueOrder(queue), [queue]);
+  const waitingQueue = useMemo(() => getEffectiveWaitingQueue(queue), [queue]);
+  const orderedQueue = useMemo(() => {
+    const nonWaiting = sortByEffectiveQueueOrder(
+      queue.filter((entry) => entry.status !== 'waiting'),
+    );
+    return [...waitingQueue, ...nonWaiting];
+  }, [queue, waitingQueue]);
   const positionedQueue = useMemo(
-    () => orderedQueue.map((entry, index) => ({ ...entry, effectivePosition: index + 1 })),
-    [orderedQueue],
+    () => {
+      const waitingPositions = new Map(
+        waitingQueue.map((entry, index) => [entry.githubUserId, index + 1]),
+      );
+      return orderedQueue.map((entry) => ({
+        ...entry,
+        effectivePosition: waitingPositions.get(entry.githubUserId) ?? null,
+      }));
+    },
+    [orderedQueue, waitingQueue],
   );
   const visibleQueue = useMemo(
     () => filterQueueEntries(positionedQueue, searchTerm, statusFilter),
@@ -171,6 +211,7 @@ export default function AdminPage() {
     setErrorMessage(null);
     ++requestSequence.current;
     setQueue([]);
+    setCurrentTurn(null);
     try {
       await signOutOfPlatform();
     } catch {
@@ -189,11 +230,38 @@ export default function AdminPage() {
       } else {
         await promoteWaitingQueueEntry(entry.githubUserId);
       }
-      await refreshQueue();
+      await refreshAdminData();
     } catch (error) {
       setErrorMessage(safeErrorMessage(error, 'The queue priority could not be changed.'));
     } finally {
       setBusyEntryId(null);
+    }
+  }
+
+  async function handleStartTurn() {
+    const selected = waitingQueue[0];
+    if (!selected || !identity) return;
+
+    const dueAt = new Date(deadline);
+    if (!Number.isFinite(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
+      setErrorMessage('Choose a deadline in the future.');
+      return;
+    }
+    if (!window.confirm(`Start ${selected.displayName}'s turn with this deadline?`)) return;
+
+    setTurnBusy(true);
+    setErrorMessage(null);
+    try {
+      await startTurn({
+        adminGithubUserId: identity.githubUserId,
+        selectedGithubUserId: selected.githubUserId,
+        dueAt,
+      });
+      await refreshAdminData();
+    } catch (error) {
+      setErrorMessage(safeErrorMessage(error, 'The turn could not be started.'));
+    } finally {
+      setTurnBusy(false);
     }
   }
 
@@ -240,8 +308,8 @@ export default function AdminPage() {
               <button
                 className="button button-secondary"
                 type="button"
-                onClick={() => void refreshQueue()}
-                disabled={queueLoading || busyEntryId !== null}
+                onClick={() => void refreshAdminData()}
+                disabled={queueLoading || busyEntryId !== null || turnBusy}
               >
                 {queueLoading ? 'Refreshing…' : 'Refresh'}
               </button>
@@ -255,6 +323,86 @@ export default function AdminPage() {
               </button>
             </div>
           </div>
+
+          <section className="admin-current-turn" aria-labelledby="current-turn-heading">
+            <h2 id="current-turn-heading">Current turn</h2>
+            {currentTurn ? (
+              <dl className="admin-current-turn-details">
+                <div>
+                  <dt>Contributor</dt>
+                  <dd><strong>{currentTurn.displayName}</strong></dd>
+                </div>
+                <div>
+                  <dt>GitHub</dt>
+                  <dd>
+                    <a href={currentTurn.githubProfileUrl} rel="noreferrer">
+                      @{currentTurn.githubUsername}
+                    </a>
+                  </dd>
+                </div>
+                <div>
+                  <dt>Private contact</dt>
+                  <dd><a href={`mailto:${currentTurn.email}`}>{currentTurn.email}</a></dd>
+                </div>
+                <div>
+                  <dt>Target contribution</dt>
+                  <dd>#{currentTurn.targetContributionNumber}</dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>{currentTurn.status}</dd>
+                </div>
+                <div>
+                  <dt>Started</dt>
+                  <dd>{formatJoinedAt(currentTurn.startedAt)}</dd>
+                </div>
+                <div>
+                  <dt>Deadline</dt>
+                  <dd>{formatJoinedAt(currentTurn.dueAt)}</dd>
+                </div>
+                <div>
+                  <dt>Time remaining</dt>
+                  <dd><Countdown dueAtMillis={currentTurn.dueAt.getTime()} /></dd>
+                </div>
+              </dl>
+            ) : waitingQueue[0] ? (
+              <div className="admin-start-turn">
+                <p>
+                  Next waiting contributor: <strong>{waitingQueue[0].displayName}</strong>{' '}
+                  (<a href={waitingQueue[0].githubProfileUrl} rel="noreferrer">
+                    @{waitingQueue[0].githubUsername}
+                  </a>)
+                </p>
+                <p>
+                  Private contact: <a href={`mailto:${waitingQueue[0].email}`}>
+                    {waitingQueue[0].email}
+                  </a>
+                </p>
+                <div className="form-field">
+                  <label htmlFor="turn-deadline">Turn deadline</label>
+                  <input
+                    id="turn-deadline"
+                    type="datetime-local"
+                    value={deadline}
+                    onChange={(event) => setDeadline(event.target.value)}
+                    disabled={turnBusy}
+                    required
+                  />
+                  <small>The absolute deadline is editable. The public countdown derives from it.</small>
+                </div>
+                <button
+                  className="button"
+                  type="button"
+                  onClick={() => void handleStartTurn()}
+                  disabled={turnBusy || queueLoading}
+                >
+                  {turnBusy ? 'Starting turn…' : 'Start turn'}
+                </button>
+              </div>
+            ) : (
+              <p className="empty-state">No active turn and no waiting contributors.</p>
+            )}
+          </section>
 
           <div className="admin-filters" aria-label="Queue filters">
             <div className="form-field">
@@ -309,7 +457,7 @@ export default function AdminPage() {
                 <tbody>
                   {visibleQueue.map((entry) => (
                     <tr key={entry.githubUserId}>
-                      <td>{entry.effectivePosition}</td>
+                      <td>{entry.effectivePosition ?? '—'}</td>
                       <td>
                         <strong>{entry.displayName}</strong>
                         {entry.socialUrl && (
