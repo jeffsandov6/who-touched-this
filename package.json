@@ -3,12 +3,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.12.0", "npm": ">=9.6.5" },
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=9.6.5"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "firebase:emulators": "firebase emulators:start --only auth,firestore,hosting",
+    "firebase:emulators:export": "firebase emulators:export .firebase/emulator-data --force",
+    "firebase:emulators:import": "firebase emulators:start --only auth,firestore,hosting --import=.firebase/emulator-data --export-on-exit=.firebase/emulator-data",
+    "firebase:rules:test": "firebase emulators:exec --only firestore \"node --test tests/firestore.rules.test.mjs\""
   },
   "dependencies": {
     "@astrojs/react": "6.0.4",
@@ -16,6 +23,7 @@
     "@astrojs/svelte": "9.0.1",
     "@astrojs/vue": "7.0.2",
     "astro": "7.2.9",
+    "firebase": "12.18.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "solid-js": "1.9.15",
@@ -24,8 +32,10 @@
   },
   "devDependencies": {
     "@astrojs/check": "0.9.10",
+    "@firebase/rules-unit-testing": "5.0.2",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
+    "firebase-tools": "15.28.2",
     "typescript": "6.0.3"
   }
 }

@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // These collections are deliberate public projections. Only trusted server-side
+    // infrastructure may create or update them in a future milestone.
+    match /contributions/{contributionNumber} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /site/public {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Operational data stays private. Future contributor and admin authorization
+    // will be added only after the corresponding trusted identity flows exist.
+    match /contributors/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /participation/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /queue/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /turns/{document=**} {
+      allow read, write: if false;
+    }
+
+    // Deny every path not explicitly made public above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
