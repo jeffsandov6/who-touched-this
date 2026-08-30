@@ -18,7 +18,8 @@
     "firebase:rules:test": "firebase emulators:exec --only firestore \"node --test tests/firestore.rules.test.mjs\"",
     "test:auth-state": "node --experimental-strip-types --test tests/github-identity.test.ts",
     "test:admin-queue": "node --experimental-strip-types --test tests/admin-queue-logic.test.ts",
-    "test:join-validation": "node --experimental-strip-types --test tests/join-validation.test.ts"
+    "test:join-validation": "node --experimental-strip-types --test tests/join-validation.test.ts",
+    "test:turn-state": "node --experimental-strip-types --test tests/turn-state.test.ts"
   },
   "dependencies": {
     "@astrojs/react": "6.0.4",

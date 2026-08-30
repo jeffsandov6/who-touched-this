@@ -28,7 +28,7 @@ const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="platform-header">
       <Navigation currentPath={Astro.url.pathname} />
-      <SiteStatus />
+      <SiteStatus client:load />
     </header>
     <main id="main-content"><slot /></main>
   </body>

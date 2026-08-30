@@ -4,10 +4,10 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #4 adds stable-GitHub-ID admin authorization and private Season 1 queue management. Public
-contributions beyond the controlled signup flow are not open.
+Milestone #5 adds atomic turn activation, a public-safe current-contributor projection, and a live
+browser countdown. Public contributions beyond the controlled signup flow are not open.
 
-The editable PR #000 canvas has intentionally not been designed yet. Turn activation, GitHub
+The editable PR #000 canvas has intentionally not been designed yet. Turn completion, GitHub
 repository automation, notifications, and production deployment remain deferred.
 
 ## Technology
@@ -70,6 +70,7 @@ npm run firebase:emulators:export
 npm run firebase:emulators:import
 npm run firebase:rules:test
 npm run test:admin-queue
+npm run test:turn-state
 ```
 
 The local suite provides Authentication on port 9099, Firestore on 8080, Hosting on 5002, and the
@@ -157,20 +158,62 @@ the selected waiting entry one more than the current highest waiting priority an
 `promotedAt`. **Restore natural order** resets only that entry to priority `0`, removes
 `promotedAt`, and lets its original `joinedAt` determine its natural position. Effective positions
 are computed in the admin UI and are never stored. The reserved optional `sortOrder` field is not
-used in this milestone.
+used in the active ordering algorithm. Active entries are excluded from effective waiting positions.
+
+### Turn activation and public status
+
+Only the effective first waiting contributor can be started from `/admin`. The admin chooses an
+editable absolute deadline. A Firestore transaction verifies the admin, contributor, participation,
+queue, deadline, and absence of another active turn before atomically:
+
+- creating a unique private `turns/{turnId}` document
+- changing that contributor's participation and queue status from `waiting` to `active`
+- setting the private authoritative active-turn lock in `site/admin`
+- projecting public-safe current-turn data into `site/public`
+
+A turn's `targetContributionNumber` is `currentVersion + 1`, but it is only a proposed target. Turn
+activation neither increments `currentVersion` nor creates `contributions/{number}`. An expired or
+failed turn therefore does not consume a permanent contribution number; permanent numbering happens
+only after an accepted merge in a later milestone.
+
+`site/admin` guarantees at most one active turn and is readable only by active admins. `site/public`
+contains only current/total version counts, public contributor presentation data, turn status, target
+number, deadline, and update timestamp. It never contains email, Firebase UID, stable provider ID,
+queue position, priority, promotion metadata, or admin details.
+
+The protected shell reads only `site/public`. If it is absent or malformed, the UI safely shows
+Version #000 and no active turn. When active, a small hydrated status island derives time remaining
+from the absolute `dueAt` timestamp once per second. It never writes countdown values or changes an
+expired turn automatically.
+
+For a deliberate initial document, create `site/public` manually with `currentVersion: 0`,
+`totalContributions: 0`, `turnStatus: "none"`, null contributor/target/deadline fields, and an
+`updatedAt` timestamp. This is optional in a clean emulator because the activation transaction can
+create the first public state. Leave `site/admin` absent until activation. Production initialization
+is also manual and is not performed by this repository.
+
+Expiration/cancellation is intentionally not implemented. To reset an emulator-only active turn,
+stop application writes and use the Emulator UI to delete the active `turns/{turnId}` and
+`site/admin` documents, return the selected `participation/1_{githubUserId}` and
+`queue/1_{githubUserId}` statuses to `waiting`, and either delete `site/public` or restore the
+inactive initial shape above. Do not use this manual reset procedure against production data.
 
 ### Firestore boundaries
 
-- `contributions/{contributionNumber}` and `site/public` are public-readable projections. Client
-  writes are denied.
+- `contributions/{contributionNumber}` and `site/public` are public-readable projections. Public and
+  ordinary authenticated writes are denied; an active admin may write `site/public` only inside a
+  rules-validated complete activation transaction.
 - `contributors/**`, `participation/**`, `queue/**`, and `turns/**` are private operational data.
   A GitHub-authenticated user may get their own contributor and Season 1 participation documents
   and create the initial three-document join transaction. Active allowlisted admins may read the
-  private operational collections, but their only browser write is a tightly validated priority
-  update to an existing waiting queue entry. Queue creation/deletion and contributor,
-  participation, turn, history, site-state, and admin writes remain denied.
+  private operational collections. Admin browser writes are limited to queue promotion/restoration
+  and the exact five-document turn-activation transaction. Queue creation/deletion, contributor
+  mutation, arbitrary participation/queue transitions, turn mutation/deletion, history writes, and
+  admin writes remain denied.
 - `admins/**` is private trusted authorization configuration. A GitHub-authenticated account may get
   only its own document; listing and all client writes are denied.
+- `site/admin` is the private active-turn singleton. Only active admins may read it, and it can be
+  written only as part of a complete activation.
 
 Rules deny every unrecognized path. Composite indexes remain empty until implemented queries prove
 which indexes are actually required.
@@ -183,8 +226,9 @@ The application deliberately separates two ownership areas:
 - `src/canvas/**` is the future contributor-editable area. It has designated component directories for Astro, React, Vue, Svelte, and Solid.
 
 Protected Astro routes in `src/pages/**` remain thin and compose the platform shell around React
-page components. Astro owns routing and static generation; React Router is not used. Only the
-interactive Join and Admin pages are hydrated; unrelated protected pages remain static. The
+page components. Astro owns routing and static generation; React Router is not used. Join and Admin
+are hydrated for their interactive workflows, and the small SiteStatus island is hydrated for its
+public Firestore subscription and local countdown. Unrelated page content remains static. The
 homepage renders the canvas-owned `Home.tsx` inside the protected `PlatformLayout.astro`.
 
 ```text

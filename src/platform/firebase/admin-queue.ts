@@ -47,7 +47,10 @@ function isQueueStatus(value: unknown): value is QueueStatus {
   return typeof value === 'string' && (QUEUE_STATUSES as readonly string[]).includes(value);
 }
 
-function parseQueueEntry(data: Record<string, unknown>, expectedGithubUserId: string): QueueEntry {
+export function parseAdminQueueEntry(
+  data: Record<string, unknown>,
+  expectedGithubUserId: string,
+): QueueEntry {
   if (
     data.githubUserId !== expectedGithubUserId ||
     data.season !== CURRENT_SEASON ||
@@ -64,7 +67,7 @@ function parseQueueEntry(data: Record<string, unknown>, expectedGithubUserId: st
   return data as unknown as QueueEntry;
 }
 
-function parseContributor(
+export function parseAdminContributor(
   data: Record<string, unknown>,
   expectedGithubUserId: string,
 ): Pick<
@@ -125,14 +128,14 @@ export async function loadSeasonOneAdminQueue(): Promise<AdminQueueItem[]> {
           throw new AdminServiceError('A queue entry has an invalid identity.');
         }
 
-        const queueEntry = parseQueueEntry(queueSnapshotDocument.data(), githubUserId);
+        const queueEntry = parseAdminQueueEntry(queueSnapshotDocument.data(), githubUserId);
         const contributorSnapshot = await getDoc(
           doc(firestore, contributorDocumentPath(githubUserId)),
         );
         if (!contributorSnapshot.exists()) {
           throw new AdminServiceError('A queue entry is missing its contributor record.');
         }
-        const contributor = parseContributor(contributorSnapshot.data(), githubUserId);
+        const contributor = parseAdminContributor(contributorSnapshot.data(), githubUserId);
 
         return {
           githubUserId,
@@ -189,7 +192,7 @@ export async function promoteWaitingQueueEntry(githubUserId: string): Promise<vo
         if (typeof entryGithubUserId !== 'string') {
           throw new AdminServiceError('A queue entry has an invalid identity.');
         }
-        const entry = parseQueueEntry(snapshot.data(), entryGithubUserId);
+        const entry = parseAdminQueueEntry(snapshot.data(), entryGithubUserId);
         if (entry.status !== 'waiting') continue;
 
         highestPriority = Math.max(highestPriority, entry.priority);
@@ -227,7 +230,7 @@ export async function restoreWaitingQueueEntry(githubUserId: string): Promise<vo
       if (!snapshot.exists()) {
         throw new AdminServiceError('The queue entry no longer exists.');
       }
-      const entry = parseQueueEntry(snapshot.data(), githubUserId);
+      const entry = parseAdminQueueEntry(snapshot.data(), githubUserId);
       if (entry.status !== 'waiting') {
         throw new AdminServiceError('Only a waiting queue entry can be restored.');
       }

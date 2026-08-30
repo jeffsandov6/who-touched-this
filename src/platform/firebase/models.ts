@@ -46,10 +46,8 @@ export const TURN_STATUSES = [
 export type TurnStatus = (typeof TURN_STATUSES)[number];
 
 export const PUBLIC_TURN_STATUSES = [
-  'no_active_turn',
+  'none',
   'active',
-  'submitted',
-  'under_review',
 ] as const;
 
 export type PublicTurnStatus = (typeof PUBLIC_TURN_STATUSES)[number];
@@ -95,8 +93,10 @@ export interface QueueEntry {
 /** Private: turns/{turnId} */
 export interface TurnRecord {
   githubUserId: string;
-  contributionNumber: number;
+  season: number;
   status: TurnStatus;
+  /** Proposed next contribution number. It is not consumed until a later accepted merge. */
+  targetContributionNumber: number;
   startedAt: Timestamp;
   dueAt: Timestamp;
   submittedAt?: Timestamp;
@@ -125,8 +125,6 @@ export interface PublicContributionRecord {
 }
 
 export interface PublicCurrentContributor {
-  contributionNumber: number;
-  githubUserId: string;
   githubUsername: string;
   displayName: string;
 }
@@ -134,9 +132,16 @@ export interface PublicCurrentContributor {
 /** Public projection: site/public. Never add queue, contact, or admin-only fields. */
 export interface PublicSiteState {
   currentVersion: number;
-  totalAcceptedContributions: number;
+  totalContributions: number;
   currentContributor: PublicCurrentContributor | null;
-  currentTurnStatus: PublicTurnStatus;
+  turnStatus: PublicTurnStatus;
+  targetContributionNumber: number | null;
   dueAt: Timestamp | null;
+  updatedAt: Timestamp;
+}
+
+/** Private singleton: site/admin. This is the authoritative active-turn lock. */
+export interface PrivateSiteState {
+  activeTurnId: string | null;
   updatedAt: Timestamp;
 }

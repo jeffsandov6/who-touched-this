@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   filterQueueEntries,
+  getEffectiveWaitingQueue,
   sortByEffectiveQueueOrder,
   type QueueSearchable,
 } from '../src/platform/firebase/admin-queue-logic.ts';
@@ -64,4 +65,13 @@ test('search and status filtering preserve input ordering and do not mutate entr
     'second',
   ]);
   assert.deepEqual(ordered, before);
+});
+
+test('effective waiting queue excludes active entries', () => {
+  const active = { ...entry('active-first', 50, 10), status: 'active' };
+  const waiting = entry('waiting', 100);
+  assert.deepEqual(
+    getEffectiveWaitingQueue([active, waiting]).map((item) => item.githubUsername),
+    ['waiting'],
+  );
 });
