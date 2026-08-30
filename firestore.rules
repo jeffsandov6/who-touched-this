@@ -2,8 +2,144 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // These collections are deliberate public projections. Only trusted server-side
-    // infrastructure may create or update them in a future milestone.
+    function hasGitHubIdentity() {
+      return request.auth != null
+        && request.auth.token.firebase is map
+        && request.auth.token.firebase.identities is map
+        && request.auth.token.firebase.identities.keys().hasAll(['github.com'])
+        && request.auth.token.firebase.identities['github.com'] is list
+        && request.auth.token.firebase.identities['github.com'].size() == 1
+        && request.auth.token.firebase.identities['github.com'][0] is string
+        && request.auth.token.firebase.identities['github.com'][0].matches('^[0-9]+$');
+    }
+
+    function githubUserId() {
+      return request.auth.token.firebase.identities['github.com'][0];
+    }
+
+    function seasonOneDocumentId() {
+      return '1_' + githubUserId();
+    }
+
+    function contributorPath() {
+      return /databases/$(database)/documents/contributors/$(githubUserId());
+    }
+
+    function participationPath() {
+      return /databases/$(database)/documents/participation/$(seasonOneDocumentId());
+    }
+
+    function queuePath() {
+      return /databases/$(database)/documents/queue/$(seasonOneDocumentId());
+    }
+
+    // A self-service join is valid only when all three documents are new before
+    // the request and all three exist after the same atomic transaction.
+    function isCompleteNewJoin() {
+      return !exists(contributorPath())
+        && !exists(participationPath())
+        && !exists(queuePath())
+        && existsAfter(contributorPath())
+        && existsAfter(participationPath())
+        && existsAfter(queuePath());
+    }
+
+    function hasJoinTimestamps(data) {
+      return data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.createdAt == request.time
+        && data.updatedAt == request.time;
+    }
+
+    function validContributor(data) {
+      return data.keys().hasAll([
+          'firebaseUid',
+          'githubUserId',
+          'githubUsername',
+          'displayName',
+          'email',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'firebaseUid',
+          'githubUserId',
+          'githubUsername',
+          'displayName',
+          'email',
+          'socialUrl',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.firebaseUid is string
+        && data.firebaseUid == request.auth.uid
+        && data.githubUserId is string
+        && data.githubUserId == githubUserId()
+        // Username is presentation metadata from sign-in. It is never authorization.
+        && data.githubUsername is string
+        && data.githubUsername.size() >= 1
+        && data.githubUsername.size() <= 39
+        && data.githubUsername.matches('^[A-Za-z0-9-]+$')
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 50
+        // Stored display names must already be trimmed and nonblank.
+        && data.displayName.matches('^\\S(.*\\S)?$')
+        && data.email is string
+        && data.email.size() >= 3
+        && data.email.size() <= 254
+        && data.email.matches('^[^@ ]+@[^@ ]+\\.[^@ ]+$')
+        && (!('socialUrl' in data)
+          || (data.socialUrl is string
+            && data.socialUrl.size() >= 1
+            && data.socialUrl.size() <= 2048
+            // The client performs fuller URL parsing. Rules enforce the durable normalized shape,
+            // a dotted hostname, and no credentials in the authority section.
+            && data.socialUrl.matches('^https?://[A-Za-z0-9-]+(\\.[A-Za-z0-9-]+)+(:[0-9]{1,5})?([/?#][^ ]*)?$')))
+        && hasJoinTimestamps(data);
+    }
+
+    function validParticipation(data) {
+      return data.keys().hasAll(['githubUserId', 'season', 'status', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['githubUserId', 'season', 'status', 'createdAt', 'updatedAt'])
+        && data.githubUserId is string
+        && data.githubUserId == githubUserId()
+        && data.season is int
+        && data.season == 1
+        && data.status == 'waiting'
+        && hasJoinTimestamps(data);
+    }
+
+    function validQueueEntry(data) {
+      return data.keys().hasAll([
+          'githubUserId',
+          'season',
+          'status',
+          'joinedAt',
+          'priority',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'githubUserId',
+          'season',
+          'status',
+          'joinedAt',
+          'priority',
+          'updatedAt'
+        ])
+        && data.githubUserId is string
+        && data.githubUserId == githubUserId()
+        && data.season is int
+        && data.season == 1
+        && data.status == 'waiting'
+        && data.priority is int
+        && data.priority == 0
+        && data.joinedAt is timestamp
+        && data.updatedAt is timestamp
+        && data.joinedAt == request.time
+        && data.updatedAt == request.time;
+    }
+
     match /contributions/{contributionNumber} {
       allow read: if true;
       allow write: if false;
@@ -14,25 +150,37 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Operational data stays private. Future contributor and admin authorization
-    // will be added only after the corresponding trusted identity flows exist.
-    match /contributors/{document=**} {
-      allow read, write: if false;
+    match /contributors/{githubUserIdDocument} {
+      allow get: if hasGitHubIdentity() && githubUserIdDocument == githubUserId();
+      allow create: if hasGitHubIdentity()
+        && githubUserIdDocument == githubUserId()
+        && isCompleteNewJoin()
+        && validContributor(request.resource.data);
+      allow list, update, delete: if false;
     }
 
-    match /participation/{document=**} {
-      allow read, write: if false;
+    match /participation/{participationDocument} {
+      allow get: if hasGitHubIdentity() && participationDocument == seasonOneDocumentId();
+      allow create: if hasGitHubIdentity()
+        && participationDocument == seasonOneDocumentId()
+        && isCompleteNewJoin()
+        && validParticipation(request.resource.data);
+      allow list, update, delete: if false;
     }
 
-    match /queue/{document=**} {
-      allow read, write: if false;
+    match /queue/{queueDocument} {
+      allow get, list: if false;
+      allow create: if hasGitHubIdentity()
+        && queueDocument == seasonOneDocumentId()
+        && isCompleteNewJoin()
+        && validQueueEntry(request.resource.data);
+      allow update, delete: if false;
     }
 
     match /turns/{document=**} {
       allow read, write: if false;
     }
 
-    // Deny every path not explicitly made public above.
     match /{document=**} {
       allow read, write: if false;
     }

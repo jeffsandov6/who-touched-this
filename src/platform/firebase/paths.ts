@@ -27,15 +27,23 @@ function assertContributionNumber(contributionNumber: number): number {
   return contributionNumber;
 }
 
+function assertSeason(season: number): number {
+  if (!Number.isSafeInteger(season) || season < 1) {
+    throw new Error('Season must be a positive safe integer.');
+  }
+
+  return season;
+}
+
 export function contributorDocumentId(githubUserId: string): string {
   return assertPathSegment(githubUserId, 'GitHub user ID');
 }
 
-export function participationDocumentId(season: string, githubUserId: string): string {
-  return `${assertPathSegment(season, 'Season')}_${contributorDocumentId(githubUserId)}`;
+export function participationDocumentId(season: number, githubUserId: string): string {
+  return `${assertSeason(season)}_${contributorDocumentId(githubUserId)}`;
 }
 
-export function queueDocumentId(season: string, githubUserId: string): string {
+export function queueDocumentId(season: number, githubUserId: string): string {
   return participationDocumentId(season, githubUserId);
 }
 
@@ -43,11 +51,11 @@ export function contributorDocumentPath(githubUserId: string): string {
   return `${FIRESTORE_COLLECTIONS.contributors}/${contributorDocumentId(githubUserId)}`;
 }
 
-export function participationDocumentPath(season: string, githubUserId: string): string {
+export function participationDocumentPath(season: number, githubUserId: string): string {
   return `${FIRESTORE_COLLECTIONS.participation}/${participationDocumentId(season, githubUserId)}`;
 }
 
-export function queueDocumentPath(season: string, githubUserId: string): string {
+export function queueDocumentPath(season: number, githubUserId: string): string {
   return `${FIRESTORE_COLLECTIONS.queue}/${queueDocumentId(season, githubUserId)}`;
 }
 

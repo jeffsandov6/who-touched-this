@@ -1,5 +1,13 @@
 import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
-import { getFirestore, type Firestore } from 'firebase/firestore';
+
+type FirebaseEmulatorService = 'auth' | 'firestore';
+
+const emulatorConnectionState = globalThis as typeof globalThis & {
+  __wttFirebaseEmulators?: {
+    auth: boolean;
+    firestore: boolean;
+  };
+};
 
 const requiredConfig = {
   apiKey: 'PUBLIC_FIREBASE_API_KEY',
@@ -26,13 +34,31 @@ function getFirebaseOptions(): FirebaseOptions {
   };
 }
 
+export function useFirebaseEmulators(): boolean {
+  return import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true';
+}
+
+function getEmulatorConnectionState() {
+  return (emulatorConnectionState.__wttFirebaseEmulators ??= {
+    auth: false,
+    firestore: false,
+  });
+}
+
 /** Lazily returns the default Firebase app, initializing it at most once. */
 export function getFirebaseApp(): FirebaseApp {
   const defaultApp = getApps().find((app) => app.name === '[DEFAULT]');
   return defaultApp ?? initializeApp(getFirebaseOptions());
 }
 
-/** Lazily returns Firestore. Importing this module does not initialize Firebase or make requests. */
-export function getPlatformFirestore(): Firestore {
-  return getFirestore(getFirebaseApp());
+export function connectFirebaseEmulatorOnce(
+  service: FirebaseEmulatorService,
+  connect: () => void,
+): void {
+  const connectionState = getEmulatorConnectionState();
+
+  if (useFirebaseEmulators() && !connectionState[service]) {
+    connect();
+    connectionState[service] = true;
+  }
 }

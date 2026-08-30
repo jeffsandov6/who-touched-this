@@ -44,10 +44,13 @@ export type PublicTurnStatus = (typeof PUBLIC_TURN_STATUSES)[number];
 
 /** Private: contributors/{githubUserId} */
 export interface ContributorRecord {
+  firebaseUid: string;
   githubUserId: string;
   githubUsername: string;
+  /** Required, trimmed public presentation name; never inferred from authentication profile data. */
   displayName: string;
   email: string;
+  /** Optional normalized HTTP(S) URL without embedded credentials. */
   socialUrl?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -56,7 +59,7 @@ export interface ContributorRecord {
 /** Private: participation/{season}_{githubUserId} */
 export interface ParticipationRecord {
   githubUserId: string;
-  season: string;
+  season: number;
   status: ParticipationStatus;
   contributionNumber?: number;
   createdAt: Timestamp;
@@ -66,7 +69,7 @@ export interface ParticipationRecord {
 /** Private: queue/{season}_{githubUserId} */
 export interface QueueEntry {
   githubUserId: string;
-  season: string;
+  season: number;
   status: QueueStatus;
   joinedAt: Timestamp;
   /** Higher values may be considered before lower values by future admin tooling. */
@@ -93,7 +96,7 @@ export interface TurnRecord {
 /** Public-safe snapshot: contributions/{contributionNumber}. Never add private contact data. */
 export interface PublicContributionRecord {
   contributionNumber: number;
-  season: string;
+  season: number;
   githubUserId: string;
   githubUsername: string;
   displayName: string;

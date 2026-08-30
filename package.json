@@ -15,7 +15,9 @@
     "firebase:emulators": "firebase emulators:start --only auth,firestore,hosting",
     "firebase:emulators:export": "firebase emulators:export .firebase/emulator-data --force",
     "firebase:emulators:import": "firebase emulators:start --only auth,firestore,hosting --import=.firebase/emulator-data --export-on-exit=.firebase/emulator-data",
-    "firebase:rules:test": "firebase emulators:exec --only firestore \"node --test tests/firestore.rules.test.mjs\""
+    "firebase:rules:test": "firebase emulators:exec --only firestore \"node --test tests/firestore.rules.test.mjs\"",
+    "test:auth-state": "node --experimental-strip-types --test tests/github-identity.test.ts",
+    "test:join-validation": "node --experimental-strip-types --test tests/join-validation.test.ts"
   },
   "dependencies": {
     "@astrojs/react": "6.0.4",
