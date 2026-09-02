@@ -26,6 +26,7 @@ export const CONTRIBUTION_BOUNDARIES = {
     'firestore.rules',
     'firestore.indexes.json',
     'tests/**',
+    'functions/**',
     '.github/**',
     'Dockerfile*',
     'build/**',

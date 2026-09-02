@@ -885,6 +885,19 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Trusted Functions own delivery writes. Active admins may inspect one known
+    // status document, but cannot list delivery operations or mutate them.
+    match /emailDeliveries/{deliveryId} {
+      allow get: if isActiveAdmin();
+      allow list, create, update, delete: if false;
+    }
+
+    // Emulator-only email bodies are visible through trusted Emulator UI access,
+    // never through the web application.
+    match /devEmailSink/{messageId} {
+      allow read, write: if false;
+    }
+
     match /admins/{adminGithubUserId} {
       allow get: if hasGitHubIdentity() && adminGithubUserId == githubUserId();
       allow list, create, update, delete: if false;

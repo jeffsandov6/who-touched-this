@@ -4,11 +4,12 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #8 adds a private invitation and contributor-acceptance stage before an actual turn starts.
-Public contributions beyond the controlled signup flow are not open.
+Milestone #9 adds trusted, retry-safe invitation email delivery through Firebase Functions and
+Resend, with a non-networked mailbox for emulator development. Public contributions beyond the
+controlled signup flow are not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub merge automation,
-screenshots, notifications, and production deployment remain deferred.
+screenshots, scheduled reminders, other lifecycle emails, and production deployment remain deferred.
 
 ## Technology
 
@@ -16,6 +17,8 @@ screenshots, notifications, and production deployment remain deferred.
 - React and TypeScript for most owner-maintained platform UI
 - Vue, Svelte, and Solid support through official Astro integrations
 - Firebase JavaScript SDK, Cloud Firestore rules, and the Firebase Emulator Suite
+- Firebase Cloud Functions on Node.js 22 for trusted server-side email delivery
+- Resend as the single planned production transactional-email provider
 - Classic Firebase Hosting for the generated static site
 - Plain CSS
 - npm
@@ -26,6 +29,7 @@ Node.js 22.12 or newer is required. The repository includes an `.nvmrc` for Node
 
 ```sh
 npm install
+npm --prefix functions install
 npm run build
 npm run dev
 ```
@@ -69,6 +73,8 @@ npm run firebase:emulators
 npm run firebase:emulators:export
 npm run firebase:emulators:import
 npm run firebase:rules:test
+npm run functions:check
+npm run functions:test
 npm run test:admin-queue
 npm run test:turn-state
 npm run test:turn-lifecycle
@@ -76,9 +82,9 @@ npm run test:contribution-history
 npm run test:invitation
 ```
 
-The local suite provides Authentication on port 9099, Firestore on 8080, Hosting on 5002, and the
-Emulator UI on 4000. Hosting uses 5002 because macOS commonly reserves port 5000. Emulator exports
-live under ignored `.firebase/` data.
+The local suite provides Authentication on port 9099, Firestore on 8080, Functions on 5001, Hosting
+on 5002, and the Emulator UI on 4000. Hosting uses 5002 because macOS commonly reserves port 5000.
+Emulator exports live under ignored `.firebase/` data. The emulator script builds Functions first.
 
 Classic Firebase Hosting serves Astro's generated `dist/` directory. Run `npm run build` before
 using Hosting locally; Firebase's Hosting predeploy hook also builds before a future deployment.
@@ -172,9 +178,11 @@ default). The invite transaction creates a private `invitations/{invitationId}` 
 participation and queue from `waiting` to `invited`, and sets `site/admin.pendingInvitationId`.
 It does not create a turn, assign a target number, publish the contributor, or start a countdown.
 
-The owner manually contacts the contributor using the private email shown in Admin; automated email
-and reminders remain deferred. On `/join`, only the invited GitHub identity can see and accept its
-pending invitation. Acceptance atomically:
+The owner can still contact the contributor using the private email shown in Admin. A trusted
+Firestore-triggered Function now attempts the initial invitation email automatically; delivery is
+notification infrastructure and never controls invitation validity. Scheduled reminders and other
+lifecycle emails remain deferred. On `/join`, only the invited GitHub identity can see and accept
+its pending invitation. Acceptance atomically:
 
 - creates a unique private `turns/{turnId}` document
 - changes the invitation from `pending` to `accepted`
@@ -212,6 +220,59 @@ For a deliberate initial document, create `site/public` manually with `currentVe
 `updatedAt` timestamp. This is optional in a clean emulator because acceptance can create the first
 public state. `site/admin` may remain absent until the first invitation. Production initialization is
 manual and is not performed by this repository.
+
+### Transactional invitation email
+
+Creating a valid `invitations/{invitationId}` document is the source of truth. A second-generation
+Firestore `onDocumentCreated` Function loads the matching private contributor through the Admin SDK,
+builds plain-text and escaped HTML email, and sends it through a narrow provider adapter. The browser
+never invokes email delivery and never receives provider credentials or another contributor's email.
+
+The intended production sender and reply-to address is:
+
+```text
+Who Touched This <hello@whotouchedthis.website>
+```
+
+Production uses Resend and the Firebase secret named `RESEND_API_KEY`. Set that secret only before a
+future deployment:
+
+```sh
+npm exec -- firebase functions:secrets:set RESEND_API_KEY
+```
+
+`APP_ORIGIN` supplies the trusted application origin and defaults to
+`https://whotouchedthis.website`. The production sending domain and address must be verified with
+Resend and configured in DNS before deployment. No domain, secret, Function, or email is deployed by
+this milestone.
+
+For emulator development, copy the Functions-only non-secret example:
+
+```sh
+cp functions/.env.example functions/.env.local
+npm run firebase:emulators
+```
+
+The Functions emulator forcibly selects the local mailbox unless `EMAIL_PROVIDER_MODE=failure` is
+set. If the emulator asks for the declared secret, create ignored `functions/.secret.local` containing
+`RESEND_API_KEY=local-emulator-placeholder`; that value is never read by the local adapter. Successful
+local messages appear under `devEmailSink/invitation_{invitationId}` in the Firestore
+Emulator UI. That emulator-only document contains the generated recipient and body for inspection;
+all browser access is denied. Set `EMAIL_PROVIDER_MODE=failure` in `functions/.env.local` to exercise
+the failure path without an external outage. The Admin page shows the private delivery state after a
+manual refresh and retains its contact-email fallback.
+
+Delivery uses deterministic `emailDeliveries/invitation_{invitationId}` state plus the same
+deterministic Resend idempotency key. A successfully sent record prevents later sends. Concurrent
+attempts use a short private claim lease, failed provider attempts are recorded with a bounded safe
+code, and retried Function executions can claim failed work again. Resend additionally deduplicates
+the provider request for its documented idempotency window. This is retry-safe duplicate reduction,
+not a claim of theoretical exactly-once delivery: a crash after provider acceptance but before the
+sent record, outside the provider's idempotency window, remains an unavoidable edge case.
+
+Provider failure never changes the invitation, participation, queue, pending lock, or public state.
+The invitation remains pending and can still be accepted while the owner contacts the contributor
+manually.
 
 ### Turn lifecycle and successful merge recording
 
@@ -268,7 +329,8 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
   public-readable projections. Anonymous writes are denied. The invited contributor may write
   `site/public` only inside the exact acceptance transaction; active admins may write it only inside
   validated lifecycle transactions.
-- `contributors/**`, `participation/**`, `queue/**`, `invitations/**`, and `turns/**` are private operational data.
+- `contributors/**`, `participation/**`, `queue/**`, `invitations/**`, `emailDeliveries/**`, and
+  `turns/**` are private operational data.
   A GitHub-authenticated user may get their own contributor and Season 1 participation documents
   and create the initial three-document join transaction. Active allowlisted admins may read the
   private operational collections. An invited GitHub identity may read only its own pending invitation
@@ -281,6 +343,9 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
   only its own document; listing and all client writes are denied.
 - `site/admin` is the private pending-invitation/current-turn singleton. Only active admins may read
   it; contributors receive only the narrowly validated write needed to accept their own invitation.
+- `emailDeliveries/**` is server-owned. Active admins may get a known delivery-status document but
+  cannot list or write the collection. `devEmailSink/**` is emulator-only and denies every browser
+  read and write, including admin browser access.
 
 Rules deny every unrecognized path. Composite indexes remain empty until implemented queries prove
 which indexes are actually required.
@@ -306,6 +371,7 @@ src/
   styles/              Protected global/platform styles
 public/                Static public assets
 tests/                 Protected Firebase security-rule tests
+functions/             Protected Firebase Functions, email adapters, templates, and server tests
 ```
 
 See `CONTRIBUTING.md` for the eventual contribution workflow and current restrictions.

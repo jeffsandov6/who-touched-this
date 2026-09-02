@@ -24,6 +24,10 @@ import {
 } from './admin-queue';
 import { getEffectiveWaitingQueue } from './admin-queue-logic';
 import { getPlatformFirestore } from './firestore';
+import {
+  getAdminInvitationEmailDelivery,
+  type AdminEmailDeliveryState,
+} from './email-deliveries';
 import type {
   InvitationRecord,
   PrivateSiteState,
@@ -59,6 +63,7 @@ export interface AdminPendingInvitation {
   invitedAt: Date;
   acceptBy: Date;
   turnDurationHours: number;
+  emailDelivery: AdminEmailDeliveryState | null;
 }
 
 export interface OwnPendingInvitation {
@@ -222,9 +227,10 @@ export async function loadAdminPendingInvitation(): Promise<AdminPendingInvitati
     );
     if (!invitationSnapshot.exists()) throw new InvitationError('The pending invitation is missing.');
     const invitation = parsePendingInvitation(state.pendingInvitationId, invitationSnapshot.data());
-    const contributorSnapshot = await getDoc(
-      doc(firestore, contributorDocumentPath(invitation.githubUserId)),
-    );
+    const [contributorSnapshot, emailDelivery] = await Promise.all([
+      getDoc(doc(firestore, contributorDocumentPath(invitation.githubUserId))),
+      getAdminInvitationEmailDelivery(state.pendingInvitationId),
+    ]);
     if (!contributorSnapshot.exists()) throw new InvitationError('The invited contributor is missing.');
     const contributor = parseAdminContributor(contributorSnapshot.data(), invitation.githubUserId);
     return {
@@ -238,6 +244,7 @@ export async function loadAdminPendingInvitation(): Promise<AdminPendingInvitati
       invitedAt: invitation.invitedAt.toDate(),
       acceptBy: invitation.acceptBy.toDate(),
       turnDurationHours: invitation.turnDurationHours,
+      emailDelivery,
     };
   } catch (error) {
     throw toAdminServiceError(error, 'The pending invitation could not be loaded.');
