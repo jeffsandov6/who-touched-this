@@ -177,6 +177,18 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .admin-current-turn-details dd { margin: 0.2rem 0 0; }
 .admin-start-turn { display: grid; gap: 0.75rem; max-width: 34rem; }
 .admin-start-turn p { margin: 0; }
+.admin-turn-panel { display: grid; gap: 1.5rem; }
+.admin-pr-form {
+  display: grid;
+  grid-template-columns: minmax(16rem, 2fr) minmax(8rem, 1fr);
+  gap: 1rem;
+  align-items: end;
+  max-width: 48rem;
+}
+.admin-pr-form h3 { grid-column: 1 / -1; margin: 0; }
+.admin-turn-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.button-danger { border-color: #8a2924; background: #8a2924; }
+.button-danger-secondary { border-color: #8a2924; color: #8a2924; background: #fff; }
 .admin-filters {
   display: grid;
   grid-template-columns: minmax(16rem, 2fr) minmax(10rem, 1fr);
@@ -213,4 +225,5 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
   .platform-navigation { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
   .admin-toolbar { flex-direction: column; }
   .admin-filters { grid-template-columns: 1fr; }
+  .admin-pr-form { grid-template-columns: 1fr; }
 }

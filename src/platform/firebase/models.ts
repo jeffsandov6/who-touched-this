@@ -17,6 +17,7 @@ export const PARTICIPATION_STATUSES = [
   'invited',
   'active',
   'completed',
+  'expired',
   'withdrawn',
   'skipped',
 ] as const;
@@ -27,27 +28,23 @@ export const QUEUE_STATUSES = [
   'waiting',
   'invited',
   'active',
+  'completed',
+  'expired',
   'withdrawn',
   'skipped',
 ] as const;
 
 export type QueueStatus = (typeof QUEUE_STATUSES)[number];
 
-export const TURN_STATUSES = [
-  'invited',
-  'active',
-  'submitted',
-  'under_review',
-  'merged',
-  'expired',
-  'skipped',
-] as const;
+export const TURN_STATUSES = ['active', 'submitted', 'under_review', 'expired', 'skipped'] as const;
 
 export type TurnStatus = (typeof TURN_STATUSES)[number];
 
 export const PUBLIC_TURN_STATUSES = [
   'none',
   'active',
+  'submitted',
+  'under_review',
 ] as const;
 
 export type PublicTurnStatus = (typeof PUBLIC_TURN_STATUSES)[number];
@@ -100,7 +97,10 @@ export interface TurnRecord {
   startedAt: Timestamp;
   dueAt: Timestamp;
   submittedAt?: Timestamp;
-  completedAt?: Timestamp;
+  reviewStartedAt?: Timestamp;
+  endedAt?: Timestamp;
+  prNumber?: number;
+  prUrl?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

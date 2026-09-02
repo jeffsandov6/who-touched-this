@@ -4,6 +4,9 @@
 
 Who Touched This will eventually accept one community contribution at a time through a managed turn system. Detailed contribution limits will be finalized before launch.
 
+A turn deadline passing does not itself create, accept, or remove a contribution. An explicit
+protected lifecycle operation is required, and only a later accepted merge creates permanent history.
+
 ## Eventual workflow
 
 1. A contributor gets a turn.

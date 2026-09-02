@@ -69,6 +69,23 @@ test('valid active public state parses only public presentation data', () => {
   );
 });
 
+for (const turnStatus of ['submitted', 'under_review'] as const) {
+  test(`valid ${turnStatus} public state retains current projection without changing numbering`, () => {
+    const parsed = parsePublicSiteState({
+      currentVersion: 4,
+      totalContributions: 4,
+      turnStatus,
+      targetContributionNumber: 5,
+      currentContributor: { githubUsername: 'alice', displayName: 'Alice' },
+      dueAt: timestamp(9000),
+      updatedAt: timestamp(1000),
+    });
+    assert.equal(parsed.turnStatus, turnStatus);
+    assert.equal(parsed.targetContributionNumber, 5);
+    assert.equal(parsed.currentVersion, 4);
+  });
+}
+
 test('malformed or expanded public state fails closed to the initial state', () => {
   assert.deepEqual(
     parsePublicSiteState({

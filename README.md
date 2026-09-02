@@ -4,10 +4,10 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #5 adds atomic turn activation, a public-safe current-contributor projection, and a live
-browser countdown. Public contributions beyond the controlled signup flow are not open.
+Milestone #6 adds manual PR submission recording, under-review state, and explicit expiration and
+skip transitions. Public contributions beyond the controlled signup flow are not open.
 
-The editable PR #000 canvas has intentionally not been designed yet. Turn completion, GitHub
+The editable PR #000 canvas has intentionally not been designed yet. Successful merge processing, GitHub
 repository automation, notifications, and production deployment remain deferred.
 
 ## Technology
@@ -71,6 +71,7 @@ npm run firebase:emulators:import
 npm run firebase:rules:test
 npm run test:admin-queue
 npm run test:turn-state
+npm run test:turn-lifecycle
 ```
 
 The local suite provides Authentication on port 9099, Firestore on 8080, Hosting on 5002, and the
@@ -99,7 +100,7 @@ reauthenticate rather than guessing it.
 
 ### Join flow
 
-`/join` is the only hydrated platform page. After GitHub authentication, the visitor supplies a
+`/join` is intentionally hydrated for authentication and form behavior. After GitHub authentication, the visitor supplies a
 required public display name, private contact email, optional social link, and explicit rules
 acknowledgement. Display names are trimmed and never inferred from GitHub, Firebase profile data, or
 email. A bare but structurally valid social hostname/path is normalized to HTTPS before storage.
@@ -116,7 +117,7 @@ numeric queue position remain private.
 
 ### Admin authorization and provisioning
 
-`/admin` reuses Firebase GitHub Authentication and is the second intentionally hydrated platform
+`/admin` reuses Firebase GitHub Authentication and is also intentionally hydrated as a platform
 route. Authorization requires the stable GitHub provider ID in the Firebase token to match an
 active private `admins/{githubUserId}` document whose role is `owner` or `admin`. Username, email,
 display name, UI state, and environment variables never grant admin access.
@@ -192,28 +193,48 @@ For a deliberate initial document, create `site/public` manually with `currentVe
 create the first public state. Leave `site/admin` absent until activation. Production initialization
 is also manual and is not performed by this repository.
 
-Expiration/cancellation is intentionally not implemented. To reset an emulator-only active turn,
-stop application writes and use the Emulator UI to delete the active `turns/{turnId}` and
-`site/admin` documents, return the selected `participation/1_{githubUserId}` and
-`queue/1_{githubUserId}` statuses to `waiting`, and either delete `site/public` or restore the
-inactive initial shape above. Do not use this manual reset procedure against production data.
+### Turn lifecycle before merge
+
+The protected lifecycle is:
+
+```text
+waiting → active → submitted → under_review → [merged in a later milestone]
+                 ↘ expired
+active / submitted / under_review → skipped
+```
+
+PR recording is a manual owner operation in V1. The admin supplies an HTTPS
+`github.com/{owner}/{repo}/pull/{number}` URL and a matching positive PR number. No GitHub network
+request, webhook, or repository automation occurs. Recording submission and starting review update
+the private turn and `site/public` together while participation/queue remain active and the
+`site/admin` lock remains held.
+
+A deadline passing only changes the locally derived countdown to `Deadline passed`; it never mutates
+Firestore. The owner may explicitly expire an active turn after its deadline or may accept a late PR
+while it is still active. Submitted and under-review turns cannot expire, but the owner may explicitly
+skip any current turn. Expiration and skipping atomically mark the turn, participation, and queue;
+clear the current-turn lock; and reset the public projection without changing version counters.
+
+Neither failure transition creates a contribution or consumes `targetContributionNumber`. The next
+waiting contributor therefore targets the same `currentVersion + 1`. Only a successful merge in the
+next milestone will create permanent history and increment the version.
 
 ### Firestore boundaries
 
 - `contributions/{contributionNumber}` and `site/public` are public-readable projections. Public and
   ordinary authenticated writes are denied; an active admin may write `site/public` only inside a
-  rules-validated complete activation transaction.
+  rules-validated activation or lifecycle transaction.
 - `contributors/**`, `participation/**`, `queue/**`, and `turns/**` are private operational data.
   A GitHub-authenticated user may get their own contributor and Season 1 participation documents
   and create the initial three-document join transaction. Active allowlisted admins may read the
   private operational collections. Admin browser writes are limited to queue promotion/restoration
-  and the exact five-document turn-activation transaction. Queue creation/deletion, contributor
-  mutation, arbitrary participation/queue transitions, turn mutation/deletion, history writes, and
-  admin writes remain denied.
+  plus exact submission, review, expiration, and skip transitions. Queue creation/deletion,
+  contributor mutation, arbitrary participation/queue transitions, terminal-turn mutation,
+  history writes, and admin writes remain denied.
 - `admins/**` is private trusted authorization configuration. A GitHub-authenticated account may get
   only its own document; listing and all client writes are denied.
 - `site/admin` is the private active-turn singleton. Only active admins may read it, and it can be
-  written only as part of a complete activation.
+  written only as part of a complete activation or terminal lifecycle transaction.
 
 Rules deny every unrecognized path. Composite indexes remain empty until implemented queries prove
 which indexes are actually required.

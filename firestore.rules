@@ -329,6 +329,140 @@ service cloud.firestore {
         && getAfter(publicSitePath()).data.dueAt == getAfter(turnPath(turnId)).data.dueAt;
     }
 
+    function currentTurnIdBefore() { return get(privateSitePath()).data.activeTurnId; }
+
+    function validPullRequest(data) {
+      return data.prNumber is int && data.prNumber > 0
+        && data.prUrl is string && data.prUrl.size() >= 1 && data.prUrl.size() <= 500
+        && data.prUrl.matches('^https://github\\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/pull/' + string(data.prNumber) + '$');
+    }
+
+    function currentTurnBaseIsPreserved(before, after) {
+      return after.githubUserId == before.githubUserId && after.season == before.season
+        && after.season == 1 && after.targetContributionNumber == before.targetContributionNumber
+        && after.startedAt == before.startedAt && after.dueAt == before.dueAt
+        && after.createdAt == before.createdAt;
+    }
+
+    function validTurnSubmission(turnId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return currentTurnIdBefore() == turnId && before.status == 'active' && after.status == 'submitted'
+        && after.keys().hasAll(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','prNumber','prUrl','submittedAt','createdAt','updatedAt'])
+        && after.keys().hasOnly(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','prNumber','prUrl','submittedAt','createdAt','updatedAt'])
+        && after.diff(before).affectedKeys().hasOnly(['status','prNumber','prUrl','submittedAt','updatedAt'])
+        && currentTurnBaseIsPreserved(before, after) && validPullRequest(after)
+        && after.submittedAt is timestamp && after.submittedAt == request.time
+        && after.updatedAt is timestamp && after.updatedAt == request.time
+        && getAfter(privateSitePath()).data.activeTurnId == turnId
+        && getAfter(publicSitePath()).data.turnStatus == 'submitted'
+        && getAfter(publicSitePath()).data.targetContributionNumber == after.targetContributionNumber;
+    }
+
+    function validTurnReview(turnId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return currentTurnIdBefore() == turnId && before.status == 'submitted' && after.status == 'under_review'
+        && after.keys().hasAll(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','prNumber','prUrl','submittedAt','reviewStartedAt','createdAt','updatedAt'])
+        && after.keys().hasOnly(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','prNumber','prUrl','submittedAt','reviewStartedAt','createdAt','updatedAt'])
+        && after.diff(before).affectedKeys().hasOnly(['status','reviewStartedAt','updatedAt'])
+        && currentTurnBaseIsPreserved(before, after) && after.prNumber == before.prNumber
+        && after.prUrl == before.prUrl && after.submittedAt == before.submittedAt
+        && validPullRequest(after) && after.reviewStartedAt is timestamp
+        && after.reviewStartedAt == request.time && after.updatedAt is timestamp
+        && after.updatedAt == request.time && getAfter(privateSitePath()).data.activeTurnId == turnId
+        && getAfter(publicSitePath()).data.turnStatus == 'under_review';
+    }
+
+    function validPublicCurrentTransition() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let turnId = currentTurnIdBefore();
+      let turnAfter = getAfter(turnPath(turnId)).data;
+      return ((before.turnStatus == 'active' && after.turnStatus == 'submitted')
+          || (before.turnStatus == 'submitted' && after.turnStatus == 'under_review'))
+        && after.keys().hasAll(['currentVersion','totalContributions','turnStatus','targetContributionNumber','currentContributor','dueAt','updatedAt'])
+        && after.keys().hasOnly(['currentVersion','totalContributions','turnStatus','targetContributionNumber','currentContributor','dueAt','updatedAt'])
+        && after.diff(before).affectedKeys().hasOnly(['turnStatus','updatedAt'])
+        && after.currentVersion == before.currentVersion && after.totalContributions == before.totalContributions
+        && after.targetContributionNumber == before.targetContributionNumber
+        && after.currentContributor == before.currentContributor && after.dueAt == before.dueAt
+        && after.updatedAt is timestamp && after.updatedAt == request.time
+        && getAfter(privateSitePath()).data.activeTurnId == turnId
+        && turnAfter.status == after.turnStatus && turnAfter.targetContributionNumber == after.targetContributionNumber
+        && turnAfter.dueAt == after.dueAt;
+    }
+
+    function validTerminalTurnFields(before, after) {
+      return (before.status == 'active' && after.keys().hasOnly(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','endedAt','createdAt','updatedAt']))
+        || (before.status == 'submitted' && after.keys().hasOnly(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','prNumber','prUrl','submittedAt','endedAt','createdAt','updatedAt']))
+        || (before.status == 'under_review' && after.keys().hasOnly(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','prNumber','prUrl','submittedAt','reviewStartedAt','endedAt','createdAt','updatedAt']));
+    }
+
+    function validTurnEnd(turnId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return currentTurnIdBefore() == turnId && before.status in ['active','submitted','under_review']
+        && after.status in ['expired','skipped']
+        && (after.status != 'expired' || (before.status == 'active' && request.time >= before.dueAt))
+        && after.keys().hasAll(['githubUserId','season','status','targetContributionNumber','startedAt','dueAt','endedAt','createdAt','updatedAt'])
+        && validTerminalTurnFields(before, after)
+        && after.diff(before).affectedKeys().hasOnly(['status','endedAt','updatedAt'])
+        && currentTurnBaseIsPreserved(before, after) && after.endedAt is timestamp
+        && after.endedAt == request.time && after.updatedAt is timestamp && after.updatedAt == request.time
+        && completeTurnEnd(turnId, before.githubUserId, after.status);
+    }
+
+    function completeTurnEnd(turnId, id, terminalStatus) {
+      return getAfter(turnPath(turnId)).data.status == terminalStatus
+        && getAfter(participationPathFor(id)).data.status == terminalStatus
+        && getAfter(queuePathFor(id)).data.status == terminalStatus
+        && getAfter(privateSitePath()).data.activeTurnId == null
+        && getAfter(publicSitePath()).data.turnStatus == 'none'
+        && getAfter(publicSitePath()).data.currentContributor == null
+        && getAfter(publicSitePath()).data.targetContributionNumber == null
+        && getAfter(publicSitePath()).data.dueAt == null;
+    }
+
+    function validOperationalEnd() {
+      let turnId = currentTurnIdBefore();
+      let turnBefore = get(turnPath(turnId)).data;
+      let terminalStatus = request.resource.data.status;
+      return resource.data.status == 'active' && terminalStatus in ['expired','skipped']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+        && request.resource.data.updatedAt is timestamp && request.resource.data.updatedAt == request.time
+        && turnBefore.githubUserId == resource.data.githubUserId
+        && completeTurnEnd(turnId, resource.data.githubUserId, terminalStatus);
+    }
+
+    function validPrivateSiteEnd() {
+      let turnId = resource.data.activeTurnId;
+      let turnAfter = getAfter(turnPath(turnId)).data;
+      return turnId is string && request.resource.data.activeTurnId == null
+        && request.resource.data.keys().hasAll(['activeTurnId','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','updatedAt'])
+        && request.resource.data.updatedAt is timestamp && request.resource.data.updatedAt == request.time
+        && turnAfter.status in ['expired','skipped']
+        && completeTurnEnd(turnId, turnAfter.githubUserId, turnAfter.status);
+    }
+
+    function validPublicSiteEnd() {
+      let before = resource.data;
+      let after = request.resource.data;
+      let turnId = currentTurnIdBefore();
+      let turnAfter = getAfter(turnPath(turnId)).data;
+      return before.turnStatus in ['active','submitted','under_review']
+        && after.keys().hasAll(['currentVersion','totalContributions','turnStatus','targetContributionNumber','currentContributor','dueAt','updatedAt'])
+        && after.keys().hasOnly(['currentVersion','totalContributions','turnStatus','targetContributionNumber','currentContributor','dueAt','updatedAt'])
+        && after.currentVersion == before.currentVersion && after.totalContributions == before.totalContributions
+        && after.turnStatus == 'none' && after.targetContributionNumber == null
+        && after.currentContributor == null && after.dueAt == null
+        && after.updatedAt is timestamp && after.updatedAt == request.time
+        && turnAfter.status in ['expired','skipped']
+        && completeTurnEnd(turnId, turnAfter.githubUserId, turnAfter.status);
+    }
+
     match /contributions/{contributionNumber} {
       allow read: if true;
       allow write: if false;
@@ -336,14 +470,16 @@ service cloud.firestore {
 
     match /site/public {
       allow read: if true;
-      allow create, update: if isActiveAdmin() && validPublicSiteActivation();
+      allow create: if isActiveAdmin() && validPublicSiteActivation();
+      allow update: if isActiveAdmin() && (validPublicSiteActivation() || validPublicCurrentTransition() || validPublicSiteEnd());
       allow delete: if false;
     }
 
     match /site/admin {
       allow get: if isActiveAdmin();
       allow list: if false;
-      allow create, update: if isActiveAdmin() && validPrivateSiteActivation();
+      allow create: if isActiveAdmin() && validPrivateSiteActivation();
+      allow update: if isActiveAdmin() && (validPrivateSiteActivation() || validPrivateSiteEnd());
       allow delete: if false;
     }
 
@@ -371,7 +507,7 @@ service cloud.firestore {
         && participationDocument == seasonOneDocumentId()
         && isCompleteNewJoin()
         && validParticipation(request.resource.data);
-      allow update: if isActiveAdmin() && validParticipationActivation(participationDocument);
+      allow update: if isActiveAdmin() && (validParticipationActivation(participationDocument) || validOperationalEnd());
       allow delete: if false;
     }
 
@@ -382,7 +518,7 @@ service cloud.firestore {
         && isCompleteNewJoin()
         && validQueueEntry(request.resource.data);
       allow update: if isActiveAdmin()
-        && (validAdminQueuePriorityUpdate() || validQueueActivation(queueDocument));
+        && (validAdminQueuePriorityUpdate() || validQueueActivation(queueDocument) || validOperationalEnd());
       allow delete: if false;
     }
 
@@ -391,7 +527,8 @@ service cloud.firestore {
       allow create: if isActiveAdmin()
         && validTurnCreate()
         && completeActivation(turnId, request.resource.data.githubUserId);
-      allow update, delete: if false;
+      allow update: if isActiveAdmin() && (validTurnSubmission(turnId) || validTurnReview(turnId) || validTurnEnd(turnId));
+      allow delete: if false;
     }
 
     match /{document=**} {

@@ -1,7 +1,9 @@
+import type { CurrentPublicTurnStatus } from './turn-lifecycle';
+
 export interface PublicSiteViewState {
   currentVersion: number;
   totalContributions: number;
-  turnStatus: 'none' | 'active';
+  turnStatus: CurrentPublicTurnStatus;
   targetContributionNumber: number | null;
   currentContributor: {
     githubUsername: string;
@@ -92,7 +94,7 @@ export function tryParsePublicSiteState(data: unknown): PublicSiteViewState | nu
   }
 
   if (
-    record.turnStatus !== 'active' ||
+    !['active', 'submitted', 'under_review'].includes(record.turnStatus as string) ||
     !Number.isSafeInteger(record.targetContributionNumber) ||
     record.targetContributionNumber !== (record.currentVersion as number) + 1 ||
     !record.currentContributor ||
@@ -117,7 +119,7 @@ export function tryParsePublicSiteState(data: unknown): PublicSiteViewState | nu
   return {
     currentVersion: record.currentVersion as number,
     totalContributions: record.totalContributions as number,
-    turnStatus: 'active',
+    turnStatus: record.turnStatus as Exclude<CurrentPublicTurnStatus, 'none'>,
     targetContributionNumber: record.targetContributionNumber as number,
     currentContributor: {
       githubUsername: contributor.githubUsername,
