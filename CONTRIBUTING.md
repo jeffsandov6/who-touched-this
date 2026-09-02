@@ -7,6 +7,8 @@ Who Touched This will eventually accept one community contribution at a time thr
 A turn deadline passing does not itself create, accept, or remove a contribution. An explicit
 protected lifecycle operation is required. A contribution becomes permanent only after its PR is
 manually merged on GitHub and an administrator atomically records that successful outcome.
+An admin invitation is not a turn: the contribution clock and target number begin only after the
+invited contributor authenticates with the matching GitHub account and explicitly accepts.
 
 ## Eventual workflow
 

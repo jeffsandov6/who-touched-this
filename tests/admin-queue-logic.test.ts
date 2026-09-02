@@ -75,3 +75,12 @@ test('effective waiting queue excludes active entries', () => {
     ['waiting'],
   );
 });
+
+test('effective waiting queue excludes invited entries', () => {
+  const invited = { ...entry('invited-first', 50, 10), status: 'invited' };
+  const waiting = entry('waiting', 100);
+  assert.deepEqual(
+    getEffectiveWaitingQueue([invited, waiting]).map((item) => item.githubUsername),
+    ['waiting'],
+  );
+});

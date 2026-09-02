@@ -3,6 +3,7 @@ export const FIRESTORE_COLLECTIONS = {
   contributors: 'contributors',
   participation: 'participation',
   queue: 'queue',
+  invitations: 'invitations',
   turns: 'turns',
   contributions: 'contributions',
   historyEvents: 'historyEvents',
@@ -72,6 +73,10 @@ export function queueDocumentPath(season: number, githubUserId: string): string 
 
 export function turnDocumentPath(turnId: string): string {
   return `${FIRESTORE_COLLECTIONS.turns}/${assertPathSegment(turnId, 'Turn ID')}`;
+}
+
+export function invitationDocumentPath(invitationId: string): string {
+  return `${FIRESTORE_COLLECTIONS.invitations}/${assertPathSegment(invitationId, 'Invitation ID')}`;
 }
 
 export function contributionDocumentPath(contributionNumber: number): string {

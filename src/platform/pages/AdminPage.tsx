@@ -24,6 +24,12 @@ import {
   reconcileGitHubIdentity,
   type GitHubIdentity,
 } from '../firebase/github-identity';
+import {
+  expirePendingInvitation,
+  inviteNextContributor,
+  loadAdminPendingInvitation,
+  type AdminPendingInvitation,
+} from '../firebase/invitations';
 import { QUEUE_STATUSES, type AdminRole } from '../firebase/models';
 import {
   expireCurrentTurn,
@@ -32,10 +38,15 @@ import {
   recordPullRequestSubmission,
   recordMergedContribution,
   skipCurrentTurn,
-  startTurn,
   type AdminCurrentTurn,
 } from '../firebase/turns';
 import AdminCurrentTurnPanel from '../components/AdminCurrentTurn';
+import AdminPendingInvitationPanel from '../components/AdminPendingInvitation';
+import {
+  DEFAULT_TURN_DURATION_HOURS,
+  validateInvitationDeadline,
+  validateTurnDurationHours,
+} from '../invitation';
 
 type AccessState = 'checking' | 'signed-out' | 'denied' | 'authorized';
 
@@ -52,8 +63,8 @@ function formatJoinedAt(date: Date): string {
   }).format(date);
 }
 
-function defaultDeadlineValue(): string {
-  const deadline = new Date(Date.now() + 7 * 24 * 60 * 60 * 1_000);
+function defaultInvitationDeadlineValue(): string {
+  const deadline = new Date(Date.now() + 24 * 60 * 60 * 1_000);
   const localTime = new Date(deadline.getTime() - deadline.getTimezoneOffset() * 60_000);
   return localTime.toISOString().slice(0, 16);
 }
@@ -65,30 +76,35 @@ export default function AdminPage() {
   const [adminRole, setAdminRole] = useState<AdminRole | null>(null);
   const [queue, setQueue] = useState<AdminQueueItem[]>([]);
   const [currentTurn, setCurrentTurn] = useState<AdminCurrentTurn | null>(null);
+  const [pendingInvitation, setPendingInvitation] = useState<AdminPendingInvitation | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [deadline, setDeadline] = useState(defaultDeadlineValue);
+  const [invitationDeadline, setInvitationDeadline] = useState(defaultInvitationDeadlineValue);
+  const [turnDurationHours, setTurnDurationHours] = useState(String(DEFAULT_TURN_DURATION_HOURS));
   const [turnBusy, setTurnBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function refreshAdminData(sequence = requestSequence.current) {
     setQueueLoading(true);
     try {
-      const [nextQueue, nextTurn] = await Promise.all([
+      const [nextQueue, nextTurn, nextInvitation] = await Promise.all([
         loadSeasonOneAdminQueue(),
         loadAdminCurrentTurn(),
+        loadAdminPendingInvitation(),
       ]);
       if (sequence === requestSequence.current) {
         setQueue(nextQueue);
         setCurrentTurn(nextTurn);
+        setPendingInvitation(nextInvitation);
       }
     } catch (error) {
       if (sequence === requestSequence.current) {
         setQueue([]);
         setCurrentTurn(null);
+        setPendingInvitation(null);
         setErrorMessage(safeErrorMessage(error, 'Admin turn data could not be loaded.'));
       }
     } finally {
@@ -102,6 +118,7 @@ export default function AdminPage() {
     setAdminRole(null);
     setQueue([]);
     setCurrentTurn(null);
+    setPendingInvitation(null);
     setQueueLoading(false);
     setAccessState('checking');
     setErrorMessage(null);
@@ -140,6 +157,7 @@ export default function AdminPage() {
               setAdminRole(null);
               setQueue([]);
               setCurrentTurn(null);
+              setPendingInvitation(null);
               setAccessState('signed-out');
               setErrorMessage(null);
             }
@@ -156,6 +174,7 @@ export default function AdminPage() {
               setAdminRole(null);
               setQueue([]);
               setCurrentTurn(null);
+              setPendingInvitation(null);
               setAccessState('denied');
               setErrorMessage(null);
             }
@@ -217,6 +236,7 @@ export default function AdminPage() {
     ++requestSequence.current;
     setQueue([]);
     setCurrentTurn(null);
+    setPendingInvitation(null);
     try {
       await signOutOfPlatform();
     } catch {
@@ -243,28 +263,33 @@ export default function AdminPage() {
     }
   }
 
-  async function handleStartTurn() {
+  async function handleInviteContributor() {
     const selected = waitingQueue[0];
     if (!selected || !identity) return;
 
-    const dueAt = new Date(deadline);
-    if (!Number.isFinite(dueAt.getTime()) || dueAt.getTime() <= Date.now()) {
-      setErrorMessage('Choose a deadline in the future.');
+    const acceptBy = new Date(invitationDeadline);
+    const duration = Number(turnDurationHours);
+    try {
+      validateInvitationDeadline(acceptBy);
+      validateTurnDurationHours(duration);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'Invitation settings are invalid.');
       return;
     }
-    if (!window.confirm(`Start ${selected.displayName}'s turn with this deadline?`)) return;
+    if (!window.confirm(`Invite ${selected.displayName}? Their turn starts only after acceptance.`)) return;
 
     setTurnBusy(true);
     setErrorMessage(null);
     try {
-      await startTurn({
+      await inviteNextContributor({
         adminGithubUserId: identity.githubUserId,
         selectedGithubUserId: selected.githubUserId,
-        dueAt,
+        acceptBy,
+        turnDurationHours: duration,
       });
       await refreshAdminData();
     } catch (error) {
-      setErrorMessage(safeErrorMessage(error, 'The turn could not be started.'));
+      setErrorMessage(safeErrorMessage(error, 'The contributor could not be invited.'));
     } finally {
       setTurnBusy(false);
     }
@@ -373,6 +398,15 @@ export default function AdminPage() {
                   'The turn could not be skipped.',
                 )}
               />
+            ) : pendingInvitation ? (
+              <AdminPendingInvitationPanel
+                invitation={pendingInvitation}
+                busy={turnBusy}
+                onExpire={() => runCurrentTurnAction(
+                  () => expirePendingInvitation(identity!.githubUserId),
+                  'The invitation could not be expired.',
+                )}
+              />
             ) : waitingQueue[0] ? (
               <div className="admin-start-turn">
                 <p>
@@ -387,28 +421,43 @@ export default function AdminPage() {
                   </a>
                 </p>
                 <div className="form-field">
-                  <label htmlFor="turn-deadline">Turn deadline</label>
+                  <label htmlFor="invitation-deadline">Accept invitation by</label>
                   <input
-                    id="turn-deadline"
+                    id="invitation-deadline"
                     type="datetime-local"
-                    value={deadline}
-                    onChange={(event) => setDeadline(event.target.value)}
+                    value={invitationDeadline}
+                    onChange={(event) => setInvitationDeadline(event.target.value)}
                     disabled={turnBusy}
                     required
                   />
-                  <small>The absolute deadline is editable. The public countdown derives from it.</small>
+                  <small>This private deadline does not start the contribution clock.</small>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="turn-duration">Contribution duration (hours)</label>
+                  <input
+                    id="turn-duration"
+                    type="number"
+                    min="1"
+                    max="720"
+                    step="1"
+                    value={turnDurationHours}
+                    onChange={(event) => setTurnDurationHours(event.target.value)}
+                    disabled={turnBusy}
+                    required
+                  />
+                  <small>The contributor receives this duration only after accepting.</small>
                 </div>
                 <button
                   className="button"
                   type="button"
-                  onClick={() => void handleStartTurn()}
+                  onClick={() => void handleInviteContributor()}
                   disabled={turnBusy || queueLoading}
                 >
-                  {turnBusy ? 'Starting turn…' : 'Start turn'}
+                  {turnBusy ? 'Inviting…' : 'Invite next contributor'}
                 </button>
               </div>
             ) : (
-              <p className="empty-state">No active turn and no waiting contributors.</p>
+              <p className="empty-state">No active turn, pending invitation, or waiting contributors.</p>
             )}
           </section>
 

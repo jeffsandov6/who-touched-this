@@ -4,9 +4,8 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #7 adds manual successful-merge recording, permanent public contribution records, version
-advancement, and a public timeline of successful and failed turns. Public contributions beyond the
-controlled signup flow are not open.
+Milestone #8 adds a private invitation and contributor-acceptance stage before an actual turn starts.
+Public contributions beyond the controlled signup flow are not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub merge automation,
 screenshots, notifications, and production deployment remain deferred.
@@ -74,6 +73,7 @@ npm run test:admin-queue
 npm run test:turn-state
 npm run test:turn-lifecycle
 npm run test:contribution-history
+npm run test:invitation
 ```
 
 The local suite provides Authentication on port 9099, Firestore on 8080, Hosting on 5002, and the
@@ -161,25 +161,43 @@ the selected waiting entry one more than the current highest waiting priority an
 `promotedAt`. **Restore natural order** resets only that entry to priority `0`, removes
 `promotedAt`, and lets its original `joinedAt` determine its natural position. Effective positions
 are computed in the admin UI and are never stored. The reserved optional `sortOrder` field is not
-used in the active ordering algorithm. Active entries are excluded from effective waiting positions.
+used in the active ordering algorithm. Only waiting entries receive effective positions; invited,
+active, completed, and failed entries are excluded.
 
-### Turn activation and public status
+### Invitations, turn activation, and public status
 
-Only the effective first waiting contributor can be started from `/admin`. The admin chooses an
-editable absolute deadline. A Firestore transaction verifies the admin, contributor, participation,
-queue, deadline, and absence of another active turn before atomically:
+Only the effective first waiting contributor can be invited from `/admin`. The admin chooses a
+private acceptance deadline (24 hours by default) and a bounded contribution duration (seven days by
+default). The invite transaction creates a private `invitations/{invitationId}` record, changes the
+participation and queue from `waiting` to `invited`, and sets `site/admin.pendingInvitationId`.
+It does not create a turn, assign a target number, publish the contributor, or start a countdown.
 
-- creating a unique private `turns/{turnId}` document
-- changing that contributor's participation and queue status from `waiting` to `active`
-- setting the private authoritative active-turn lock in `site/admin`
-- projecting public-safe current-turn data into `site/public`
+The owner manually contacts the contributor using the private email shown in Admin; automated email
+and reminders remain deferred. On `/join`, only the invited GitHub identity can see and accept its
+pending invitation. Acceptance atomically:
+
+- creates a unique private `turns/{turnId}` document
+- changes the invitation from `pending` to `accepted`
+- changes participation and queue from `invited` to `active`
+- clears the pending-invitation lock and sets the active-turn lock in `site/admin`
+- projects public-safe current-turn data into `site/public`
+
+`startedAt` is the acceptance time. `dueAt` is derived from that time plus the trusted duration on
+the admin-created invitation, so the contribution clock begins only after explicit acceptance.
+The contributor cannot choose either duration or deadline.
+
+There can be only one pending invitation or one current turn. Passing `acceptBy` does not mutate
+Firestore. After the deadline, an admin may explicitly expire the invitation, changing participation
+and queue to `invitation_expired` and clearing the pending lock. No turn, public History event,
+public contributor, or target contribution number is created. This private outcome is distinct from
+expiration of an accepted active turn.
 
 A turn's `targetContributionNumber` is `currentVersion + 1`, but it is only a proposed target. Turn
 activation neither increments `currentVersion` nor creates `contributions/{number}`. An expired or
 failed turn therefore does not consume a permanent contribution number; permanent numbering happens
 only when an admin records a successful merge.
 
-`site/admin` guarantees at most one active turn and is readable only by active admins. `site/public`
+`site/admin` guarantees at most one pending invitation or active turn and is readable only by active admins. `site/public`
 contains only current/total version counts, public contributor presentation data, turn status, target
 number, deadline, and update timestamp. It never contains email, Firebase UID, stable provider ID,
 queue position, priority, promotion metadata, or admin details.
@@ -191,17 +209,18 @@ expired turn automatically.
 
 For a deliberate initial document, create `site/public` manually with `currentVersion: 0`,
 `totalContributions: 0`, `turnStatus: "none"`, null contributor/target/deadline fields, and an
-`updatedAt` timestamp. This is optional in a clean emulator because the activation transaction can
-create the first public state. Leave `site/admin` absent until activation. Production initialization
-is also manual and is not performed by this repository.
+`updatedAt` timestamp. This is optional in a clean emulator because acceptance can create the first
+public state. `site/admin` may remain absent until the first invitation. Production initialization is
+manual and is not performed by this repository.
 
 ### Turn lifecycle and successful merge recording
 
 The protected lifecycle is:
 
 ```text
-waiting → active → submitted → under_review → merged
-                 ↘ expired
+waiting → invited → active → submitted → under_review → merged
+          ↘ invitation_expired
+                           ↘ expired
 active / submitted / under_review → skipped
 ```
 
@@ -246,20 +265,22 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
 ### Firestore boundaries
 
 - `contributions/{contributionNumber}`, `historyEvents/{turnId}`, and `site/public` are
-  public-readable projections. Public and
-  ordinary authenticated writes are denied; an active admin may write `site/public` only inside a
-  rules-validated activation or lifecycle transaction.
-- `contributors/**`, `participation/**`, `queue/**`, and `turns/**` are private operational data.
+  public-readable projections. Anonymous writes are denied. The invited contributor may write
+  `site/public` only inside the exact acceptance transaction; active admins may write it only inside
+  validated lifecycle transactions.
+- `contributors/**`, `participation/**`, `queue/**`, `invitations/**`, and `turns/**` are private operational data.
   A GitHub-authenticated user may get their own contributor and Season 1 participation documents
   and create the initial three-document join transaction. Active allowlisted admins may read the
-  private operational collections. Admin browser writes are limited to queue promotion/restoration
-  plus exact submission, review, expiration, skip, and merge-recording transitions. Queue creation/deletion,
+  private operational collections. An invited GitHub identity may read only its own pending invitation
+  and perform the exact coupled acceptance transaction. Admin browser writes are limited to queue
+  promotion/restoration plus exact invitation, invitation-expiration, submission, review, accepted-turn
+  expiration, skip, and merge-recording transitions. Queue creation/deletion,
   contributor mutation, arbitrary participation/queue transitions, terminal-turn mutation,
   arbitrary public History/contribution writes, and admin writes remain denied.
 - `admins/**` is private trusted authorization configuration. A GitHub-authenticated account may get
   only its own document; listing and all client writes are denied.
-- `site/admin` is the private active-turn singleton. Only active admins may read it, and it can be
-  written only as part of a complete activation or terminal lifecycle transaction.
+- `site/admin` is the private pending-invitation/current-turn singleton. Only active admins may read
+  it; contributors receive only the narrowly validated write needed to accept their own invitation.
 
 Rules deny every unrecognized path. Composite indexes remain empty until implemented queries prove
 which indexes are actually required.

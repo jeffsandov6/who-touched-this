@@ -55,6 +55,10 @@ service cloud.firestore {
       return /databases/$(database)/documents/turns/$(turnId);
     }
 
+    function invitationPath(invitationId) {
+      return /databases/$(database)/documents/invitations/$(invitationId);
+    }
+
     function contributionPath(number) {
       let documentId = string(number);
       return /databases/$(database)/documents/contributions/$(documentId);
@@ -191,8 +195,10 @@ service cloud.firestore {
             && request.resource.data.promotedAt == request.time));
     }
 
-    function noActiveTurnBefore() {
-      return (!exists(privateSitePath()) || get(privateSitePath()).data.activeTurnId == null)
+    function noCurrentWorkBefore() {
+      return (!exists(privateSitePath())
+          || (get(privateSitePath()).data.activeTurnId == null
+            && get(privateSitePath()).data.pendingInvitationId == null))
         && (!exists(publicSitePath()) || get(publicSitePath()).data.turnStatus == 'none');
     }
 
@@ -204,9 +210,97 @@ service cloud.firestore {
       return exists(publicSitePath()) ? get(publicSitePath()).data.totalContributions : 0;
     }
 
-    function validTurnCreate() {
+    function validInvitationCreate(invitationId) {
       let data = request.resource.data;
-      return noActiveTurnBefore()
+      return noCurrentWorkBefore()
+        && data.keys().hasAll(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','createdAt','updatedAt'])
+        && data.keys().hasOnly(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','createdAt','updatedAt'])
+        && data.githubUserId is string && data.githubUserId.matches('^[0-9]+$')
+        && data.season == 1 && data.status == 'pending'
+        && data.invitedAt == request.time && data.createdAt == request.time
+        && data.updatedAt == request.time
+        && data.acceptBy is timestamp && data.acceptBy > request.time
+        && data.acceptBy <= request.time + duration.value(168, 'h')
+        && data.turnDurationHours is int
+        && data.turnDurationHours >= 1 && data.turnDurationHours <= 720
+        && completeInvite(invitationId, data.githubUserId);
+    }
+
+    function validParticipationInvite(participationDocument) {
+      let invitationId = getAfter(privateSitePath()).data.pendingInvitationId;
+      return participationDocument == '1_' + resource.data.githubUserId
+        && resource.data.season == 1 && resource.data.status == 'waiting'
+        && !('invitationId' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','invitationId','updatedAt'])
+        && request.resource.data.status == 'invited'
+        && request.resource.data.invitationId == invitationId
+        && request.resource.data.updatedAt == request.time
+        && completeInvite(invitationId, resource.data.githubUserId);
+    }
+
+    function validQueueInvite(queueDocument) {
+      let invitationId = getAfter(privateSitePath()).data.pendingInvitationId;
+      return queueDocument == '1_' + resource.data.githubUserId
+        && resource.data.season == 1 && resource.data.status == 'waiting'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+        && request.resource.data.status == 'invited'
+        && request.resource.data.updatedAt == request.time
+        && completeInvite(invitationId, resource.data.githubUserId);
+    }
+
+    function validPrivateSiteInvite() {
+      let invitationId = request.resource.data.pendingInvitationId;
+      return noCurrentWorkBefore()
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.activeTurnId == null
+        && invitationId is string && invitationId.size() >= 1 && invitationId.size() <= 128
+        && request.resource.data.updatedAt == request.time
+        && completeInvite(invitationId, getAfter(invitationPath(invitationId)).data.githubUserId);
+    }
+
+    function completeInvite(invitationId, id) {
+      return invitationId is string && invitationId.size() >= 1
+        && !exists(invitationPath(invitationId)) && existsAfter(invitationPath(invitationId))
+        && existsAfter(contributorPathFor(id))
+        && getAfter(invitationPath(invitationId)).data.githubUserId == id
+        && getAfter(invitationPath(invitationId)).data.status == 'pending'
+        && getAfter(participationPathFor(id)).data.status == 'invited'
+        && getAfter(participationPathFor(id)).data.invitationId == invitationId
+        && getAfter(queuePathFor(id)).data.status == 'invited'
+        && getAfter(privateSitePath()).data.activeTurnId == null
+        && getAfter(privateSitePath()).data.pendingInvitationId == invitationId
+        && (!exists(publicSitePath()) || getAfter(publicSitePath()).data.turnStatus == 'none');
+    }
+
+    function currentInvitationIdBefore() {
+      return get(privateSitePath()).data.pendingInvitationId;
+    }
+
+    function validInvitationAccept(invitationId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return hasGitHubIdentity() && before.githubUserId == githubUserId()
+        && currentInvitationIdBefore() == invitationId
+        && before.status == 'pending' && request.time <= before.acceptBy
+        && after.keys().hasAll(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','acceptedAt','turnId','createdAt','updatedAt'])
+        && after.keys().hasOnly(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','acceptedAt','turnId','createdAt','updatedAt'])
+        && after.diff(before).affectedKeys().hasOnly(['status','acceptedAt','turnId','updatedAt'])
+        && after.githubUserId == before.githubUserId && after.season == before.season
+        && after.season == 1 && after.invitedAt == before.invitedAt
+        && after.acceptBy == before.acceptBy && after.turnDurationHours == before.turnDurationHours
+        && after.createdAt == before.createdAt && after.status == 'accepted'
+        && after.acceptedAt == request.time && after.updatedAt == request.time
+        && after.turnId is string && after.turnId.size() >= 1 && after.turnId.size() <= 128
+        && completeAcceptance(invitationId, after.turnId, before.githubUserId);
+    }
+
+    function validTurnCreate(turnId) {
+      let data = request.resource.data;
+      let invitationId = currentInvitationIdBefore();
+      let invitation = get(invitationPath(invitationId)).data;
+      let expectedDueAt = request.time + duration.value(invitation.turnDurationHours, 'h');
+      return hasGitHubIdentity() && data.githubUserId == githubUserId()
         && data.keys().hasAll([
           'githubUserId', 'season', 'status', 'targetContributionNumber',
           'startedAt', 'dueAt', 'createdAt', 'updatedAt'
@@ -225,48 +319,59 @@ service cloud.firestore {
         && data.startedAt is timestamp
         && data.startedAt == request.time
         && data.dueAt is timestamp
-        && data.dueAt > request.time
+        && data.dueAt <= expectedDueAt
+        && data.dueAt >= expectedDueAt - duration.value(5, 'm')
         && data.createdAt is timestamp
         && data.createdAt == request.time
         && data.updatedAt is timestamp
-        && data.updatedAt == request.time;
+        && data.updatedAt == request.time
+        && completeAcceptance(invitationId, turnId, data.githubUserId);
     }
 
     function validParticipationActivation(participationDocument) {
-      return participationDocument == '1_' + resource.data.githubUserId
+      let invitationId = currentInvitationIdBefore();
+      let turnId = getAfter(privateSitePath()).data.activeTurnId;
+      return hasGitHubIdentity() && resource.data.githubUserId == githubUserId()
+        && participationDocument == '1_' + resource.data.githubUserId
         && resource.data.season == 1
-        && resource.data.status == 'waiting'
+        && resource.data.status == 'invited'
+        && resource.data.invitationId == invitationId
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
         && request.resource.data.status == 'active'
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.updatedAt == request.time
-        && completeActivation(getAfter(privateSitePath()).data.activeTurnId, resource.data.githubUserId);
+        && completeAcceptance(invitationId, turnId, resource.data.githubUserId);
     }
 
     function validQueueActivation(queueDocument) {
-      return queueDocument == '1_' + resource.data.githubUserId
+      let invitationId = currentInvitationIdBefore();
+      let turnId = getAfter(privateSitePath()).data.activeTurnId;
+      return hasGitHubIdentity() && resource.data.githubUserId == githubUserId()
+        && queueDocument == '1_' + resource.data.githubUserId
         && resource.data.season == 1
-        && resource.data.status == 'waiting'
+        && resource.data.status == 'invited'
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
         && request.resource.data.status == 'active'
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.updatedAt == request.time
-        && completeActivation(getAfter(privateSitePath()).data.activeTurnId, resource.data.githubUserId);
+        && completeAcceptance(invitationId, turnId, resource.data.githubUserId);
     }
 
     function validPrivateSiteActivation() {
-      return noActiveTurnBefore()
-        && request.resource.data.keys().hasAll(['activeTurnId', 'updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId', 'updatedAt'])
+      let invitationId = resource.data.pendingInvitationId;
+      let id = get(invitationPath(invitationId)).data.githubUserId;
+      return hasGitHubIdentity() && id == githubUserId()
+        && resource.data.activeTurnId == null
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
         && request.resource.data.activeTurnId is string
         && request.resource.data.activeTurnId.size() >= 1
         && request.resource.data.activeTurnId.size() <= 128
+        && request.resource.data.pendingInvitationId == null
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.updatedAt == request.time
-        && completeActivation(
-          request.resource.data.activeTurnId,
-          getAfter(turnPath(request.resource.data.activeTurnId)).data.githubUserId
-        );
+        && completeAcceptance(invitationId, request.resource.data.activeTurnId, id);
     }
 
     function validPublicSiteActivation() {
@@ -274,7 +379,8 @@ service cloud.firestore {
       let turnId = getAfter(privateSitePath()).data.activeTurnId;
       let turn = getAfter(turnPath(turnId)).data;
       let contributor = getAfter(contributorPathFor(turn.githubUserId)).data;
-      return noActiveTurnBefore()
+      let invitationId = currentInvitationIdBefore();
+      return hasGitHubIdentity() && turn.githubUserId == githubUserId()
         && data.keys().hasAll([
           'currentVersion', 'totalContributions', 'turnStatus',
           'targetContributionNumber', 'currentContributor', 'dueAt', 'updatedAt'
@@ -309,12 +415,11 @@ service cloud.firestore {
         && data.dueAt == turn.dueAt
         && data.updatedAt is timestamp
         && data.updatedAt == request.time
-        && completeActivation(turnId, turn.githubUserId);
+        && completeAcceptance(invitationId, turnId, turn.githubUserId);
     }
 
-    // Every permitted activation write requires one internally consistent final state.
-    // This prevents a browser from manufacturing a turn or isolated status transition.
-    function completeActivation(turnId, id) {
+    // Acceptance is the only operation that creates a turn and starts its clock.
+    function completeAcceptance(invitationId, turnId, id) {
       return turnId is string
         && turnId.size() >= 1
         && existsAfter(turnPath(turnId))
@@ -323,6 +428,8 @@ service cloud.firestore {
         && existsAfter(queuePathFor(id))
         && existsAfter(privateSitePath())
         && existsAfter(publicSitePath())
+        && getAfter(invitationPath(invitationId)).data.status == 'accepted'
+        && getAfter(invitationPath(invitationId)).data.turnId == turnId
         && getAfter(turnPath(turnId)).data.githubUserId == id
         && getAfter(turnPath(turnId)).data.status == 'active'
         && getAfter(participationPathFor(id)).data.githubUserId == id
@@ -332,10 +439,61 @@ service cloud.firestore {
         && getAfter(queuePathFor(id)).data.season == 1
         && getAfter(queuePathFor(id)).data.status == 'active'
         && getAfter(privateSitePath()).data.activeTurnId == turnId
+        && getAfter(privateSitePath()).data.pendingInvitationId == null
         && getAfter(publicSitePath()).data.turnStatus == 'active'
         && getAfter(publicSitePath()).data.targetContributionNumber
           == getAfter(turnPath(turnId)).data.targetContributionNumber
         && getAfter(publicSitePath()).data.dueAt == getAfter(turnPath(turnId)).data.dueAt;
+    }
+
+    function validInvitationExpire(invitationId) {
+      let before = resource.data;
+      let after = request.resource.data;
+      return currentInvitationIdBefore() == invitationId
+        && get(privateSitePath()).data.activeTurnId == null
+        && before.status == 'pending' && request.time >= before.acceptBy
+        && after.keys().hasAll(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','expiredAt','createdAt','updatedAt'])
+        && after.keys().hasOnly(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','expiredAt','createdAt','updatedAt'])
+        && after.diff(before).affectedKeys().hasOnly(['status','expiredAt','updatedAt'])
+        && after.githubUserId == before.githubUserId && after.season == before.season
+        && after.invitedAt == before.invitedAt && after.acceptBy == before.acceptBy
+        && after.turnDurationHours == before.turnDurationHours && after.createdAt == before.createdAt
+        && after.status == 'expired' && after.expiredAt == request.time
+        && after.updatedAt == request.time
+        && completeInvitationExpiration(invitationId, before.githubUserId);
+    }
+
+    function validOperationalInvitationExpiration(documentId) {
+      let invitationId = currentInvitationIdBefore();
+      let invitation = get(invitationPath(invitationId)).data;
+      return documentId == '1_' + resource.data.githubUserId
+        && resource.data.githubUserId == invitation.githubUserId
+        && resource.data.season == 1 && resource.data.status == 'invited'
+        && request.resource.data.status == 'invitation_expired'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && completeInvitationExpiration(invitationId, invitation.githubUserId);
+    }
+
+    function validPrivateSiteInvitationExpiration() {
+      let invitationId = resource.data.pendingInvitationId;
+      let id = get(invitationPath(invitationId)).data.githubUserId;
+      return resource.data.activeTurnId == null
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingInvitationId','updatedAt'])
+        && request.resource.data.activeTurnId == null
+        && request.resource.data.pendingInvitationId == null
+        && request.resource.data.updatedAt == request.time
+        && completeInvitationExpiration(invitationId, id);
+    }
+
+    function completeInvitationExpiration(invitationId, id) {
+      return getAfter(invitationPath(invitationId)).data.status == 'expired'
+        && getAfter(participationPathFor(id)).data.status == 'invitation_expired'
+        && getAfter(queuePathFor(id)).data.status == 'invitation_expired'
+        && getAfter(privateSitePath()).data.activeTurnId == null
+        && getAfter(privateSitePath()).data.pendingInvitationId == null;
     }
 
     function currentTurnIdBefore() { return get(privateSitePath()).data.activeTurnId; }
@@ -429,6 +587,7 @@ service cloud.firestore {
         && getAfter(participationPathFor(id)).data.status == terminalStatus
         && getAfter(queuePathFor(id)).data.status == terminalStatus
         && getAfter(privateSitePath()).data.activeTurnId == null
+        && getAfter(privateSitePath()).data.pendingInvitationId == null
         && getAfter(publicSitePath()).data.turnStatus == 'none'
         && getAfter(publicSitePath()).data.currentContributor == null
         && getAfter(publicSitePath()).data.targetContributionNumber == null
@@ -455,9 +614,10 @@ service cloud.firestore {
       let turnId = resource.data.activeTurnId;
       let turnAfter = getAfter(turnPath(turnId)).data;
       return turnId is string && request.resource.data.activeTurnId == null
-        && request.resource.data.keys().hasAll(['activeTurnId','updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId','updatedAt'])
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','updatedAt'])
+        && request.resource.data.pendingInvitationId == null
         && request.resource.data.updatedAt is timestamp && request.resource.data.updatedAt == request.time
         && turnAfter.status in ['expired','skipped']
         && completeTurnEnd(turnId, turnAfter.githubUserId, turnAfter.status);
@@ -564,9 +724,10 @@ service cloud.firestore {
       let turn = getAfter(turnPath(turnId)).data;
       return turnId is string
         && request.resource.data.activeTurnId == null
-        && request.resource.data.keys().hasAll(['activeTurnId','updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId','updatedAt'])
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','updatedAt'])
+        && request.resource.data.pendingInvitationId == null
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.updatedAt == request.time
         && turn.status == 'merged'
@@ -644,6 +805,7 @@ service cloud.firestore {
         && getAfter(queuePathFor(id)).data.status == 'completed'
         && getAfter(queuePathFor(id)).data.contributionNumber == number
         && getAfter(privateSitePath()).data.activeTurnId == null
+        && getAfter(privateSitePath()).data.pendingInvitationId == null
         && publicSite.turnStatus == 'none'
         && publicSite.currentVersion == number
         && publicSite.totalContributions == get(publicSitePath()).data.totalContributions + 1
@@ -674,16 +836,52 @@ service cloud.firestore {
 
     match /site/public {
       allow read: if true;
-      allow create: if isActiveAdmin() && validPublicSiteActivation();
-      allow update: if isActiveAdmin() && (validPublicSiteActivation() || validPublicCurrentTransition() || validPublicSiteEnd() || validPublicSiteMerge());
+      allow create: if hasGitHubIdentity() && validPublicSiteActivation();
+      allow update: if (request.resource.data.turnStatus == 'active'
+          && hasGitHubIdentity() && validPublicSiteActivation())
+        || (request.resource.data.turnStatus in ['submitted','under_review']
+          && isActiveAdmin() && validPublicCurrentTransition())
+        || (request.resource.data.turnStatus == 'none' && isActiveAdmin()
+          && ((request.resource.data.currentVersion == resource.data.currentVersion
+              && validPublicSiteEnd())
+            || (request.resource.data.currentVersion == resource.data.currentVersion + 1
+              && validPublicSiteMerge())));
       allow delete: if false;
     }
 
     match /site/admin {
       allow get: if isActiveAdmin();
       allow list: if false;
-      allow create: if isActiveAdmin() && validPrivateSiteActivation();
-      allow update: if isActiveAdmin() && (validPrivateSiteActivation() || validPrivateSiteEnd() || validPrivateSiteMerge());
+      allow create: if isActiveAdmin() && validPrivateSiteInvite();
+      allow update: if (request.resource.data.pendingInvitationId is string
+          && isActiveAdmin() && validPrivateSiteInvite())
+        || (resource.data.pendingInvitationId is string
+          && request.resource.data.activeTurnId is string
+          && hasGitHubIdentity() && validPrivateSiteActivation())
+        || (resource.data.pendingInvitationId is string
+          && request.resource.data.pendingInvitationId == null
+          && request.resource.data.activeTurnId == null
+          && isActiveAdmin() && validPrivateSiteInvitationExpiration())
+        || (resource.data.activeTurnId is string
+          && request.resource.data.activeTurnId == null
+          && isActiveAdmin()
+          && ((getAfter(turnPath(resource.data.activeTurnId)).data.status in ['expired','skipped']
+              && validPrivateSiteEnd())
+            || (getAfter(turnPath(resource.data.activeTurnId)).data.status == 'merged'
+              && validPrivateSiteMerge())));
+      allow delete: if false;
+    }
+
+    match /invitations/{invitationId} {
+      allow get: if isActiveAdmin()
+        || (hasGitHubIdentity() && resource.data.githubUserId == githubUserId()
+          && resource.data.status == 'pending');
+      allow list: if isActiveAdmin();
+      allow create: if isActiveAdmin() && validInvitationCreate(invitationId);
+      allow update: if (request.resource.data.status == 'accepted'
+          && hasGitHubIdentity() && validInvitationAccept(invitationId))
+        || (request.resource.data.status == 'expired'
+          && isActiveAdmin() && validInvitationExpire(invitationId));
       allow delete: if false;
     }
 
@@ -711,7 +909,21 @@ service cloud.firestore {
         && participationDocument == seasonOneDocumentId()
         && isCompleteNewJoin()
         && validParticipation(request.resource.data);
-      allow update: if isActiveAdmin() && (validParticipationActivation(participationDocument) || validOperationalEnd() || validOperationalMerge());
+      allow update: if (resource.data.status == 'waiting'
+          && request.resource.data.status == 'invited'
+          && isActiveAdmin() && validParticipationInvite(participationDocument))
+        || (resource.data.status == 'invited'
+          && request.resource.data.status == 'active'
+          && hasGitHubIdentity() && validParticipationActivation(participationDocument))
+        || (resource.data.status == 'invited'
+          && request.resource.data.status == 'invitation_expired'
+          && isActiveAdmin() && validOperationalInvitationExpiration(participationDocument))
+        || (resource.data.status == 'active'
+          && request.resource.data.status in ['expired','skipped']
+          && isActiveAdmin() && validOperationalEnd())
+        || (resource.data.status == 'active'
+          && request.resource.data.status == 'completed'
+          && isActiveAdmin() && validOperationalMerge());
       allow delete: if false;
     }
 
@@ -721,17 +933,35 @@ service cloud.firestore {
         && queueDocument == seasonOneDocumentId()
         && isCompleteNewJoin()
         && validQueueEntry(request.resource.data);
-      allow update: if isActiveAdmin()
-        && (validAdminQueuePriorityUpdate() || validQueueActivation(queueDocument) || validOperationalEnd() || validOperationalMerge());
+      allow update: if (resource.data.status == 'waiting'
+          && request.resource.data.status == 'waiting'
+          && isActiveAdmin() && validAdminQueuePriorityUpdate())
+        || (resource.data.status == 'waiting'
+          && request.resource.data.status == 'invited'
+          && isActiveAdmin() && validQueueInvite(queueDocument))
+        || (resource.data.status == 'invited'
+          && request.resource.data.status == 'active'
+          && hasGitHubIdentity() && validQueueActivation(queueDocument))
+        || (resource.data.status == 'invited'
+          && request.resource.data.status == 'invitation_expired'
+          && isActiveAdmin() && validOperationalInvitationExpiration(queueDocument))
+        || (resource.data.status == 'active'
+          && request.resource.data.status in ['expired','skipped']
+          && isActiveAdmin() && validOperationalEnd())
+        || (resource.data.status == 'active'
+          && request.resource.data.status == 'completed'
+          && isActiveAdmin() && validOperationalMerge());
       allow delete: if false;
     }
 
     match /turns/{turnId} {
       allow read: if isActiveAdmin();
-      allow create: if isActiveAdmin()
-        && validTurnCreate()
-        && completeActivation(turnId, request.resource.data.githubUserId);
-      allow update: if isActiveAdmin() && (validTurnSubmission(turnId) || validTurnReview(turnId) || validTurnEnd(turnId) || validTurnMerge(turnId));
+      allow create: if hasGitHubIdentity() && validTurnCreate(turnId);
+      allow update: if isActiveAdmin()
+        && ((request.resource.data.status == 'submitted' && validTurnSubmission(turnId))
+          || (request.resource.data.status == 'under_review' && validTurnReview(turnId))
+          || (request.resource.data.status in ['expired','skipped'] && validTurnEnd(turnId))
+          || (request.resource.data.status == 'merged' && validTurnMerge(turnId)));
       allow delete: if false;
     }
 

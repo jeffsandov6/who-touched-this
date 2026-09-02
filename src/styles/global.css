@@ -75,6 +75,15 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 
 .join-page { max-width: 42rem; }
 .join-auth-panel, .join-form { margin-top: 2rem; }
+.invitation-acceptance {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  padding: 1.25rem;
+  border: 1px solid #d9d9d4;
+  background: #fff;
+}
+.invitation-acceptance h2, .invitation-acceptance p { margin: 0; }
 .github-identity {
   display: flex;
   align-items: center;

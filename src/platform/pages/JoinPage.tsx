@@ -21,6 +21,9 @@ import {
   type JoinFormValues,
 } from '../firebase/join-validation';
 import type { ParticipationStatus } from '../firebase/models';
+import type { OwnPendingInvitation } from '../firebase/invitations';
+import InvitationAcceptance from '../components/InvitationAcceptance';
+import { participationStatusMessage } from '../join-status';
 
 const initialFormValues: JoinFormValues = {
   displayName: '',
@@ -29,27 +32,9 @@ const initialFormValues: JoinFormValues = {
   rulesAcknowledged: false,
 };
 
-function participationMessage(status: ParticipationStatus): string {
-  switch (status) {
-    case 'waiting':
-      return "You're already in the queue. Your exact position is private.";
-    case 'invited':
-    case 'active':
-      return 'Your contribution is already in progress.';
-    case 'completed':
-      return "You've already contributed this season.";
-    case 'expired':
-      return 'Your turn expired this season.';
-    case 'skipped':
-      return 'Your turn was skipped this season.';
-    case 'withdrawn':
-      return 'A participation record already exists for this season and will not be recreated automatically.';
-  }
-}
-
 function safeMessage(error: unknown, fallback: string): string {
   return error instanceof AuthenticationError ||
-    (error instanceof Error && error.name === 'JoinError')
+    (error instanceof Error && (error.name === 'JoinError' || error.name === 'InvitationError'))
     ? error.message
     : fallback;
 }
@@ -59,6 +44,7 @@ export default function JoinPage() {
   const [busy, setBusy] = useState(false);
   const [identity, setIdentity] = useState<GitHubIdentity | null>(null);
   const [participationStatus, setParticipationStatus] = useState<ParticipationStatus | null>(null);
+  const [invitation, setInvitation] = useState<OwnPendingInvitation | null>(null);
   const [formValues, setFormValues] = useState<JoinFormValues>(initialFormValues);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -69,8 +55,18 @@ export default function JoinPage() {
       ...current,
       email: current.email || nextIdentity.suggestedEmail || '',
     }));
-    const { getOwnParticipationStatus } = await import('../firebase/join');
-    setParticipationStatus(await getOwnParticipationStatus(nextIdentity.githubUserId));
+    const { getOwnParticipationState } = await import('../firebase/join');
+    const participation = await getOwnParticipationState(nextIdentity.githubUserId);
+    setParticipationStatus(participation?.status ?? null);
+    if (participation?.status === 'invited' && participation.invitationId) {
+      const { getOwnPendingInvitation } = await import('../firebase/invitations');
+      setInvitation(await getOwnPendingInvitation(
+        nextIdentity.githubUserId,
+        participation.invitationId,
+      ));
+    } else {
+      setInvitation(null);
+    }
   }
 
   useEffect(() => {
@@ -87,6 +83,7 @@ export default function JoinPage() {
             if (active) {
               setIdentity(null);
               setParticipationStatus(null);
+              setInvitation(null);
               setFormValues(initialFormValues);
               setMessage(null);
               setAuthLoading(false);
@@ -175,10 +172,27 @@ export default function JoinPage() {
       setMessage(
         result.kind === 'joined'
           ? "You're in the queue. Your exact position is private."
-          : participationMessage(result.status),
+          : participationStatusMessage(result.status),
       );
     } catch (error) {
       setErrorMessage(safeMessage(error, 'The queue could not be joined. Please try again.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAcceptInvitation() {
+    if (!identity || !invitation) return;
+    setBusy(true);
+    setErrorMessage(null);
+    try {
+      const { acceptInvitation } = await import('../firebase/invitations');
+      await acceptInvitation(identity.githubUserId, invitation.invitationId);
+      setInvitation(null);
+      setParticipationStatus('active');
+      setMessage('Your turn is active. The contribution countdown has started.');
+    } catch (error) {
+      setErrorMessage(safeMessage(error, 'The invitation could not be accepted.'));
     } finally {
       setBusy(false);
     }
@@ -239,9 +253,15 @@ export default function JoinPage() {
             )}
           </section>
 
-          {joinIdentityView === 'participation' && participationStatus ? (
+          {participationStatus === 'invited' && invitation ? (
+            <InvitationAcceptance
+              invitation={invitation}
+              busy={busy}
+              onAccept={handleAcceptInvitation}
+            />
+          ) : joinIdentityView === 'participation' && participationStatus ? (
             <p className="notice" role="status">
-              {message ?? participationMessage(participationStatus)}
+              {message ?? participationStatusMessage(participationStatus)}
             </p>
           ) : joinIdentityView === 'reauthenticate' ? (
             <div className="notice">
