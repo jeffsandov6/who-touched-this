@@ -42,6 +42,10 @@ export const INVITATION_STATUSES = ['pending', 'accepted', 'expired'] as const;
 
 export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
 
+export const EMAIL_DELIVERY_STATUSES = ['sending', 'sent', 'failed'] as const;
+
+export type EmailDeliveryStatus = (typeof EMAIL_DELIVERY_STATUSES)[number];
+
 export const TURN_STATUSES = [
   'active',
   'submitted',

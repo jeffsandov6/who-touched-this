@@ -4,6 +4,7 @@ export const FIRESTORE_COLLECTIONS = {
   participation: 'participation',
   queue: 'queue',
   invitations: 'invitations',
+  emailDeliveries: 'emailDeliveries',
   turns: 'turns',
   contributions: 'contributions',
   historyEvents: 'historyEvents',
@@ -77,6 +78,14 @@ export function turnDocumentPath(turnId: string): string {
 
 export function invitationDocumentPath(invitationId: string): string {
   return `${FIRESTORE_COLLECTIONS.invitations}/${assertPathSegment(invitationId, 'Invitation ID')}`;
+}
+
+export function invitationEmailDeliveryId(invitationId: string): string {
+  return `invitation_${assertPathSegment(invitationId, 'Invitation ID')}`;
+}
+
+export function emailDeliveryDocumentPath(deliveryId: string): string {
+  return `${FIRESTORE_COLLECTIONS.emailDeliveries}/${assertPathSegment(deliveryId, 'Delivery ID')}`;
 }
 
 export function contributionDocumentPath(contributionNumber: number): string {
