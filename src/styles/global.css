@@ -100,7 +100,20 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
   background: #fff;
   font: inherit;
 }
-.form-field input:focus-visible, .rules-acknowledgement input:focus-visible {
+.form-field textarea {
+  width: 100%;
+  min-height: 6rem;
+  padding: 0.65rem 0.75rem;
+  resize: vertical;
+  border: 1px solid #858781;
+  border-radius: 0.2rem;
+  color: inherit;
+  background: #fff;
+  font: inherit;
+}
+.form-field input:focus-visible,
+.form-field textarea:focus-visible,
+.rules-acknowledgement input:focus-visible {
   outline: 3px solid #8ab4e0;
   outline-offset: 2px;
 }
@@ -186,6 +199,8 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
   max-width: 48rem;
 }
 .admin-pr-form h3 { grid-column: 1 / -1; margin: 0; }
+.admin-merge-form { display: grid; gap: 1rem; max-width: 42rem; }
+.admin-merge-form h3, .admin-merge-form p { margin: 0; }
 .admin-turn-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .button-danger { border-color: #8a2924; background: #8a2924; }
 .button-danger-secondary { border-color: #8a2924; color: #8a2924; background: #fff; }
@@ -220,6 +235,17 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .admin-queue-table tbody tr:last-child td { border-bottom: 0; }
 .promoted-label { display: block; color: #625018; font-size: 0.8rem; font-weight: 650; }
 .admin-action { min-width: 8.5rem; padding: 0.45rem 0.65rem; font-size: 0.85rem; }
+
+.history-timeline { display: grid; gap: 1rem; margin: 2rem 0 0; padding: 0; list-style: none; }
+.history-event { padding: 1rem; border-left: 0.25rem solid #94968f; background: #f4f4f1; }
+.history-event article > :first-child { margin-top: 0; }
+.history-event article > :last-child { margin-bottom: 0; }
+.history-contribution { padding: 1.25rem; border: 1px solid #d9d9d4; border-left: 0.35rem solid #244d78; background: #fff; }
+.history-contribution h2 { margin-block: 0.4rem; font-size: 1.25rem; }
+.history-contribution blockquote { margin-inline: 0; padding-left: 1rem; border-left: 0.2rem solid #d9d9d4; }
+.history-event-kind { color: #50535a; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.035em; }
+.history-turn-outcome p { margin-block: 0.35rem; }
+.history-turn-outcome time { color: #50535a; font-size: 0.85rem; }
 
 @media (max-width: 40rem) {
   .platform-navigation { align-items: flex-start; flex-direction: column; gap: 0.75rem; }

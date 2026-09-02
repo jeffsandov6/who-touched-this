@@ -9,6 +9,11 @@ import {
 } from 'firebase/firestore';
 import { CURRENT_SEASON } from '../config/season';
 import {
+  calculateMergedCounters,
+  ContributionValidationError,
+  validateContributionDetails,
+} from '../contribution-validation';
+import {
   calculateTargetContributionNumber,
   type PublicSiteViewState,
   tryParsePublicSiteState,
@@ -29,14 +34,18 @@ import { getPlatformFirestore } from './firestore';
 import type {
   ParticipationRecord,
   PrivateSiteState,
+  PublicContributionRecord,
+  PublicHistoryEvent,
   PublicSiteState,
   TurnRecord,
   TurnStatus,
 } from './models';
 import {
   adminDocumentPath,
+  contributionDocumentPath,
   contributorDocumentPath,
   FIRESTORE_COLLECTIONS,
+  historyEventDocumentPath,
   participationDocumentPath,
   PRIVATE_SITE_DOCUMENT_PATH,
   PUBLIC_SITE_DOCUMENT_PATH,
@@ -455,8 +464,11 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
       }
       const participationReference = doc(firestore, participationDocumentPath(CURRENT_SEASON, turn.githubUserId));
       const queueReference = doc(firestore, queueDocumentPath(CURRENT_SEASON, turn.githubUserId));
-      const [participationSnapshot, queueSnapshot] = await Promise.all([
+      const contributorReference = doc(firestore, contributorDocumentPath(turn.githubUserId));
+      const historyEventReference = doc(firestore, historyEventDocumentPath(turnId));
+      const [participationSnapshot, queueSnapshot, contributorSnapshot, historyEventSnapshot] = await Promise.all([
         transaction.get(participationReference), transaction.get(queueReference),
+        transaction.get(contributorReference), transaction.get(historyEventReference),
       ]);
       if (!participationSnapshot.exists() || participationSnapshot.data().githubUserId !== turn.githubUserId
         || participationSnapshot.data().season !== CURRENT_SEASON || participationSnapshot.data().status !== 'active') {
@@ -465,6 +477,9 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
       if (!queueSnapshot.exists()) throw new AdminServiceError('The current queue entry is missing.');
       const queue = parseAdminQueueEntry(queueSnapshot.data(), turn.githubUserId);
       if (queue.status !== 'active') throw new AdminServiceError('The current queue state is inconsistent.');
+      if (!contributorSnapshot.exists()) throw new AdminServiceError('The current contributor is missing.');
+      const contributor = parseAdminContributor(contributorSnapshot.data(), turn.githubUserId);
+      if (historyEventSnapshot.exists()) throw new AdminServiceError('This turn already has a History event.');
       const publicState = publicSiteSnapshot.exists() ? tryParsePublicSiteState(publicSiteSnapshot.data()) : null;
       assertCurrentPublicProjection(publicState, turn);
       transaction.update(turnReference, { status: nextStatus, endedAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -476,6 +491,14 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
         turnStatus: 'none', targetContributionNumber: null, currentContributor: null,
         dueAt: null, updatedAt: serverTimestamp(),
       } satisfies WithFieldValue<PublicSiteState>);
+      transaction.set(historyEventReference, {
+        type: nextStatus === 'expired' ? 'turn_expired' : 'turn_skipped',
+        season: CURRENT_SEASON,
+        displayName: contributor.displayName,
+        githubUsername: contributor.githubUsername,
+        targetContributionNumber: turn.targetContributionNumber,
+        occurredAt: serverTimestamp(),
+      } satisfies WithFieldValue<PublicHistoryEvent>);
     });
   } catch (error) {
     throw toAdminServiceError(error, nextStatus === 'expired' ? 'The turn could not be expired.' : 'The turn could not be skipped.');
@@ -488,4 +511,175 @@ export function expireCurrentTurn(adminGithubUserId: string): Promise<void> {
 
 export function skipCurrentTurn(adminGithubUserId: string): Promise<void> {
   return endCurrentTurn(adminGithubUserId, 'skipped');
+}
+
+export interface RecordMergedContributionInput {
+  adminGithubUserId: string;
+  summary: string;
+  contributorMessage: string;
+}
+
+export async function recordMergedContribution(
+  input: RecordMergedContributionInput,
+): Promise<number> {
+  let details;
+  try {
+    details = validateContributionDetails(input.summary, input.contributorMessage);
+  } catch (error) {
+    if (error instanceof ContributionValidationError) {
+      throw new AdminServiceError(error.message);
+    }
+    throw error;
+  }
+
+  const firestore = getPlatformFirestore();
+  const adminReference = doc(firestore, adminDocumentPath(input.adminGithubUserId));
+  const privateSiteReference = doc(firestore, PRIVATE_SITE_DOCUMENT_PATH);
+  const publicSiteReference = doc(firestore, PUBLIC_SITE_DOCUMENT_PATH);
+
+  try {
+    return await runTransaction(firestore, async (transaction) => {
+      const [adminSnapshot, privateSiteSnapshot, publicSiteSnapshot] = await Promise.all([
+        transaction.get(adminReference),
+        transaction.get(privateSiteReference),
+        transaction.get(publicSiteReference),
+      ]);
+      assertActiveAdmin(
+        adminSnapshot.exists(),
+        adminSnapshot.data() ?? {},
+        input.adminGithubUserId,
+      );
+
+      const turnId = privateSiteSnapshot.data()?.activeTurnId;
+      if (typeof turnId !== 'string' || !turnId) {
+        throw new AdminServiceError('There is no current turn.');
+      }
+      const turnReference = doc(firestore, turnDocumentPath(turnId));
+      const turnSnapshot = await transaction.get(turnReference);
+      if (!turnSnapshot.exists()) throw new AdminServiceError('The current turn is missing.');
+      const turn = parseCurrentTurn(turnId, turnSnapshot.data());
+      if (turn.status !== 'under_review' || !turn.prNumber || !turn.prUrl) {
+        throw new AdminServiceError('Only an under-review turn can be recorded as merged.');
+      }
+
+      const publicState = publicSiteSnapshot.exists()
+        ? tryParsePublicSiteState(publicSiteSnapshot.data())
+        : null;
+      assertCurrentPublicProjection(publicState, turn);
+      const counters = calculateMergedCounters(
+        publicState.currentVersion,
+        publicState.totalContributions,
+        turn.targetContributionNumber,
+      );
+
+      const contributorReference = doc(firestore, contributorDocumentPath(turn.githubUserId));
+      const participationReference = doc(
+        firestore,
+        participationDocumentPath(CURRENT_SEASON, turn.githubUserId),
+      );
+      const queueReference = doc(
+        firestore,
+        queueDocumentPath(CURRENT_SEASON, turn.githubUserId),
+      );
+      const contributionReference = doc(
+        firestore,
+        contributionDocumentPath(turn.targetContributionNumber),
+      );
+      const historyEventReference = doc(firestore, historyEventDocumentPath(turnId));
+      const [
+        contributorSnapshot,
+        participationSnapshot,
+        queueSnapshot,
+        contributionSnapshot,
+        historyEventSnapshot,
+      ] = await Promise.all([
+        transaction.get(contributorReference),
+        transaction.get(participationReference),
+        transaction.get(queueReference),
+        transaction.get(contributionReference),
+        transaction.get(historyEventReference),
+      ]);
+
+      if (!contributorSnapshot.exists()) throw new AdminServiceError('The contributor is missing.');
+      const contributor = parseAdminContributor(contributorSnapshot.data(), turn.githubUserId);
+      if (
+        !participationSnapshot.exists() ||
+        participationSnapshot.data().githubUserId !== turn.githubUserId ||
+        participationSnapshot.data().season !== CURRENT_SEASON ||
+        participationSnapshot.data().status !== 'active' ||
+        'contributionNumber' in participationSnapshot.data()
+      ) throw new AdminServiceError('The participation state is inconsistent.');
+      if (!queueSnapshot.exists()) throw new AdminServiceError('The queue entry is missing.');
+      const queue = parseAdminQueueEntry(queueSnapshot.data(), turn.githubUserId);
+      if (queue.status !== 'active' || queue.contributionNumber !== undefined) {
+        throw new AdminServiceError('The queue state is inconsistent.');
+      }
+      if (contributionSnapshot.exists()) {
+        throw new AdminServiceError('This contribution number already exists.');
+      }
+      if (historyEventSnapshot.exists()) {
+        throw new AdminServiceError('This turn already has a History event.');
+      }
+
+      const contribution = {
+        number: turn.targetContributionNumber,
+        season: CURRENT_SEASON,
+        displayName: contributor.displayName,
+        githubUsername: contributor.githubUsername,
+        summary: details.summary,
+        ...(details.contributorMessage
+          ? { contributorMessage: details.contributorMessage }
+          : {}),
+        prNumber: turn.prNumber,
+        prUrl: turn.prUrl,
+        mergedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      } satisfies WithFieldValue<PublicContributionRecord>;
+      const historyEvent = {
+        type: 'contribution',
+        season: CURRENT_SEASON,
+        displayName: contributor.displayName,
+        githubUsername: contributor.githubUsername,
+        targetContributionNumber: turn.targetContributionNumber,
+        contributionNumber: turn.targetContributionNumber,
+        occurredAt: serverTimestamp(),
+      } satisfies WithFieldValue<PublicHistoryEvent>;
+
+      transaction.update(turnReference, {
+        status: 'merged',
+        mergedAt: serverTimestamp(),
+        endedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      transaction.update(participationReference, {
+        status: 'completed',
+        contributionNumber: turn.targetContributionNumber,
+        updatedAt: serverTimestamp(),
+      });
+      transaction.update(queueReference, {
+        status: 'completed',
+        contributionNumber: turn.targetContributionNumber,
+        updatedAt: serverTimestamp(),
+      });
+      transaction.set(contributionReference, contribution);
+      transaction.set(historyEventReference, historyEvent);
+      transaction.set(privateSiteReference, {
+        activeTurnId: null,
+        updatedAt: serverTimestamp(),
+      } satisfies WithFieldValue<PrivateSiteState>);
+      transaction.set(publicSiteReference, {
+        currentVersion: counters.currentVersion,
+        totalContributions: counters.totalContributions,
+        turnStatus: 'none',
+        targetContributionNumber: null,
+        currentContributor: null,
+        dueAt: null,
+        updatedAt: serverTimestamp(),
+      } satisfies WithFieldValue<PublicSiteState>);
+
+      return turn.targetContributionNumber;
+    });
+  } catch (error) {
+    throw toAdminServiceError(error, 'The merged contribution could not be recorded.');
+  }
 }

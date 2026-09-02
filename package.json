@@ -20,7 +20,8 @@
     "test:admin-queue": "node --experimental-strip-types --test tests/admin-queue-logic.test.ts",
     "test:join-validation": "node --experimental-strip-types --test tests/join-validation.test.ts",
     "test:turn-state": "node --experimental-strip-types --test tests/turn-state.test.ts",
-    "test:turn-lifecycle": "node --experimental-strip-types --test tests/turn-lifecycle.test.ts"
+    "test:turn-lifecycle": "node --experimental-strip-types --test tests/turn-lifecycle.test.ts",
+    "test:contribution-history": "node --experimental-strip-types --test tests/contribution-history.test.ts"
   },
   "dependencies": {
     "@astrojs/react": "6.0.4",

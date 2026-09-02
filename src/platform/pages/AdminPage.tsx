@@ -30,6 +30,7 @@ import {
   loadAdminCurrentTurn,
   markCurrentTurnUnderReview,
   recordPullRequestSubmission,
+  recordMergedContribution,
   skipCurrentTurn,
   startTurn,
   type AdminCurrentTurn,
@@ -269,7 +270,7 @@ export default function AdminPage() {
     }
   }
 
-  async function runCurrentTurnAction(action: () => Promise<void>, fallback: string) {
+  async function runCurrentTurnAction(action: () => Promise<unknown>, fallback: string) {
     setTurnBusy(true);
     setErrorMessage(null);
     try {
@@ -354,6 +355,14 @@ export default function AdminPage() {
                 onMarkUnderReview={() => runCurrentTurnAction(
                   () => markCurrentTurnUnderReview(identity!.githubUserId),
                   'The turn could not be marked under review.',
+                )}
+                onRecordMerged={(summary, contributorMessage) => runCurrentTurnAction(
+                  () => recordMergedContribution({
+                    adminGithubUserId: identity!.githubUserId,
+                    summary,
+                    contributorMessage,
+                  }),
+                  'The merged contribution could not be recorded.',
                 )}
                 onExpire={() => runCurrentTurnAction(
                   () => expireCurrentTurn(identity!.githubUserId),

@@ -1,6 +1,10 @@
 /** @jsxImportSource react */
 
 import { useEffect, useState, type SyntheticEvent } from 'react';
+import {
+  CONTRIBUTION_SUMMARY_MAX_LENGTH,
+  CONTRIBUTOR_MESSAGE_MAX_LENGTH,
+} from '../contribution-validation';
 import type { AdminCurrentTurn as AdminCurrentTurnData } from '../firebase/turns';
 import { canExpireTurn } from '../turn-lifecycle';
 import Countdown from './Countdown';
@@ -10,6 +14,7 @@ interface Props {
   busy: boolean;
   onRecordSubmission: (prUrl: string, prNumber: string) => Promise<void>;
   onMarkUnderReview: () => Promise<void>;
+  onRecordMerged: (summary: string, contributorMessage: string) => Promise<void>;
   onExpire: () => Promise<void>;
   onSkip: () => Promise<void>;
 }
@@ -26,12 +31,15 @@ export default function AdminCurrentTurn({
   busy,
   onRecordSubmission,
   onMarkUnderReview,
+  onRecordMerged,
   onExpire,
   onSkip,
 }: Props) {
   const [nowMillis, setNowMillis] = useState(() => Date.now());
   const [prUrl, setPrUrl] = useState('');
   const [prNumber, setPrNumber] = useState('');
+  const [summary, setSummary] = useState('');
+  const [contributorMessage, setContributorMessage] = useState('');
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMillis(Date.now()), 1000);
@@ -41,6 +49,14 @@ export default function AdminCurrentTurn({
   async function handleSubmission(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     await onRecordSubmission(prUrl, prNumber);
+  }
+
+  async function handleMerged(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!window.confirm(
+      'Record this contribution as merged? The pull request should already be merged on GitHub.',
+    )) return;
+    await onRecordMerged(summary, contributorMessage);
   }
 
   return (
@@ -107,6 +123,41 @@ export default function AdminCurrentTurn({
         </form>
       )}
 
+      {turn.status === 'under_review' && (
+        <form className="admin-merge-form" onSubmit={(event) => void handleMerged(event)}>
+          <h3>Record successful contribution</h3>
+          <p className="admin-private-note">
+            This records an outcome only. Merge the pull request manually on GitHub first.
+          </p>
+          <div className="form-field">
+            <label htmlFor="contribution-summary">Contribution summary</label>
+            <textarea
+              id="contribution-summary"
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+              maxLength={CONTRIBUTION_SUMMARY_MAX_LENGTH}
+              disabled={busy}
+              required
+            />
+            <small>Public, required, and limited to {CONTRIBUTION_SUMMARY_MAX_LENGTH} characters.</small>
+          </div>
+          <div className="form-field">
+            <label htmlFor="contributor-message">Contributor message (optional)</label>
+            <textarea
+              id="contributor-message"
+              value={contributorMessage}
+              onChange={(event) => setContributorMessage(event.target.value)}
+              maxLength={CONTRIBUTOR_MESSAGE_MAX_LENGTH}
+              disabled={busy}
+            />
+            <small>Public and limited to {CONTRIBUTOR_MESSAGE_MAX_LENGTH} characters.</small>
+          </div>
+          <button className="button" type="submit" disabled={busy}>
+            {busy ? 'Recording…' : 'Record merged contribution'}
+          </button>
+        </form>
+      )}
+
       <div className="admin-turn-actions">
         {turn.status === 'submitted' && (
           <button className="button" type="button" onClick={() => void onMarkUnderReview()} disabled={busy}>
@@ -141,9 +192,6 @@ export default function AdminCurrentTurn({
         </button>
       </div>
 
-      {turn.status === 'under_review' && (
-        <p className="admin-private-note">Merge processing arrives in the next milestone.</p>
-      )}
     </div>
   );
 }
