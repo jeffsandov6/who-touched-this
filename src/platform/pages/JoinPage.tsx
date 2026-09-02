@@ -38,8 +38,11 @@ function participationMessage(status: ParticipationStatus): string {
       return 'Your contribution is already in progress.';
     case 'completed':
       return "You've already contributed this season.";
-    case 'withdrawn':
+    case 'expired':
+      return 'Your turn expired this season.';
     case 'skipped':
+      return 'Your turn was skipped this season.';
+    case 'withdrawn':
       return 'A participation record already exists for this season and will not be recreated automatically.';
   }
 }

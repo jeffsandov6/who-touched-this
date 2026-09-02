@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { subscribeToPublicSiteState } from '../firebase/public-site';
 import { DEFAULT_PUBLIC_SITE_STATE } from '../turn-state';
+import { getPublicTurnPresentation } from '../turn-lifecycle';
 import Countdown from './Countdown';
 
 export default function SiteStatus() {
@@ -27,6 +28,7 @@ export default function SiteStatus() {
   const contributor = siteState.currentContributor
     ? `${siteState.currentContributor.displayName} (@${siteState.currentContributor.githubUsername})`
     : 'None';
+  const presentation = getPublicTurnPresentation(siteState.turnStatus);
 
   return (
     <aside className="site-status" aria-label="Site status">
@@ -45,15 +47,15 @@ export default function SiteStatus() {
         </div>
         <div>
           <dt>Turn status</dt>
-          <dd>{siteState.turnStatus === 'active' ? 'Active' : 'No active turn'}</dd>
+          <dd>{presentation.statusLabel}</dd>
         </div>
         {formattedTarget && (
           <div>
-            <dt>Working on</dt>
+            <dt>{presentation.targetLabel}</dt>
             <dd>#{formattedTarget}</dd>
           </div>
         )}
-        {siteState.turnStatus === 'active' && siteState.dueAtMillis !== null && (
+        {presentation.showCountdown && siteState.dueAtMillis !== null && (
           <div>
             <dt>Time remaining</dt>
             <dd><Countdown dueAtMillis={siteState.dueAtMillis} /></dd>

@@ -26,11 +26,15 @@ import {
 } from '../firebase/github-identity';
 import { QUEUE_STATUSES, type AdminRole } from '../firebase/models';
 import {
+  expireCurrentTurn,
   loadAdminCurrentTurn,
+  markCurrentTurnUnderReview,
+  recordPullRequestSubmission,
+  skipCurrentTurn,
   startTurn,
   type AdminCurrentTurn,
 } from '../firebase/turns';
-import Countdown from '../components/Countdown';
+import AdminCurrentTurnPanel from '../components/AdminCurrentTurn';
 
 type AccessState = 'checking' | 'signed-out' | 'denied' | 'authorized';
 
@@ -265,6 +269,19 @@ export default function AdminPage() {
     }
   }
 
+  async function runCurrentTurnAction(action: () => Promise<void>, fallback: string) {
+    setTurnBusy(true);
+    setErrorMessage(null);
+    try {
+      await action();
+      await refreshAdminData();
+    } catch (error) {
+      setErrorMessage(safeErrorMessage(error, fallback));
+    } finally {
+      setTurnBusy(false);
+    }
+  }
+
   return (
     <section className="page-content admin-page" aria-labelledby="admin-heading">
       <h1 id="admin-heading">Admin</h1>
@@ -327,44 +344,26 @@ export default function AdminPage() {
           <section className="admin-current-turn" aria-labelledby="current-turn-heading">
             <h2 id="current-turn-heading">Current turn</h2>
             {currentTurn ? (
-              <dl className="admin-current-turn-details">
-                <div>
-                  <dt>Contributor</dt>
-                  <dd><strong>{currentTurn.displayName}</strong></dd>
-                </div>
-                <div>
-                  <dt>GitHub</dt>
-                  <dd>
-                    <a href={currentTurn.githubProfileUrl} rel="noreferrer">
-                      @{currentTurn.githubUsername}
-                    </a>
-                  </dd>
-                </div>
-                <div>
-                  <dt>Private contact</dt>
-                  <dd><a href={`mailto:${currentTurn.email}`}>{currentTurn.email}</a></dd>
-                </div>
-                <div>
-                  <dt>Target contribution</dt>
-                  <dd>#{currentTurn.targetContributionNumber}</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>{currentTurn.status}</dd>
-                </div>
-                <div>
-                  <dt>Started</dt>
-                  <dd>{formatJoinedAt(currentTurn.startedAt)}</dd>
-                </div>
-                <div>
-                  <dt>Deadline</dt>
-                  <dd>{formatJoinedAt(currentTurn.dueAt)}</dd>
-                </div>
-                <div>
-                  <dt>Time remaining</dt>
-                  <dd><Countdown dueAtMillis={currentTurn.dueAt.getTime()} /></dd>
-                </div>
-              </dl>
+              <AdminCurrentTurnPanel
+                turn={currentTurn}
+                busy={turnBusy}
+                onRecordSubmission={(prUrl, prNumber) => runCurrentTurnAction(
+                  () => recordPullRequestSubmission({ adminGithubUserId: identity!.githubUserId, prUrl, prNumber }),
+                  'The pull request submission could not be recorded.',
+                )}
+                onMarkUnderReview={() => runCurrentTurnAction(
+                  () => markCurrentTurnUnderReview(identity!.githubUserId),
+                  'The turn could not be marked under review.',
+                )}
+                onExpire={() => runCurrentTurnAction(
+                  () => expireCurrentTurn(identity!.githubUserId),
+                  'The turn could not be expired.',
+                )}
+                onSkip={() => runCurrentTurnAction(
+                  () => skipCurrentTurn(identity!.githubUserId),
+                  'The turn could not be skipped.',
+                )}
+              />
             ) : waitingQueue[0] ? (
               <div className="admin-start-turn">
                 <p>
