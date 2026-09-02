@@ -4,11 +4,12 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #6 adds manual PR submission recording, under-review state, and explicit expiration and
-skip transitions. Public contributions beyond the controlled signup flow are not open.
+Milestone #7 adds manual successful-merge recording, permanent public contribution records, version
+advancement, and a public timeline of successful and failed turns. Public contributions beyond the
+controlled signup flow are not open.
 
-The editable PR #000 canvas has intentionally not been designed yet. Successful merge processing, GitHub
-repository automation, notifications, and production deployment remain deferred.
+The editable PR #000 canvas has intentionally not been designed yet. GitHub merge automation,
+screenshots, notifications, and production deployment remain deferred.
 
 ## Technology
 
@@ -72,6 +73,7 @@ npm run firebase:rules:test
 npm run test:admin-queue
 npm run test:turn-state
 npm run test:turn-lifecycle
+npm run test:contribution-history
 ```
 
 The local suite provides Authentication on port 9099, Firestore on 8080, Hosting on 5002, and the
@@ -175,7 +177,7 @@ queue, deadline, and absence of another active turn before atomically:
 A turn's `targetContributionNumber` is `currentVersion + 1`, but it is only a proposed target. Turn
 activation neither increments `currentVersion` nor creates `contributions/{number}`. An expired or
 failed turn therefore does not consume a permanent contribution number; permanent numbering happens
-only after an accepted merge in a later milestone.
+only when an admin records a successful merge.
 
 `site/admin` guarantees at most one active turn and is readable only by active admins. `site/public`
 contains only current/total version counts, public contributor presentation data, turn status, target
@@ -193,12 +195,12 @@ For a deliberate initial document, create `site/public` manually with `currentVe
 create the first public state. Leave `site/admin` absent until activation. Production initialization
 is also manual and is not performed by this repository.
 
-### Turn lifecycle before merge
+### Turn lifecycle and successful merge recording
 
 The protected lifecycle is:
 
 ```text
-waiting → active → submitted → under_review → [merged in a later milestone]
+waiting → active → submitted → under_review → merged
                  ↘ expired
 active / submitted / under_review → skipped
 ```
@@ -216,21 +218,44 @@ skip any current turn. Expiration and skipping atomically mark the turn, partici
 clear the current-turn lock; and reset the public projection without changing version counters.
 
 Neither failure transition creates a contribution or consumes `targetContributionNumber`. The next
-waiting contributor therefore targets the same `currentVersion + 1`. Only a successful merge in the
-next milestone will create permanent history and increment the version.
+waiting contributor therefore targets the same `currentVersion + 1`.
+
+The application does not merge a GitHub pull request or verify its GitHub state. After manually
+merging an under-review PR on GitHub, an admin records the outcome with a required public summary
+and optional public contributor message. The GitHub PR number is independent of the Who Touched
+This contribution number: for example, Contribution #001 may refer to GitHub PR #27.
+
+That single transaction changes the turn from `under_review` to terminal `merged`, completes its
+participation and queue entries, creates `contributions/{number}` and a matching public History
+event, clears the current-turn lock, advances `currentVersion` to the target, increments
+`totalContributions` once, and clears current contributor data. This is the first operation that
+permanently consumes a contribution number. The next turn targets the new version plus one.
+
+### Public History
+
+`/history` is a small hydrated public view because History changes independently of static Astro
+builds. It queries only public `historyEvents/**` and, for successful events, the matching public
+`contributions/{number}` document. Events are displayed newest-first.
+
+Successful events prominently show Contribution number, contributor presentation identity,
+summary, optional message, GitHub PR, and merge time. Explicit expiration and skipping also create
+compact public events such as `Turn for #001 — Expired`; these explain the chronology without
+mislabeling an unsuccessful turn as Contribution #001. Event documents never contain email,
+Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or private reasons.
 
 ### Firestore boundaries
 
-- `contributions/{contributionNumber}` and `site/public` are public-readable projections. Public and
+- `contributions/{contributionNumber}`, `historyEvents/{turnId}`, and `site/public` are
+  public-readable projections. Public and
   ordinary authenticated writes are denied; an active admin may write `site/public` only inside a
   rules-validated activation or lifecycle transaction.
 - `contributors/**`, `participation/**`, `queue/**`, and `turns/**` are private operational data.
   A GitHub-authenticated user may get their own contributor and Season 1 participation documents
   and create the initial three-document join transaction. Active allowlisted admins may read the
   private operational collections. Admin browser writes are limited to queue promotion/restoration
-  plus exact submission, review, expiration, and skip transitions. Queue creation/deletion,
+  plus exact submission, review, expiration, skip, and merge-recording transitions. Queue creation/deletion,
   contributor mutation, arbitrary participation/queue transitions, terminal-turn mutation,
-  history writes, and admin writes remain denied.
+  arbitrary public History/contribution writes, and admin writes remain denied.
 - `admins/**` is private trusted authorization configuration. A GitHub-authenticated account may get
   only its own document; listing and all client writes are denied.
 - `site/admin` is the private active-turn singleton. Only active admins may read it, and it can be
@@ -248,8 +273,8 @@ The application deliberately separates two ownership areas:
 
 Protected Astro routes in `src/pages/**` remain thin and compose the platform shell around React
 page components. Astro owns routing and static generation; React Router is not used. Join and Admin
-are hydrated for their interactive workflows, and the small SiteStatus island is hydrated for its
-public Firestore subscription and local countdown. Unrelated page content remains static. The
+are hydrated for their interactive workflows, History is hydrated for runtime public data, and the
+small SiteStatus island is hydrated for its public Firestore subscription and local countdown. Unrelated page content remains static. The
 homepage renders the canvas-owned `Home.tsx` inside the protected `PlatformLayout.astro`.
 
 ```text

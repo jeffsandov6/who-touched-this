@@ -59,7 +59,11 @@ export function parseAdminQueueEntry(
     !Number.isSafeInteger(data.priority) ||
     (data.priority as number) < 0 ||
     (data.priority as number) > MAX_QUEUE_PRIORITY ||
-    (data.promotedAt !== undefined && !(data.promotedAt instanceof Timestamp))
+    (data.promotedAt !== undefined && !(data.promotedAt instanceof Timestamp)) ||
+    (data.contributionNumber !== undefined && (
+      !Number.isSafeInteger(data.contributionNumber) ||
+      (data.contributionNumber as number) < 1
+    ))
   ) {
     throw new AdminServiceError('A queue entry contains unsupported data.');
   }

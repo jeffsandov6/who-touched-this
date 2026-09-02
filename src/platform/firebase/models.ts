@@ -36,7 +36,14 @@ export const QUEUE_STATUSES = [
 
 export type QueueStatus = (typeof QUEUE_STATUSES)[number];
 
-export const TURN_STATUSES = ['active', 'submitted', 'under_review', 'expired', 'skipped'] as const;
+export const TURN_STATUSES = [
+  'active',
+  'submitted',
+  'under_review',
+  'merged',
+  'expired',
+  'skipped',
+] as const;
 
 export type TurnStatus = (typeof TURN_STATUSES)[number];
 
@@ -84,6 +91,7 @@ export interface QueueEntry {
   /** Reserved for future arbitrary ordering; ignored by the V1 ordering algorithm. */
   sortOrder?: number;
   promotedAt?: Timestamp;
+  contributionNumber?: number;
   updatedAt: Timestamp;
 }
 
@@ -98,6 +106,7 @@ export interface TurnRecord {
   dueAt: Timestamp;
   submittedAt?: Timestamp;
   reviewStartedAt?: Timestamp;
+  mergedAt?: Timestamp;
   endedAt?: Timestamp;
   prNumber?: number;
   prUrl?: string;
@@ -107,21 +116,35 @@ export interface TurnRecord {
 
 /** Public-safe snapshot: contributions/{contributionNumber}. Never add private contact data. */
 export interface PublicContributionRecord {
-  contributionNumber: number;
+  number: number;
   season: number;
-  githubUserId: string;
   githubUsername: string;
   displayName: string;
   summary: string;
   contributorMessage?: string;
-  prNumber?: number;
-  prUrl?: string;
-  beforeCommitSha?: string;
-  afterCommitSha?: string;
-  affectedRoutes: string[];
-  mergedAt?: Timestamp;
+  prNumber: number;
+  prUrl: string;
+  mergedAt: Timestamp;
   createdAt: Timestamp;
-  updatedAt: Timestamp;
+}
+
+export const HISTORY_EVENT_TYPES = [
+  'contribution',
+  'turn_expired',
+  'turn_skipped',
+] as const;
+
+export type HistoryEventType = (typeof HISTORY_EVENT_TYPES)[number];
+
+/** Public-safe chronology item: historyEvents/{turnId}. */
+export interface PublicHistoryEvent {
+  type: HistoryEventType;
+  season: number;
+  displayName: string;
+  githubUsername: string;
+  targetContributionNumber: number;
+  contributionNumber?: number;
+  occurredAt: Timestamp;
 }
 
 export interface PublicCurrentContributor {

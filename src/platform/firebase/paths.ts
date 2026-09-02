@@ -5,6 +5,7 @@ export const FIRESTORE_COLLECTIONS = {
   queue: 'queue',
   turns: 'turns',
   contributions: 'contributions',
+  historyEvents: 'historyEvents',
   site: 'site',
 } as const;
 
@@ -22,8 +23,8 @@ function assertPathSegment(value: string, label: string): string {
 }
 
 function assertContributionNumber(contributionNumber: number): number {
-  if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) {
-    throw new Error('Contribution number must be a non-negative safe integer.');
+  if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 1) {
+    throw new Error('Contribution number must be a positive safe integer.');
   }
 
   return contributionNumber;
@@ -75,6 +76,10 @@ export function turnDocumentPath(turnId: string): string {
 
 export function contributionDocumentPath(contributionNumber: number): string {
   return `${FIRESTORE_COLLECTIONS.contributions}/${assertContributionNumber(contributionNumber)}`;
+}
+
+export function historyEventDocumentPath(turnId: string): string {
+  return `${FIRESTORE_COLLECTIONS.historyEvents}/${assertPathSegment(turnId, 'History event ID')}`;
 }
 
 export const PUBLIC_SITE_DOCUMENT_PATH =

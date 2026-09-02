@@ -5,7 +5,8 @@
 Who Touched This will eventually accept one community contribution at a time through a managed turn system. Detailed contribution limits will be finalized before launch.
 
 A turn deadline passing does not itself create, accept, or remove a contribution. An explicit
-protected lifecycle operation is required, and only a later accepted merge creates permanent history.
+protected lifecycle operation is required. A contribution becomes permanent only after its PR is
+manually merged on GitHub and an administrator atomically records that successful outcome.
 
 ## Eventual workflow
 
