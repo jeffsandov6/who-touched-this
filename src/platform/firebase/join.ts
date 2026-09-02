@@ -34,6 +34,11 @@ export type JoinResult =
   | { kind: 'joined'; status: 'waiting' }
   | { kind: 'existing'; status: ParticipationStatus };
 
+export interface OwnParticipationState {
+  status: ParticipationStatus;
+  invitationId: string | null;
+}
+
 function isParticipationStatus(value: unknown): value is ParticipationStatus {
   return (
     typeof value === 'string' &&
@@ -44,6 +49,12 @@ function isParticipationStatus(value: unknown): value is ParticipationStatus {
 export async function getOwnParticipationStatus(
   githubUserId: string,
 ): Promise<ParticipationStatus | null> {
+  return (await getOwnParticipationState(githubUserId))?.status ?? null;
+}
+
+export async function getOwnParticipationState(
+  githubUserId: string,
+): Promise<OwnParticipationState | null> {
   try {
     const firestore = getPlatformFirestore();
     const snapshot = await getDoc(
@@ -57,7 +68,13 @@ export async function getOwnParticipationStatus(
       throw new JoinError('Your participation record has an unsupported status.');
     }
 
-    return status;
+    const invitationId = snapshot.data().invitationId;
+    if (
+      (status === 'invited' && (typeof invitationId !== 'string' || !invitationId)) ||
+      (invitationId !== undefined && (typeof invitationId !== 'string' || !invitationId))
+    ) throw new JoinError('Your participation record has unsupported invitation data.');
+
+    return { status, invitationId: typeof invitationId === 'string' ? invitationId : null };
   } catch (error) {
     if (error instanceof JoinError) throw error;
     throw toJoinError(error, 'Your participation status could not be loaded.');

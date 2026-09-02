@@ -53,7 +53,9 @@ async function seedCurrent(status = 'active', dueAt = Timestamp.fromMillis(Date.
         } : {}),
         ...(status === 'under_review' ? { reviewStartedAt } : {}),
       }),
-      setDoc(doc(firestore, 'site/admin'), { activeTurnId: 'current-turn', updatedAt: createdAt }),
+      setDoc(doc(firestore, 'site/admin'), {
+        activeTurnId: 'current-turn', pendingInvitationId: null, updatedAt: createdAt,
+      }),
       setDoc(doc(firestore, 'site/public'), {
         currentVersion: 0, totalContributions: 0, turnStatus: status,
         targetContributionNumber: 1,
@@ -105,7 +107,7 @@ function endBatch(firestore, status, { include = ['turn','participation','queue'
     status, updatedAt: serverTimestamp(),
   });
   if (include.includes('private')) batch.set(doc(firestore, 'site/admin'), {
-    activeTurnId: null, updatedAt: serverTimestamp(),
+    activeTurnId: null, pendingInvitationId: null, updatedAt: serverTimestamp(),
   });
   if (include.includes('public')) batch.set(doc(firestore, 'site/public'), {
     currentVersion: 0, totalContributions: 0, turnStatus: 'none',
@@ -144,22 +146,27 @@ async function seedSecondWaiting() {
   });
 }
 
-function activateSecond(firestore, { currentVersion = 0, totalContributions = 0, target = 1 } = {}) {
+function activateSecond(_firestore, { currentVersion = 0, totalContributions = 0, target = 1 } = {}) {
   const dueAt = Timestamp.fromMillis(Date.now() + 60_000);
-  const batch = writeBatch(firestore);
-  batch.set(doc(firestore, 'turns/second-turn'), {
-    githubUserId: second.id, season: 1, status: 'active', targetContributionNumber: target,
-    startedAt: serverTimestamp(), dueAt, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+  return environment.withSecurityRulesDisabled((context) => {
+    const firestore = context.firestore();
+    const batch = writeBatch(firestore);
+    batch.set(doc(firestore, 'turns/second-turn'), {
+      githubUserId: second.id, season: 1, status: 'active', targetContributionNumber: target,
+      startedAt: Timestamp.now(), dueAt, createdAt: Timestamp.now(), updatedAt: Timestamp.now(),
+    });
+    batch.update(doc(firestore, `participation/1_${second.id}`), { status: 'active', updatedAt: Timestamp.now() });
+    batch.update(doc(firestore, `queue/1_${second.id}`), { status: 'active', updatedAt: Timestamp.now() });
+    batch.set(doc(firestore, 'site/admin'), {
+      activeTurnId: 'second-turn', pendingInvitationId: null, updatedAt: Timestamp.now(),
+    });
+    batch.set(doc(firestore, 'site/public'), {
+      currentVersion, totalContributions, turnStatus: 'active', targetContributionNumber: target,
+      currentContributor: { githubUsername: second.username, displayName: 'Second Contributor' },
+      dueAt, updatedAt: Timestamp.now(),
+    });
+    return batch.commit();
   });
-  batch.update(doc(firestore, `participation/1_${second.id}`), { status: 'active', updatedAt: serverTimestamp() });
-  batch.update(doc(firestore, `queue/1_${second.id}`), { status: 'active', updatedAt: serverTimestamp() });
-  batch.set(doc(firestore, 'site/admin'), { activeTurnId: 'second-turn', updatedAt: serverTimestamp() });
-  batch.set(doc(firestore, 'site/public'), {
-    currentVersion, totalContributions, turnStatus: 'active', targetContributionNumber: target,
-    currentContributor: { githubUsername: second.username, displayName: 'Second Contributor' },
-    dueAt, updatedAt: serverTimestamp(),
-  });
-  return batch.commit();
 }
 
 function mergeBatch(firestore, {
@@ -196,7 +203,7 @@ function mergeBatch(firestore, {
     contributionNumber: 1, occurredAt: serverTimestamp(), ...eventUpdates,
   });
   if (include.includes('private')) batch.set(doc(firestore, 'site/admin'), {
-    activeTurnId: null, updatedAt: serverTimestamp(),
+    activeTurnId: null, pendingInvitationId: null, updatedAt: serverTimestamp(),
   });
   if (include.includes('public')) batch.set(doc(firestore, 'site/public'), {
     currentVersion: 1, totalContributions: 1, turnStatus: 'none',

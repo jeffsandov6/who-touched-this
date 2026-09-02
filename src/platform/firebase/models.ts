@@ -18,6 +18,7 @@ export const PARTICIPATION_STATUSES = [
   'active',
   'completed',
   'expired',
+  'invitation_expired',
   'withdrawn',
   'skipped',
 ] as const;
@@ -30,11 +31,16 @@ export const QUEUE_STATUSES = [
   'active',
   'completed',
   'expired',
+  'invitation_expired',
   'withdrawn',
   'skipped',
 ] as const;
 
 export type QueueStatus = (typeof QUEUE_STATUSES)[number];
+
+export const INVITATION_STATUSES = ['pending', 'accepted', 'expired'] as const;
+
+export type InvitationStatus = (typeof INVITATION_STATUSES)[number];
 
 export const TURN_STATUSES = [
   'active',
@@ -76,6 +82,7 @@ export interface ParticipationRecord {
   season: number;
   status: ParticipationStatus;
   contributionNumber?: number;
+  invitationId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -110,6 +117,21 @@ export interface TurnRecord {
   endedAt?: Timestamp;
   prNumber?: number;
   prUrl?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Private: invitations/{invitationId}. A pending invitation is not a turn. */
+export interface InvitationRecord {
+  githubUserId: string;
+  season: number;
+  status: InvitationStatus;
+  invitedAt: Timestamp;
+  acceptBy: Timestamp;
+  turnDurationHours: number;
+  acceptedAt?: Timestamp;
+  expiredAt?: Timestamp;
+  turnId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -163,8 +185,9 @@ export interface PublicSiteState {
   updatedAt: Timestamp;
 }
 
-/** Private singleton: site/admin. This is the authoritative active-turn lock. */
+/** Private singleton: site/admin. Authoritative pending-invitation/current-turn lock. */
 export interface PrivateSiteState {
   activeTurnId: string | null;
+  pendingInvitationId: string | null;
   updatedAt: Timestamp;
 }
