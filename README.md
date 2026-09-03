@@ -4,12 +4,12 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #10 adds trusted invitation retry, lifecycle confirmations, and hourly invitation/turn
-reminders through the existing Firebase Functions and Resend foundation, with a non-networked
-mailbox for emulator development. Public contributions beyond the controlled signup flow are not open.
+Milestone #11 adds a signed GitHub App webhook foundation that can automatically record a valid pull
+request for the current active contributor. Manual submission and all later review/merge decisions
+remain protected owner operations. Public contributions are not open.
 
-The editable PR #000 canvas has intentionally not been designed yet. GitHub merge automation,
-screenshots, final creative email styling, and production deployment remain deferred.
+The editable PR #000 canvas has intentionally not been designed yet. GitHub review/merge automation,
+screenshots, final creative design, and production deployment remain deferred.
 
 ## Technology
 
@@ -270,8 +270,9 @@ npm run firebase:emulators
 ```
 
 The Functions emulator forcibly selects the local mailbox unless `EMAIL_PROVIDER_MODE=failure` is
-set. If the emulator asks for the declared secret, create ignored `functions/.secret.local` containing
-`RESEND_API_KEY=local-emulator-placeholder`; that value is never read by the local adapter. Successful
+set. If the emulator asks for declared secrets, create ignored `functions/.secret.local` containing
+synthetic `RESEND_API_KEY` and `GITHUB_WEBHOOK_SECRET` values; the local email adapter never reads the
+Resend placeholder. Successful
 local messages appear under their deterministic notification ID in `devEmailSink/**` in the Firestore
 Emulator UI. That emulator-only document contains the generated recipient and body for inspection;
 all browser access is denied. Set `EMAIL_PROVIDER_MODE=failure` in `functions/.env.local` to exercise
@@ -309,6 +310,75 @@ pending invitations and active turns; no per-contributor Scheduler jobs are crea
 Functions and Cloud Scheduler requires production billing/API setup. This repository does not enable
 billing, enable cloud APIs, deploy Functions, or create Scheduler jobs.
 
+### GitHub App webhook
+
+The public HTTPS Function `githubWebhook` consumes inbound GitHub App deliveries. It reads the exact
+raw request bytes and verifies `X-Hub-Signature-256` with the server-only `GITHUB_WEBHOOK_SECRET`
+before parsing JSON. Missing, malformed, or invalid signatures receive `401`. Signed malformed
+requests receive `400`; valid irrelevant events and duplicate deliveries are safely acknowledged.
+Responses never disclose current-turn or contributor data.
+
+Server-controlled Functions configuration is:
+
+```text
+GITHUB_REPOSITORY=JeffSandov6/who-touched-this
+GITHUB_BASE_BRANCH=main
+```
+
+Only `pull_request` actions `opened` and `ready_for_review` are candidates. The PR base repository
+must be the configured canonical repository and its base ref must be the configured branch; the head
+repository may be a contributor fork. An opened draft is ignored, so creating a draft cannot stop the
+clock. A later `ready_for_review` event qualifies only when the PR is no longer draft.
+
+The webhook matches `pull_request.user.id` to the private turn's stable numeric GitHub provider ID.
+Username, display name, and email are never authorization inputs. A qualifying event uses a trusted
+Firestore transaction to perform the same `active → submitted` state shape as the manual admin path:
+it adds immutable PR metadata/timestamps to the turn and changes only `site/public.turnStatus` plus
+its timestamp. Queue and participation stay active, the current-turn lock stays held, counters do not
+change, and no contribution or History event is created. A late PR still qualifies while the owner
+has left the turn active.
+
+Small private `githubWebhookDeliveries/{deliveryId}` records use `X-GitHub-Delivery` as their
+deterministic identity. They retain only event, action, repository, timestamps, status, and a bounded
+result code—not headers, payload bodies, email, tokens, or secrets. Repeated delivery IDs no-op. Once
+a turn is submitted, a distinct event for the same PR no-ops and a different PR is recorded as a
+private conflict without replacing the first submission. Every browser role is denied access.
+
+The existing manual GitHub PR form remains available while a turn is active, providing recovery when
+the App is absent or delivery fails. `under_review` and merged contribution recording remain manual.
+Closed/merged/review events are not processed in this milestone.
+
+For local verification, put this synthetic value only in ignored `functions/.secret.local`:
+
+```text
+GITHUB_WEBHOOK_SECRET=local-github-webhook-secret
+```
+
+Then run the signed emulator harness; it constructs realistic raw payloads and posts them to the
+actual Functions emulator endpoint without contacting GitHub:
+
+```sh
+npm run functions:build
+npm exec -- firebase emulators:exec --only firestore,functions,pubsub \
+  "npm --prefix functions run test:emulator:webhook"
+```
+
+The harness covers valid opened and ready-for-review PRs, drafts, wrong contributor/repository/branch,
+invalid signatures, unsupported events, duplicate delivery, same/different follow-up PRs, no active
+turn, pending-invitation-only state, late PRs, and terminal/non-active turns.
+
+For future production setup, create a GitHub App with Metadata read-only and Pull requests read-only,
+subscribe only to Pull request events, and install it only on the canonical repository. Set the
+deployed `githubWebhook` Function URL shown by Firebase as its webhook URL and configure the same
+random webhook secret in GitHub and Firebase Secret Manager:
+
+```sh
+npm exec -- firebase functions:secrets:set GITHUB_WEBHOOK_SECRET
+```
+
+No App ID or private key is needed until outbound GitHub API calls are introduced. No GitHub App,
+secret, installation, Function, or webhook endpoint is deployed by this repository.
+
 ### Turn lifecycle and successful merge recording
 
 The protected lifecycle is:
@@ -320,9 +390,9 @@ waiting → invited → active → submitted → under_review → merged
 active / submitted / under_review → skipped
 ```
 
-PR recording is a manual owner operation in V1. The admin supplies an HTTPS
-`github.com/{owner}/{repo}/pull/{number}` URL and a matching positive PR number. No GitHub network
-request, webhook, or repository automation occurs. Recording submission and starting review update
+PR recording may happen automatically through a qualifying signed webhook or manually as an owner
+fallback. The manual form supplies an HTTPS `github.com/{owner}/{repo}/pull/{number}` URL and a
+matching positive PR number. Recording submission and starting review update
 the private turn and `site/public` together while participation/queue remain active and the
 `site/admin` lock remains held.
 
@@ -364,8 +434,8 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
   public-readable projections. Anonymous writes are denied. The invited contributor may write
   `site/public` only inside the exact acceptance transaction; active admins may write it only inside
   validated lifecycle transactions.
-- `contributors/**`, `participation/**`, `queue/**`, `invitations/**`, `emailDeliveries/**`, and
-  `turns/**` are private operational data.
+- `contributors/**`, `participation/**`, `queue/**`, `invitations/**`, `emailDeliveries/**`,
+  `githubWebhookDeliveries/**`, and `turns/**` are private operational data.
   A GitHub-authenticated user may get their own contributor and Season 1 participation documents
   and create the initial three-document join transaction. Active allowlisted admins may read the
   private operational collections. An invited GitHub identity may read only its own pending invitation
@@ -381,6 +451,8 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
 - `emailDeliveries/**` is server-owned. Active admins may get a known delivery-status document but
   cannot list or write the collection. `devEmailSink/**` is emulator-only and denies every browser
   read and write, including admin browser access.
+- `githubWebhookDeliveries/**` is server-owned and denied to every browser role. It contains only
+  bounded delivery diagnostics, never raw webhook payloads or headers.
 
 Rules deny every unrecognized path. Composite indexes remain empty until implemented queries prove
 which indexes are actually required.

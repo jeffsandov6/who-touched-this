@@ -898,6 +898,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Trusted Functions own bounded GitHub webhook delivery diagnostics.
+    // Webhook payloads and secrets are never stored here, and no browser role
+    // requires operational access.
+    match /githubWebhookDeliveries/{deliveryId} {
+      allow read, write: if false;
+    }
+
     match /admins/{adminGithubUserId} {
       allow get: if hasGitHubIdentity() && adminGithubUserId == githubUserId();
       allow list, create, update, delete: if false;

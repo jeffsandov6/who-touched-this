@@ -50,6 +50,11 @@ beforeEach(async () => {
       setDoc(doc(firestore, 'devEmailSink/invitation_abc'), {
         to: 'private@example.test', subject: 'private body',
       }),
+      setDoc(doc(firestore, 'githubWebhookDeliveries/delivery-abc'), {
+        event: 'pull_request', action: 'opened', repository: 'owner/repository',
+        status: 'processed', resultCode: 'submitted',
+        receivedAt: Timestamp.now(), processedAt: Timestamp.now(),
+      }),
     ]);
   });
 });
@@ -82,5 +87,19 @@ test('the local mailbox is inaccessible to browsers, including admins', async ()
     firestoreFor(admin),
   ]) {
     await assertFails(getDoc(doc(firestore, 'devEmailSink/invitation_abc')));
+  }
+});
+
+test('GitHub webhook delivery diagnostics are inaccessible to every browser role', async () => {
+  for (const firestore of [
+    environment.unauthenticatedContext().firestore(),
+    firestoreFor(contributor),
+    firestoreFor(admin),
+  ]) {
+    const reference = doc(firestore, 'githubWebhookDeliveries/delivery-abc');
+    await assertFails(getDoc(reference));
+    await assertFails(setDoc(doc(firestore, 'githubWebhookDeliveries/arbitrary'), { status: 'processed' }));
+    await assertFails(updateDoc(reference, { resultCode: 'changed' }));
+    await assertFails(deleteDoc(reference));
   }
 });

@@ -13,6 +13,7 @@
     "test": "npm run build && node --test lib/test/**/*.test.js",
     "test:emulator": "node integration/invitation-trigger.mjs",
     "test:emulator:lifecycle": "node integration/lifecycle-trigger.mjs",
+    "test:emulator:webhook": "node integration/github-webhook.mjs",
     "test:emulator:reminders": "node integration/reminder-dispatch.mjs"
   },
   "dependencies": {
