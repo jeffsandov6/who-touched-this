@@ -4,9 +4,10 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #11 adds a signed GitHub App webhook foundation that can automatically record a valid pull
-request for the current active contributor. Manual submission and all later review/merge decisions
-remain protected owner operations. Public contributions are not open.
+Milestone #13 adds a backend-free contributor preview, structural contribution validator, secure
+fork-PR checks, pull-request template, and complete contributor guide. Manual review and merge remain
+protected owner operations. The canonical repository is still private and public contributions are
+not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub review/merge automation,
 screenshots, final creative design, and production deployment remain deferred.
@@ -20,6 +21,7 @@ screenshots, final creative design, and production deployment remain deferred.
 - Firebase Cloud Functions on Node.js 22 for trusted server-side email delivery
 - Resend as the single planned production transactional-email provider
 - Classic Firebase Hosting for the generated static site
+- GitHub Actions with separate trusted-metadata and untrusted-fork checks
 - Plain CSS
 - npm
 
@@ -41,6 +43,51 @@ npm run check
 npm run build
 npm run preview
 ```
+
+### Contributor-local preview
+
+Future contributors do not need production Firebase configuration or any server secret. After
+installing root dependencies, they can run:
+
+```sh
+npm run dev:contributor
+```
+
+This explicit development-only mode replaces the Firebase-backed status island with a clearly marked
+local contributor-preview status. It previews the protected shell and `src/canvas/**` without a
+`.env`, emulators, Functions, Firebase credentials, Storage access, Resend configuration, webhook
+secret, or service account. The mode is guarded by Astro's development flag, so setting its environment
+variable cannot make a production build use mock state. Normal development and production behavior
+remain Firebase-backed.
+
+Normal `npm run check` and `npm run build` also require no private secrets. Operational pages are not
+part of the contributor preview and may show unavailable configuration when opened without `.env`.
+
+## Future public contribution model
+
+The canonical repository remains private during platform construction. Before Founder Contribution
+#000/community launch, the owner intends to make it public. Contributors will not receive collaborator
+or write access: an invited contributor accepts a turn, forks the public repository, works in a branch
+of that fork, and opens a pull request against `JeffSandov6/who-touched-this:main`.
+
+Only `src/canvas/**` is contributor-editable. The protected validator checks complete diff metadata,
+including both sides of renames and copies, sensitive filenames, Git object modes, and file/media
+sizes. Objective violations fail; more than 12 changed files or 800 changed text lines produces an
+advisory warning. The ordinary contributor command is:
+
+```sh
+npm run contribution:validate -- --base upstream/main
+```
+
+The full fork, upstream, installation, preview, validation, push, and pull-request procedure is in
+`CONTRIBUTING.md`.
+
+Small media can remain in `src/canvas/assets/**`. Individual changed/added Git files are limited to
+25 MiB, and aggregate changed/added binary media is limited to 50 MiB. Larger media requires prior
+maintainer coordination; the maintainer can use protected Firebase Storage management and give the
+contributor the resulting public download URL. That URL can be used directly from `src/canvas/**`
+without Firebase credentials or Firebase initialization. Contributors receive neither Storage write
+access nor an internal Storage path as their integration artifact.
 
 ## Firebase development
 
@@ -485,6 +532,11 @@ deletes only after confirmation. Storage remains the object catalog; this milest
 media metadata. The reusable `getPublicCanvasMediaUrl(storagePath)` helper resolves only validated
 founder-media paths and is ready for a later Founder Contribution #000.
 
+For maintainer-assisted community contributions, the contributor-facing artifact is the public
+download URL produced by the Media manager—not the internal Storage path or the Firebase client
+helper. A contributor can reference that URL directly from `src/canvas/**`, including in contributor
+preview mode, without initializing Firebase or receiving Firebase credentials.
+
 Founder media accepts `image/*`, `audio/*`, and `video/*` content types and enforces a finite 500 MiB
 per-object ceiling in both browser validation and Storage Rules. HTML, JavaScript, executables, empty
 objects, malformed paths, and overwrites are rejected. This generous founder limit is unrelated to
@@ -502,11 +554,42 @@ Firestore authorization lookup has the required Firebase/GCP permissions. The pu
 behavior must be tested against production before founder media is uploaded. No bucket, IAM, billing,
 rules, or media is deployed by local setup.
 
-The next contribution-guidance/guardrails milestone must provide exceptionally explicit instructions
-for contributors: how to fork the repository, clone their fork, add the canonical upstream remote,
-install dependencies, use a safe local contributor environment, run the application locally, know
-exactly what they may edit, validate their changes, push their branch, and open the pull request.
-That full guide and its CI/guardrail enforcement are intentionally not implemented here.
+### Fork pull-request CI security
+
+Fork checks use two deliberately separate trust contexts:
+
+1. `Contribution boundary` uses `pull_request_target`, read-only `contents` and `pull-requests`
+   permissions, a GitHub-hosted runner, and the validator from the trusted base SHA. It never checks
+   out the PR head, installs its dependencies, executes contributor-controlled code, receives
+   application secrets, or deploys. It retrieves only GitHub diff/tree metadata through the API.
+   Consequently a PR cannot bypass the gate by changing `.github/**`, validator source, manifests,
+   tests, or boundary configuration: those changes are themselves rejected, while the executing
+   policy comes from the base repository.
+2. `Contributor build` uses ordinary `pull_request`, a GitHub-hosted runner, a read-only token with
+   checkout credentials disabled, and a ten-minute timeout. It checks out and executes untrusted PR
+   code only after receiving no Firebase, Resend, webhook, Storage-write, deployment, or service-account
+   credentials. It runs `npm ci`, contribution validation, Astro/TypeScript checking, the static build,
+   and fast unit tests. It has no deployment step and no self-hosted runner.
+
+CI is independent of contributor lifecycle. A valid non-draft PR or draft marked Ready for review can
+move an active turn to submitted through the existing signed webhook. Later pushes and CI outcomes do
+not revert, expire, skip, extend, or restart the turn. The maintainer remains responsible for review
+and manual merge.
+
+`CODEOWNERS` assigns the repository to `@JeffSandov6`, but that file alone does not enforce review.
+Before live contribution launch, configure GitHub manually to:
+
+- Make the canonical repository public.
+- Require pull requests for `main`.
+- Require maintainer/code-owner review.
+- Require the `Contribution boundary` and `Contributor build` checks.
+- Block force pushes to `main` and prevent accidental protected-branch deletion where appropriate.
+- Keep workflow tokens read-only/minimal and never expose Actions secrets to fork pull requests.
+- Retain first-time-contributor workflow approval unless deliberately changing that policy.
+- Review repository-wide Actions permissions and allowed actions.
+- Verify the GitHub App is installed only on the canonical repository with its intended permissions.
+
+None of these repository settings or the repository visibility are changed by this milestone.
 
 ## Architecture
 
