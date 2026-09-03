@@ -87,8 +87,8 @@ npm run dev:contributor
 ```
 
 The terminal prints the local address, normally <http://localhost:4321>. Open it in a browser. You
-should see the protected site shell, a clearly local Version #000/no-active-turn status fixture, and
-the canvas. Edits under `src/canvas/**` hot reload where supported.
+should see the protected site shell, a clearly marked local/contributor-preview status, and the
+current canvas. Edits under `src/canvas/**` hot reload where supported.
 
 This mode requires no `.env`, Firebase project configuration, production credentials, Storage write
 access, Resend key, webhook secret, service account, Functions emulator, or private backend. It does
@@ -129,9 +129,10 @@ or added Git file may be at most 25 MiB, and changed/added binary media may tota
 
 If your idea needs larger media, contact the maintainer **before submitting the pull request**. Large
 media is hosted separately to keep Git manageable. The maintainer may upload it through the protected
-Media manager and return a managed Storage path/reference. Contributors do not receive Firebase
-Storage upload credentials. Do not commit enormous files or choose arbitrary third-party hosting
-without approval.
+Media manager and give you the resulting public download URL. You may use that public URL directly
+from `src/canvas/**`; it requires no Firebase credentials or Firebase initialization. Storage paths
+remain an internal maintainer/admin detail. Contributors do not receive Firebase Storage upload
+credentials. Do not commit enormous files or choose arbitrary third-party hosting without approval.
 
 ## 11. Validate and build
 
@@ -194,8 +195,8 @@ GitHub should offer **Compare & pull request**. Verify:
 
 Complete the contribution pull-request template. A draft pull request does **not** count as turn
 submission, so your clock remains active. You may use a draft while working, but submit by either
-opening a non-draft pull request or choosing **Ready for review**. The signed webhook then detects
-the PR using your stable numeric GitHub identity; username alone is never the identity key.
+opening a non-draft pull request or choosing **Ready for review**. 
+Who Touched This automatically detects and associates the PR with you as long as it is opened from the same GitHub account you used to join.
 
 ## 16. Respond to CI
 
@@ -209,8 +210,9 @@ Fork pull requests run:
 
 CI receives no production secrets and performs no deployment. A CI failure does not expire, skip,
 extend, or restart your turn, and it does not revert a submitted turn to active. Fix the issue locally,
-commit it, and push to the same branch; GitHub updates the same pull request. A `synchronize` webhook
-does not create another submission transition.
+commit it, and push to the same branch; GitHub updates the same pull request. Pushing fixes to that
+branch does not create another contribution or restart your turn.
+GitHub may require maintainer approval before workflows run for a first-time contributor. If so, no action is required from you unless the maintainer asks for changes.
 
 ## 17. Maintainer review
 

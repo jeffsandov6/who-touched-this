@@ -36,7 +36,7 @@ const questions = [
   {
     question: 'Can I add images, audio, or video?',
     answer:
-      'Yes. Smaller media can be included directly in your contribution. If your idea needs a large video, audio file, or other large asset, contact the maintainer before submitting your pull request so we can arrange the best way to host it. Do not commit unusually large media or choose an external host without checking first.',
+      'Yes. Smaller media can be included directly in your contribution. If your idea needs a large video, audio file, or other large asset, contact the maintainer before submitting your pull request. The maintainer can host it and provide a public download URL that works in the contributor preview without Firebase credentials. Do not commit unusually large media or choose an external host without checking first.',
   },
 ] as const;
 

@@ -53,8 +53,8 @@ installing root dependencies, they can run:
 npm run dev:contributor
 ```
 
-This explicit development-only mode replaces the Firebase-backed status island with a static local
-Version #000/no-active-turn fixture. It previews the protected shell and `src/canvas/**` without a
+This explicit development-only mode replaces the Firebase-backed status island with a clearly marked
+local contributor-preview status. It previews the protected shell and `src/canvas/**` without a
 `.env`, emulators, Functions, Firebase credentials, Storage access, Resend configuration, webhook
 secret, or service account. The mode is guarded by Astro's development flag, so setting its environment
 variable cannot make a production build use mock state. Normal development and production behavior
@@ -84,8 +84,10 @@ The full fork, upstream, installation, preview, validation, push, and pull-reque
 
 Small media can remain in `src/canvas/assets/**`. Individual changed/added Git files are limited to
 25 MiB, and aggregate changed/added binary media is limited to 50 MiB. Larger media requires prior
-maintainer coordination; the maintainer can use protected Firebase Storage management and return a
-managed reference without granting Storage write access to the contributor.
+maintainer coordination; the maintainer can use protected Firebase Storage management and give the
+contributor the resulting public download URL. That URL can be used directly from `src/canvas/**`
+without Firebase credentials or Firebase initialization. Contributors receive neither Storage write
+access nor an internal Storage path as their integration artifact.
 
 ## Firebase development
 
@@ -529,6 +531,11 @@ lists existing founder objects, previews supported media, copies Storage paths/d
 deletes only after confirmation. Storage remains the object catalog; this milestone adds no Firestore
 media metadata. The reusable `getPublicCanvasMediaUrl(storagePath)` helper resolves only validated
 founder-media paths and is ready for a later Founder Contribution #000.
+
+For maintainer-assisted community contributions, the contributor-facing artifact is the public
+download URL produced by the Media manager—not the internal Storage path or the Firebase client
+helper. A contributor can reference that URL directly from `src/canvas/**`, including in contributor
+preview mode, without initializing Firebase or receiving Firebase credentials.
 
 Founder media accepts `image/*`, `audio/*`, and `video/*` content types and enforces a finite 500 MiB
 per-object ceiling in both browser validation and Storage Rules. HTML, JavaScript, executables, empty
