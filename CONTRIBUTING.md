@@ -29,9 +29,16 @@ invited contributor authenticates with the matching GitHub account and explicitl
 Ownership follows directory boundaries, not file extensions. React/TSX under `src/platform/**` remains protected, while future canvas contributors may use any configured framework within `src/canvas/**`.
 
 Firebase project configuration, authentication, join, admin, queue, turn, public-status code,
-Firestore rules and indexes, emulator configuration, Cloud Functions, transactional-email, reminder,
+Firestore and Storage rules and indexes, emulator configuration, Cloud Functions, transactional-email, reminder,
 and GitHub webhook code,
 protected Firebase source modules, and security-rule tests are platform infrastructure and may not
 be changed by community contributions.
 
 The machine-readable source of these boundaries is `src/platform/config/contribution-boundaries.ts`. Enforcement tooling will be added in a later milestone. Until public contributions formally open, this repository is project scaffolding only.
+
+## Media
+
+Small media assets may eventually live within the editable canvas area. Large images, audio, video,
+or other unusually large assets require maintainer coordination before they are committed or linked.
+Do not assume an arbitrary external host is acceptable; contact the maintainer so hosting can be
+arranged deliberately.

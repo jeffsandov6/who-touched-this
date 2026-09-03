@@ -1,12 +1,13 @@
 import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 
-type FirebaseEmulatorService = 'auth' | 'firestore' | 'functions';
+type FirebaseEmulatorService = 'auth' | 'firestore' | 'functions' | 'storage';
 
 const emulatorConnectionState = globalThis as typeof globalThis & {
   __wttFirebaseEmulators?: {
     auth: boolean;
     firestore: boolean;
     functions: boolean;
+    storage: boolean;
   };
 };
 
@@ -32,6 +33,9 @@ function getFirebaseOptions(): FirebaseOptions {
     projectId: environment.PUBLIC_FIREBASE_PROJECT_ID,
     messagingSenderId: environment.PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: environment.PUBLIC_FIREBASE_APP_ID,
+    ...(environment.PUBLIC_FIREBASE_STORAGE_BUCKET
+      ? { storageBucket: environment.PUBLIC_FIREBASE_STORAGE_BUCKET }
+      : {}),
   };
 }
 
@@ -44,6 +48,7 @@ function getEmulatorConnectionState() {
     auth: false,
     firestore: false,
     functions: false,
+    storage: false,
   });
 }
 

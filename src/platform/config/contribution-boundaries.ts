@@ -24,6 +24,7 @@ export const CONTRIBUTION_BOUNDARIES = {
     'firebase.json',
     '.firebaserc',
     'firestore.rules',
+    'storage.rules',
     'firestore.indexes.json',
     'tests/**',
     'functions/**',

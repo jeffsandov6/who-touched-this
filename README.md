@@ -55,7 +55,8 @@ cp .env.example .env
 ```
 
 The Web configuration uses Astro's `PUBLIC_` prefix intentionally because Firebase client app
-identifiers are sent to browsers. Never commit `.env` or unrelated secrets.
+identifiers—including `PUBLIC_FIREBASE_STORAGE_BUCKET`—are sent to browsers. Never commit `.env`
+or unrelated secrets.
 
 For emulator-backed development, set the following in the local `.env` and restart Astro:
 
@@ -63,8 +64,9 @@ For emulator-backed development, set the following in the local `.env` and resta
 PUBLIC_USE_FIREBASE_EMULATORS=true
 ```
 
-With this flag enabled, browser Auth and Firestore traffic is explicitly routed to the local
-emulators. Leave it false only when intentionally testing against the configured Firebase project.
+With this flag enabled, browser Auth, Firestore, Storage, and Functions traffic is explicitly routed
+to local emulators. Leave it false only when intentionally testing against the configured Firebase
+project.
 
 The repository pins the Firebase CLI as a development dependency. Useful commands are:
 
@@ -73,6 +75,7 @@ npm run firebase:emulators
 npm run firebase:emulators:export
 npm run firebase:emulators:import
 npm run firebase:rules:test
+npm run firebase:storage:rules:test
 npm run functions:check
 npm run functions:test
 npm run test:admin-queue
@@ -80,10 +83,12 @@ npm run test:turn-state
 npm run test:turn-lifecycle
 npm run test:contribution-history
 npm run test:invitation
+npm run test:media
 ```
 
-The local suite provides Authentication on port 9099, Firestore on 8080, Functions on 5001, Pub/Sub
-for scheduled-function dispatch on 8085, Hosting on 5002, and the Emulator UI on 4000. Hosting uses 5002 because macOS commonly reserves port 5000.
+The local suite provides Authentication on port 9099, Firestore on 8080, Storage on 9199, Functions
+on 5001, Pub/Sub for scheduled-function dispatch on 8085, Hosting on 5002, and the Emulator UI on
+4000. Hosting uses 5002 because macOS commonly reserves port 5000.
 Emulator exports live under ignored `.firebase/` data. The emulator script builds Functions first.
 
 Classic Firebase Hosting serves Astro's generated `dist/` directory. Run `npm run build` before
@@ -457,6 +462,52 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
 Rules deny every unrecognized path. Composite indexes remain empty until implemented queries prove
 which indexes are actually required.
 
+### Public canvas media Storage
+
+Media has two intended tiers. Small contribution assets may live in `src/canvas/assets/**` and be
+versioned with the contribution. Large founder-managed images, audio, and video live in Firebase
+Cloud Storage under:
+
+```text
+public/canvas/founder/{opaqueAssetId}/{safeFileName}
+```
+
+Known objects in that namespace are deliberately readable without authentication so a static public
+canvas can display them. Namespace listing, creation, and deletion require Firebase Authentication
+with a stable numeric GitHub provider identity and a matching active `owner` or `admin` document in
+`admins/{githubUserId}`. Authenticated contributors receive no additional Storage permission.
+Everything outside this exact namespace is denied. Objects are immutable: replacement means creating
+a new uniquely addressed object and later deleting the old object deliberately.
+
+The protected `/admin` Media section uploads directly from the browser with resumable progress,
+lists existing founder objects, previews supported media, copies Storage paths/download URLs, and
+deletes only after confirmation. Storage remains the object catalog; this milestone adds no Firestore
+media metadata. The reusable `getPublicCanvasMediaUrl(storagePath)` helper resolves only validated
+founder-media paths and is ready for a later Founder Contribution #000.
+
+Founder media accepts `image/*`, `audio/*`, and `video/*` content types and enforces a finite 500 MiB
+per-object ceiling in both browser validation and Storage Rules. HTML, JavaScript, executables, empty
+objects, malformed paths, and overwrites are rejected. This generous founder limit is unrelated to
+future ordinary-contributor Git limits.
+
+For local work, set `PUBLIC_USE_FIREBASE_EMULATORS=true`, provide the public Web app Storage bucket
+value in `PUBLIC_FIREBASE_STORAGE_BUCKET`, and run `npm run firebase:emulators`. Storage runs on port
+9199 and appears in the Emulator UI. The Storage Rules suite starts Firestore too because Storage
+authorization reads the existing private admin allowlist.
+
+Before production Storage use, the owner must deliberately provision or enable the existing
+`who-touched-this` project's default bucket if it is not available, review current Firebase billing
+and download-cost requirements, deploy `storage.rules`, and verify the cross-service Storage Rules →
+Firestore authorization lookup has the required Firebase/GCP permissions. The public-read/admin-write
+behavior must be tested against production before founder media is uploaded. No bucket, IAM, billing,
+rules, or media is deployed by local setup.
+
+The next contribution-guidance/guardrails milestone must provide exceptionally explicit instructions
+for contributors: how to fork the repository, clone their fork, add the canonical upstream remote,
+install dependencies, use a safe local contributor environment, run the application locally, know
+exactly what they may edit, validate their changes, push their branch, and open the pull request.
+That full guide and its CI/guardrail enforcement are intentionally not implemented here.
+
 ## Architecture
 
 The application deliberately separates two ownership areas:
@@ -477,7 +528,7 @@ src/
   pages/               Thin protected Astro route wrappers
   styles/              Protected global/platform styles
 public/                Static public assets
-tests/                 Protected Firebase security-rule tests
+tests/                 Protected Firestore/Storage security-rule and platform tests
 functions/             Protected Firebase Functions, email adapters, templates, and server tests
 ```
 
