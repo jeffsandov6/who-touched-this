@@ -43,6 +43,7 @@ import {
 } from '../firebase/turns';
 import AdminCurrentTurnPanel from '../components/AdminCurrentTurn';
 import AdminPendingInvitationPanel from '../components/AdminPendingInvitation';
+import AdminMediaManager from '../components/AdminMediaManager';
 import {
   DEFAULT_TURN_DURATION_HOURS,
   validateInvitationDeadline,
@@ -465,6 +466,8 @@ export default function AdminPage() {
               <p className="empty-state">No active turn, pending invitation, or waiting contributors.</p>
             )}
           </section>
+
+          <AdminMediaManager />
 
           <div className="admin-filters" aria-label="Queue filters">
             <div className="form-field">

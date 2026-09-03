@@ -1,0 +1,71 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function hasGitHubIdentity() {
+      return request.auth != null
+        && request.auth.token.firebase is map
+        && request.auth.token.firebase.identities is map
+        && request.auth.token.firebase.identities.keys().hasAll(['github.com'])
+        && request.auth.token.firebase.identities['github.com'] is list
+        && request.auth.token.firebase.identities['github.com'].size() == 1
+        && request.auth.token.firebase.identities['github.com'][0] is string
+        && request.auth.token.firebase.identities['github.com'][0].matches('^[0-9]+$');
+    }
+
+    function githubUserId() {
+      return request.auth.token.firebase.identities['github.com'][0];
+    }
+
+    function adminPath() {
+      return /databases/(default)/documents/admins/$(githubUserId());
+    }
+
+    function isActiveAdmin() {
+      return hasGitHubIdentity()
+        && firestore.exists(adminPath())
+        && firestore.get(adminPath()).data.githubUserId == githubUserId()
+        && firestore.get(adminPath()).data.active == true
+        && (firestore.get(adminPath()).data.role == 'owner'
+          || firestore.get(adminPath()).data.role == 'admin');
+    }
+
+    function validFounderAssetId(assetId) {
+      return assetId.matches('^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89aAbB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$');
+    }
+
+    function validFounderFileName(fileName) {
+      return fileName.matches('^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$');
+    }
+
+    function validFounderMedia() {
+      return request.resource.size > 0
+        && request.resource.size <= 500 * 1024 * 1024
+        && request.resource.contentType is string
+        && request.resource.contentType.matches('^(image|audio|video)/[A-Za-z0-9][A-Za-z0-9.+-]*$');
+    }
+
+    // Founder media is deliberately public by known object path. Namespace
+    // enumeration and every mutation remain private admin operations.
+    match /public/canvas/founder/{path=**} {
+      allow list: if isActiveAdmin();
+    }
+
+    match /public/canvas/founder/{assetId}/{fileName} {
+      allow get: if validFounderAssetId(assetId) && validFounderFileName(fileName);
+      allow create: if isActiveAdmin()
+        && resource == null
+        && validFounderAssetId(assetId)
+        && validFounderFileName(fileName)
+        && validFounderMedia();
+      allow update: if false;
+      allow delete: if isActiveAdmin()
+        && validFounderAssetId(assetId)
+        && validFounderFileName(fileName);
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
