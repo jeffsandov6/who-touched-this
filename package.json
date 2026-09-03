@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "astro dev",
     "dev:contributor": "PUBLIC_CONTRIBUTOR_PREVIEW=true astro dev",
+    "build:contributor": "astro build --mode contributor",
     "build": "astro build",
     "preview": "astro preview",
     "check": "astro check",
@@ -30,8 +31,11 @@
     "test:invitation": "node --experimental-strip-types --test tests/invitation.test.ts",
     "test:media": "node --experimental-strip-types --test tests/media.test.ts",
     "test:contribution-validator": "node --experimental-strip-types --test tests/contribution-validator.test.mjs tests/ci-workflows.test.mjs",
+    "test:snapshots": "node --experimental-strip-types --test tests/editable-routes.test.mjs tests/snapshots.test.mjs",
     "test:contributor": "node --experimental-strip-types --test tests/github-identity.test.ts tests/admin-queue-logic.test.ts tests/join-validation.test.ts tests/turn-state.test.ts tests/turn-lifecycle.test.ts tests/contribution-history.test.ts tests/invitation.test.ts tests/media.test.ts",
-    "contribution:validate": "node --experimental-strip-types scripts/validate-contribution.mjs"
+    "contribution:validate": "node --experimental-strip-types scripts/validate-contribution.mjs",
+    "snapshots:capture": "node --experimental-strip-types scripts/capture-snapshots.mjs",
+    "snapshots:verify": "node --experimental-strip-types scripts/verify-snapshots.mjs"
   },
   "dependencies": {
     "@astrojs/react": "6.0.4",
@@ -52,6 +56,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "firebase-tools": "15.28.2",
+    "playwright": "1.55.0",
     "typescript": "6.0.3"
   }
 }

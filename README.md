@@ -4,13 +4,13 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #13 adds a backend-free contributor preview, structural contribution validator, secure
-fork-PR checks, pull-request template, and complete contributor guide. Manual review and merge remain
-protected owner operations. The canonical repository is still private and public contributions are
-not open.
+Milestone #14 adds exact-revision, complete-editable-site screenshot capture for future visual
+History. Capture remains an explicit local maintainer operation; it does not write Firebase, History,
+turn, contribution, or deployment state. The canonical repository is still private and public
+contributions are not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub review/merge automation,
-screenshots, final creative design, and production deployment remain deferred.
+remote screenshot archival, final creative design, and production deployment remain deferred.
 
 ## Technology
 
@@ -53,12 +53,12 @@ installing root dependencies, they can run:
 npm run dev:contributor
 ```
 
-This explicit development-only mode replaces the Firebase-backed status island with a clearly marked
+This explicit contributor mode replaces the Firebase-backed status island with a clearly marked
 local contributor-preview status. It previews the protected shell and `src/canvas/**` without a
 `.env`, emulators, Functions, Firebase credentials, Storage access, Resend configuration, webhook
-secret, or service account. The mode is guarded by Astro's development flag, so setting its environment
-variable cannot make a production build use mock state. Normal development and production behavior
-remain Firebase-backed.
+secret, or service account. `npm run dev:contributor` enables it only for the local development
+server; `npm run build:contributor` enables the same deterministic fixture for maintainer snapshot
+builds. Normal `npm run build` and production behavior remain Firebase-backed.
 
 Normal `npm run check` and `npm run build` also require no private secrets. Operational pages are not
 part of the contributor preview and may show unavailable configuration when opened without `.env`.
@@ -88,6 +88,98 @@ maintainer coordination; the maintainer can use protected Firebase Storage manag
 contributor the resulting public download URL. That URL can be used directly from `src/canvas/**`
 without Firebase credentials or Firebase initialization. Contributors receive neither Storage write
 access nor an internal Storage path as their integration artifact.
+
+## Complete-site contribution snapshots
+
+One contribution snapshot represents the **entire canonical editable site** at a Git boundary, not
+only the route a contributor intended to change. The protected, versioned registry at
+`src/platform/config/editable-routes.json` currently defines:
+
+```text
+/
+/random
+/thoughts
+```
+
+Every capture produces BEFORE and AFTER images for all three routes—six PNGs—even when some images
+are visually identical. A future protected platform change can add `/gallery` to this registry; the
+same capture engine then produces four BEFORE plus four AFTER images without code changes. Ordinary
+contributors cannot edit the registry or create routes under the current contribution policy.
+
+The capture command reads the registry with `git show` from the supplied historical AFTER commit.
+It never substitutes the route list from the maintainer's current checkout. This means a later
+recapture retains the editable surface that existed at that contribution boundary. A missing or
+invalid historical registry fails the operation clearly.
+
+### Maintainer setup and capture
+
+Install the one supported browser once after `npm ci`:
+
+```sh
+npx playwright install chromium
+```
+
+After an accepted contribution has been merged into canonical `main` and both commits are available
+locally, run:
+
+```sh
+git fetch origin
+npm run snapshots:capture -- \
+  --contribution 42 \
+  --before <SHA_BEFORE_MERGE> \
+  --after <SHA_AFTER_MERGE>
+```
+
+Canonical routes need no command-line arguments. A repeated `--route /extra-public-route` is additive
+for an unusual extra public page and can never suppress canonical routes. `--wait-ms 1500` may adjust
+the bounded post-load settling interval from its 1500 ms default (maximum 10000 ms).
+
+The tool validates that both revisions resolve to distinct commits and that BEFORE is an ancestor of
+AFTER. It creates detached worktrees in an operating-system temporary directory, runs each revision's
+own `npm ci` and `npm run build:contributor`, serves each static output only on loopback, and captures
+it with Playwright Chromium. The main working tree, branches, and uncommitted changes are never built,
+checked out, reset, or stashed. Servers, browser contexts, temporary directories, and registered
+worktrees are cleaned on success and failure; SIGINT/SIGTERM abort child builds and then use the same
+cleanup path.
+
+Capture uses a 1440 × 900 viewport, device scale factor 1, UTC, `en-US`, full-page PNGs, explicit
+navigation timeouts, document load readiness, font readiness, and a bounded settling delay. Required
+routes must return a successful local response; a missing BEFORE route, 404, timeout, or render error
+fails with its side, SHA, and route. Animation, randomness, external public media, or other dynamic
+canvas behavior may yield a different frame on recapture; the full Git SHAs remain the canonical code
+identity. Run this trusted maintainer tool only on reviewed canonical commits, never an unreviewed fork
+head in privileged CI.
+
+Bundles are collision-safe and ignored by Git:
+
+```text
+.wtt/snapshots/contribution-042/<capture-id>/
+  manifest.json
+  index.html
+  before/home.png
+  before/random.png
+  before/thoughts.png
+  after/home.png
+  after/random.png
+  after/thoughts.png
+```
+
+The versioned portable manifest records the contribution, capture ID/time, exact full SHAs, historical
+registry source/revision, canonical/additional/final routes, collision-safe route keys, capture
+settings, relative image paths, and every PNG's SHA-256 checksum. It contains no absolute home path,
+Firebase credential, GitHub token, contributor email, or private identity. Open `index.html` directly
+to review every route's BEFORE and AFTER images side by side, then verify integrity with:
+
+```sh
+npm run snapshots:verify -- .wtt/snapshots/contribution-042/<capture-id>
+```
+
+Capture is observational and local-only in Milestone #14. It creates no Firestore documents and does
+not change versions, turns, queue state, History, or contributions. A later protected workflow may
+archive each immutable bundle beneath a convention such as
+`public/history/contributions/{contributionNumber}/{captureId}/`, with all route images and metadata
+publicly readable but writes maintainer-controlled. Storage Rules and public History are not broadened
+for that future convention yet.
 
 ## Firebase development
 
@@ -601,8 +693,10 @@ The application deliberately separates two ownership areas:
 Protected Astro routes in `src/pages/**` remain thin and compose the platform shell around React
 page components. Astro owns routing and static generation; React Router is not used. Join and Admin
 are hydrated for their interactive workflows, History is hydrated for runtime public data, and the
-small SiteStatus island is hydrated for its public Firestore subscription and local countdown. Unrelated page content remains static. The
-homepage renders the canvas-owned `Home.tsx` inside the protected `PlatformLayout.astro`.
+small SiteStatus island is hydrated for its public Firestore subscription and local countdown.
+Unrelated page content remains static. The canonical `/`, `/random`, and `/thoughts` routes render
+their canvas-owned page components inside the protected `PlatformLayout.astro`; their protected
+route wrappers and editable-route registry remain owner-maintained.
 
 ```text
 src/
@@ -613,6 +707,7 @@ src/
 public/                Static public assets
 tests/                 Protected Firestore/Storage security-rule and platform tests
 functions/             Protected Firebase Functions, email adapters, templates, and server tests
+scripts/snapshots/     Protected exact-revision capture and integrity tooling
 ```
 
 See `CONTRIBUTING.md` for the eventual contribution workflow and current restrictions.
