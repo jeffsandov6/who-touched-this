@@ -1,4 +1,5 @@
 import { buildInvitationEmail } from './template.js';
+import { deliverNotification } from './notification-delivery.js';
 import type { DeliveryIdentity, DeliveryStore, EmailProvider } from './types.js';
 
 const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -82,13 +83,6 @@ function validPendingInvitation(data: InvitationCreatedData): data is Invitation
     && (data.turnDurationHours as number) <= 720;
 }
 
-function safeFailureCode(error: unknown): string {
-  if (error instanceof Error && error.name) {
-    return error.name.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || 'provider_error';
-  }
-  return 'provider_error';
-}
-
 export async function processInvitationCreated(
   input: InvitationCreatedInput,
   dependencies: InvitationDeliveryDependencies,
@@ -99,6 +93,7 @@ export async function processInvitationCreated(
   const deliveryId = invitationDeliveryId(input.invitationId);
   const identity: DeliveryIdentity = {
     deliveryId,
+    type: 'invitation',
     invitationId: input.invitationId,
     githubUserId: input.data.githubUserId,
     claimToken: input.claimToken,
@@ -106,7 +101,6 @@ export async function processInvitationCreated(
   const claim = await dependencies.deliveryStore.claim(identity);
   if (claim.kind === 'already-sent') return { kind: 'already-sent' };
   if (claim.kind === 'busy') throw new Error('Invitation delivery is already in progress.');
-
   const contributor = await dependencies.loadContributor(input.data.githubUserId);
   if (!contributor) {
     await dependencies.deliveryStore.markFailed(identity, 'missing_contributor');
@@ -132,12 +126,10 @@ export async function processInvitationCreated(
     idempotencyKey: deliveryId,
   });
 
-  try {
-    const result = await dependencies.emailProvider.sendEmail(email);
-    await dependencies.deliveryStore.markSent(identity, result.messageId);
-    return { kind: 'sent' };
-  } catch (error) {
-    await dependencies.deliveryStore.markFailed(identity, safeFailureCode(error));
-    throw error;
-  }
+  const result = await deliverNotification(
+    identity, email, dependencies.deliveryStore, dependencies.emailProvider,
+    true,
+  );
+  if (result.kind === 'busy') throw new Error('Invitation delivery is already in progress.');
+  return result;
 }

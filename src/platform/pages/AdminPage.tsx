@@ -31,6 +31,7 @@ import {
   type AdminPendingInvitation,
 } from '../firebase/invitations';
 import { QUEUE_STATUSES, type AdminRole } from '../firebase/models';
+import { retryFailedInvitationEmail } from '../firebase/email-deliveries';
 import {
   expireCurrentTurn,
   loadAdminCurrentTurn,
@@ -405,6 +406,10 @@ export default function AdminPage() {
                 onExpire={() => runCurrentTurnAction(
                   () => expirePendingInvitation(identity!.githubUserId),
                   'The invitation could not be expired.',
+                )}
+                onRetryEmail={() => runCurrentTurnAction(
+                  () => retryFailedInvitationEmail(pendingInvitation.invitationId),
+                  'The invitation email could not be retried.',
                 )}
               />
             ) : waitingQueue[0] ? (

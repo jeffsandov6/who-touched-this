@@ -16,13 +16,25 @@ export interface EmailProvider {
 
 export type EmailDeliveryStatus = 'sending' | 'sent' | 'failed';
 
+export type EmailDeliveryType =
+  | 'invitation'
+  | 'invitation_reminder'
+  | 'turn_started'
+  | 'turn_72h_reminder'
+  | 'turn_24h_reminder'
+  | 'turn_deadline_passed'
+  | 'contribution_completed';
+
 export interface DeliveryClaim {
   kind: 'claimed' | 'already-sent' | 'busy';
 }
 
 export interface DeliveryIdentity {
   deliveryId: string;
-  invitationId: string;
+  type: EmailDeliveryType;
+  invitationId?: string;
+  turnId?: string;
+  contributionNumber?: number;
   githubUserId: string;
   claimToken: string;
 }

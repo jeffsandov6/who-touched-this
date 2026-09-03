@@ -1,4 +1,7 @@
 import { doc, getDoc, Timestamp } from 'firebase/firestore';
+import { FirebaseError } from 'firebase/app';
+import { connectFunctionsEmulator, getFunctions, httpsCallable } from 'firebase/functions';
+import { connectFirebaseEmulatorOnce, getFirebaseApp } from './client';
 import { getPlatformFirestore } from './firestore';
 import type { EmailDeliveryStatus } from './models';
 import {
@@ -31,4 +34,27 @@ export async function getAdminInvitationEmailDelivery(
     status: data.status as EmailDeliveryStatus,
     sentAt: data.sentAt instanceof Timestamp ? data.sentAt.toDate() : null,
   };
+}
+
+export async function retryFailedInvitationEmail(invitationId: string): Promise<void> {
+  if (!invitationId || invitationId.includes('/')) throw new Error('Invitation ID is invalid.');
+  const functions = getFunctions(getFirebaseApp(), 'us-central1');
+  connectFirebaseEmulatorOnce('functions', () =>
+    connectFunctionsEmulator(functions, '127.0.0.1', 5001),
+  );
+  try {
+    await httpsCallable<{ invitationId: string }, { status: string }>(
+      functions, 'retryInvitationEmail',
+    )({ invitationId });
+  } catch (error) {
+    if (error instanceof FirebaseError) {
+      if (error.code === 'functions/permission-denied' || error.code === 'functions/unauthenticated') {
+        throw new Error('Admin authorization could not be verified.');
+      }
+      if (error.code === 'functions/failed-precondition') {
+        throw new Error('This invitation email is no longer eligible for retry.');
+      }
+    }
+    throw new Error('The invitation email could not be retried. Try again later.');
+  }
 }

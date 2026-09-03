@@ -4,12 +4,12 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #9 adds trusted, retry-safe invitation email delivery through Firebase Functions and
-Resend, with a non-networked mailbox for emulator development. Public contributions beyond the
-controlled signup flow are not open.
+Milestone #10 adds trusted invitation retry, lifecycle confirmations, and hourly invitation/turn
+reminders through the existing Firebase Functions and Resend foundation, with a non-networked
+mailbox for emulator development. Public contributions beyond the controlled signup flow are not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub merge automation,
-screenshots, scheduled reminders, other lifecycle emails, and production deployment remain deferred.
+screenshots, final creative email styling, and production deployment remain deferred.
 
 ## Technology
 
@@ -82,8 +82,8 @@ npm run test:contribution-history
 npm run test:invitation
 ```
 
-The local suite provides Authentication on port 9099, Firestore on 8080, Functions on 5001, Hosting
-on 5002, and the Emulator UI on 4000. Hosting uses 5002 because macOS commonly reserves port 5000.
+The local suite provides Authentication on port 9099, Firestore on 8080, Functions on 5001, Pub/Sub
+for scheduled-function dispatch on 8085, Hosting on 5002, and the Emulator UI on 4000. Hosting uses 5002 because macOS commonly reserves port 5000.
 Emulator exports live under ignored `.firebase/` data. The emulator script builds Functions first.
 
 Classic Firebase Hosting serves Astro's generated `dist/` directory. Run `npm run build` before
@@ -179,9 +179,10 @@ participation and queue from `waiting` to `invited`, and sets `site/admin.pendin
 It does not create a turn, assign a target number, publish the contributor, or start a countdown.
 
 The owner can still contact the contributor using the private email shown in Admin. A trusted
-Firestore-triggered Function now attempts the initial invitation email automatically; delivery is
-notification infrastructure and never controls invitation validity. Scheduled reminders and other
-lifecycle emails remain deferred. On `/join`, only the invited GitHub identity can see and accept
+Firestore-triggered Function attempts the initial invitation email automatically, while lifecycle
+triggers and the hourly dispatcher handle confirmations and eligible reminders. Delivery is
+notification infrastructure and never controls invitation validity or lifecycle state. On `/join`,
+only the invited GitHub identity can see and accept
 its pending invitation. Acceptance atomically:
 
 - creates a unique private `turns/{turnId}` document
@@ -221,12 +222,27 @@ For a deliberate initial document, create `site/public` manually with `currentVe
 public state. `site/admin` may remain absent until the first invitation. Production initialization is
 manual and is not performed by this repository.
 
-### Transactional invitation email
+### Transactional lifecycle email
 
-Creating a valid `invitations/{invitationId}` document is the source of truth. A second-generation
-Firestore `onDocumentCreated` Function loads the matching private contributor through the Admin SDK,
-builds plain-text and escaped HTML email, and sends it through a narrow provider adapter. The browser
-never invokes email delivery and never receives provider credentials or another contributor's email.
+Firestore lifecycle documents remain the source of truth. Second-generation Functions load the
+matching private contributor through the Admin SDK, build plain-text and escaped HTML email, and
+send through one narrow provider adapter. Delivery success or failure never advances, rolls back, or
+otherwise mutates invitation, queue, participation, turn, contribution, History, or site state.
+
+The notification set is intentionally transactional and small:
+
+- invitation creation sends the initial invitation;
+- accepting an invitation creates a turn and triggers one turn-started confirmation;
+- an hourly dispatcher may send one invitation reminder at about six hours remaining;
+- active turns may receive one about-72-hour and one about-24-hour reminder;
+- an active overdue turn may receive one deadline-passed notice, which **does not expire the turn**;
+- the first transition to merged sends one contribution-completed confirmation.
+
+The 6-hour invitation reminder requires an original invitation window longer than six hours. The
+72-hour turn reminder requires an original duration longer than 72 hours and is sent only while more
+than 24 hours remain. The 24-hour reminder requires an original duration longer than 24 hours. The
+hourly sweep makes these approximate thresholds, not exact appointment times. Submitted,
+under-review, merged, expired, and skipped turns receive no active-turn reminders.
 
 The intended production sender and reply-to address is:
 
@@ -256,23 +272,42 @@ npm run firebase:emulators
 The Functions emulator forcibly selects the local mailbox unless `EMAIL_PROVIDER_MODE=failure` is
 set. If the emulator asks for the declared secret, create ignored `functions/.secret.local` containing
 `RESEND_API_KEY=local-emulator-placeholder`; that value is never read by the local adapter. Successful
-local messages appear under `devEmailSink/invitation_{invitationId}` in the Firestore
+local messages appear under their deterministic notification ID in `devEmailSink/**` in the Firestore
 Emulator UI. That emulator-only document contains the generated recipient and body for inspection;
 all browser access is denied. Set `EMAIL_PROVIDER_MODE=failure` in `functions/.env.local` to exercise
-the failure path without an external outage. The Admin page shows the private delivery state after a
-manual refresh and retains its contact-email fallback.
+the failure path without an external outage. The Admin page shows the initial invitation delivery
+state after a manual refresh, retains its contact-email fallback, and offers `Retry email` only for a
+failed pending invitation. That callable accepts only an invitation ID and re-verifies the caller's
+stable GitHub identity and active admin record server-side before rebuilding the recipient and email.
 
-Delivery uses deterministic `emailDeliveries/invitation_{invitationId}` state plus the same
+Scheduled behavior can be exercised without waiting by building Functions and running the private
+dispatcher harness inside the Firestore emulator:
+
+```sh
+npm run functions:build
+npm exec -- firebase emulators:exec --only firestore "npm --prefix functions run test:emulator:reminders"
+```
+
+The harness seeds emulator-only timestamps for the invitation, 72-hour, 24-hour, and overdue cases,
+invokes the same dispatcher directly, and verifies deterministic local mailbox records. It exposes
+no production HTTP testing endpoint.
+
+Each logical notification uses deterministic `emailDeliveries/{deliveryId}` state plus the same
 deterministic Resend idempotency key. A successfully sent record prevents later sends. Concurrent
 attempts use a short private claim lease, failed provider attempts are recorded with a bounded safe
-code, and retried Function executions can claim failed work again. Resend additionally deduplicates
+code, and later event/scheduler executions can claim failed work again. Resend additionally deduplicates
 the provider request for its documented idempotency window. This is retry-safe duplicate reduction,
 not a claim of theoretical exactly-once delivery: a crash after provider acceptance but before the
 sent record, outside the provider's idempotency window, remains an unavoidable edge case.
 
-Provider failure never changes the invitation, participation, queue, pending lock, or public state.
-The invitation remains pending and can still be accepted while the owner contacts the contributor
-manually.
+Provider failure never changes authoritative lifecycle state. A failed initial invitation remains
+pending and can still be accepted while the owner contacts the contributor manually. Final creative
+email styling is deliberately deferred.
+
+The production dispatcher uses one `onSchedule` job every 60 minutes and bounded status queries for
+pending invitations and active turns; no per-contributor Scheduler jobs are created. Deploying Cloud
+Functions and Cloud Scheduler requires production billing/API setup. This repository does not enable
+billing, enable cloud APIs, deploy Functions, or create Scheduler jobs.
 
 ### Turn lifecycle and successful merge recording
 

@@ -9,6 +9,7 @@ interface Props {
   invitation: PendingInvitation;
   busy: boolean;
   onExpire: () => Promise<void>;
+  onRetryEmail: () => Promise<void>;
 }
 
 function formatDate(date: Date): string {
@@ -27,7 +28,7 @@ function deliveryLabel(invitation: PendingInvitation): string {
     : 'Sent';
 }
 
-export default function AdminPendingInvitation({ invitation, busy, onExpire }: Props) {
+export default function AdminPendingInvitation({ invitation, busy, onExpire, onRetryEmail }: Props) {
   const [nowMillis, setNowMillis] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNowMillis(Date.now()), 1000);
@@ -48,9 +49,17 @@ export default function AdminPendingInvitation({ invitation, busy, onExpire }: P
         <div><dt>Time to accept</dt><dd><Countdown dueAtMillis={invitation.acceptBy.getTime()} /></dd></div>
       </dl>
       {invitation.emailDelivery?.status === 'failed' && (
-        <p className="notice notice-error" role="status">
-          Automatic email failed. Contact the contributor manually.
-        </p>
+        <div>
+          <p className="notice notice-error" role="status">
+            Automatic email failed. Contact the contributor manually or retry delivery.
+          </p>
+          <div className="admin-toolbar-actions">
+            <button className="button" type="button" disabled={busy} onClick={() => void onRetryEmail()}>
+              {busy ? 'Retrying…' : 'Retry email'}
+            </button>
+            <a className="button button-secondary" href={`mailto:${invitation.email}`}>Contact manually</a>
+          </div>
+        </div>
       )}
       {canExpireInvitation('pending', invitation.acceptBy.getTime(), nowMillis) && (
         <button

@@ -1,11 +1,12 @@
 import { getApps, initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 
-type FirebaseEmulatorService = 'auth' | 'firestore';
+type FirebaseEmulatorService = 'auth' | 'firestore' | 'functions';
 
 const emulatorConnectionState = globalThis as typeof globalThis & {
   __wttFirebaseEmulators?: {
     auth: boolean;
     firestore: boolean;
+    functions: boolean;
   };
 };
 
@@ -42,6 +43,7 @@ function getEmulatorConnectionState() {
   return (emulatorConnectionState.__wttFirebaseEmulators ??= {
     auth: false,
     firestore: false,
+    functions: false,
   });
 }
 
