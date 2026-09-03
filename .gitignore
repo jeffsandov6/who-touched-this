@@ -48,3 +48,6 @@ temp/
 .tmp/
 *.tmp
 *.temp
+
+# Local maintainer snapshot bundles
+.wtt/

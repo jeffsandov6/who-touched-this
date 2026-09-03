@@ -44,7 +44,8 @@ export function useFirebaseEmulators(): boolean {
 }
 
 export function useContributorPreview(): boolean {
-  return import.meta.env.DEV && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true';
+  return import.meta.env.MODE === 'contributor'
+    || (import.meta.env.DEV && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true');
 }
 
 function getEmulatorConnectionState() {

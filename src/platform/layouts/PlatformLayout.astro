@@ -14,8 +14,8 @@ const {
   description = 'A sequential social coding experiment.',
 } = Astro.props;
 const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched This`;
-const contributorPreview = import.meta.env.DEV
-  && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true';
+const contributorPreview = import.meta.env.MODE === 'contributor'
+  || (import.meta.env.DEV && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true');
 ---
 
 <!doctype html>
