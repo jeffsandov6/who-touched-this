@@ -11,7 +11,7 @@ export interface InvitationEmailTemplateInput {
   idempotencyKey: string;
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replace(/[&<>'"]/g, (character) => ({
     '&': '&amp;',
     '<': '&lt;',
@@ -27,6 +27,14 @@ export function invitationJoinUrl(appOrigin: string): string {
     throw new Error('APP_ORIGIN must be an HTTP(S) origin without credentials.');
   }
   return new URL('/join', origin).toString();
+}
+
+export function applicationUrl(appOrigin: string, pathname: '/join' | '/history'): string {
+  const origin = new URL(appOrigin);
+  if (!['http:', 'https:'].includes(origin.protocol) || origin.username || origin.password) {
+    throw new Error('APP_ORIGIN must be an HTTP(S) origin without credentials.');
+  }
+  return new URL(pathname, origin).toString();
 }
 
 export function formatInvitationDate(date: Date): string {

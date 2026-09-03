@@ -26,8 +26,12 @@ export class FirestoreDeliveryStore implements DeliveryStore {
         ? snapshot.data()!.attemptCount + 1
         : 1;
       transaction.set(reference, {
-        type: 'invitation',
-        invitationId: identity.invitationId,
+        type: identity.type,
+        ...(identity.invitationId ? { invitationId: identity.invitationId } : {}),
+        ...(identity.turnId ? { turnId: identity.turnId } : {}),
+        ...(identity.contributionNumber !== undefined
+          ? { contributionNumber: identity.contributionNumber }
+          : {}),
         githubUserId: identity.githubUserId,
         status: 'sending',
         attemptCount,
