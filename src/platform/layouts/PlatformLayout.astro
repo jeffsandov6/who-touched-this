@@ -1,6 +1,7 @@
 ---
 import Navigation from '../components/Navigation';
 import SiteStatus from '../components/SiteStatus';
+import ContributorSiteStatus from '../components/ContributorSiteStatus';
 import '../../styles/global.css';
 
 interface Props {
@@ -13,6 +14,8 @@ const {
   description = 'A sequential social coding experiment.',
 } = Astro.props;
 const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched This`;
+const contributorPreview = import.meta.env.DEV
+  && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true';
 ---
 
 <!doctype html>
@@ -28,7 +31,7 @@ const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="platform-header">
       <Navigation currentPath={Astro.url.pathname} />
-      <SiteStatus client:load />
+      {contributorPreview ? <ContributorSiteStatus /> : <SiteStatus client:load />}
     </header>
     <main id="main-content"><slot /></main>
   </body>

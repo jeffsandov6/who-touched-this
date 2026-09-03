@@ -43,6 +43,10 @@ export function useFirebaseEmulators(): boolean {
   return import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true';
 }
 
+export function useContributorPreview(): boolean {
+  return import.meta.env.DEV && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true';
+}
+
 function getEmulatorConnectionState() {
   return (emulatorConnectionState.__wttFirebaseEmulators ??= {
     auth: false,
@@ -54,6 +58,9 @@ function getEmulatorConnectionState() {
 
 /** Lazily returns the default Firebase app, initializing it at most once. */
 export function getFirebaseApp(): FirebaseApp {
+  if (useContributorPreview()) {
+    throw new Error('Firebase is disabled in contributor preview mode.');
+  }
   const defaultApp = getApps().find((app) => app.name === '[DEFAULT]');
   return defaultApp ?? initializeApp(getFirebaseOptions());
 }
