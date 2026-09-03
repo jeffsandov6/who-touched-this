@@ -2,10 +2,17 @@ import { randomUUID } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions';
-import { HttpsError, onCall } from 'firebase-functions/v2/https';
+import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { configuredAppOrigin, emailProviderMode, resendApiKey } from './config.js';
+import {
+  configuredAppOrigin,
+  emailProviderMode,
+  githubBaseBranch,
+  githubRepository,
+  githubWebhookSecret,
+  resendApiKey,
+} from './config.js';
 import { FirestoreDeliveryStore } from './email/firestore-delivery-store.js';
 import { processInvitationCreated } from './email/invitation-delivery.js';
 import {
@@ -18,6 +25,7 @@ import { dispatchEligibleNotifications } from './email/reminder-dispatcher.js';
 import { ResendEmailProvider } from './email/resend-provider.js';
 import { retryInvitationDelivery, RetryInvitationError } from './email/retry-invitation.js';
 import type { EmailProvider } from './email/types.js';
+import { handleGitHubWebhook } from './github/webhook.js';
 
 if (getApps().length === 0) initializeApp();
 
@@ -180,5 +188,23 @@ export const dispatchEmailReminders = onSchedule({
     }, dependencies());
   } catch (error) {
     safeLogFailure('Scheduled email dispatcher encountered a delivery failure.', 'hourly-sweep', error);
+  }
+});
+
+export const githubWebhook = onRequest({
+  region: 'us-central1', secrets: [githubWebhookSecret], cors: false,
+}, async (request, response) => {
+  try {
+    await handleGitHubWebhook(request, response, {
+      firestore: getFirestore(),
+      secret: githubWebhookSecret.value(),
+      config: {
+        repository: githubRepository.value(),
+        baseBranch: githubBaseBranch.value(),
+      },
+    });
+  } catch (error) {
+    safeLogFailure('GitHub webhook processing failed.', 'github-webhook', error);
+    response.status(500).json({ ok: false, result: 'processing_error' });
   }
 });
