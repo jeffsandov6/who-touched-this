@@ -30,9 +30,11 @@ export class AuthenticationError extends Error {
 
 function getPlatformAuth() {
   const auth = getAuth(getFirebaseApp());
-  connectFirebaseEmulatorOnce('auth', () =>
-    connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true }),
-  );
+  if (import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true') {
+    connectFirebaseEmulatorOnce('auth', () =>
+      connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true }),
+    );
+  }
   return auth;
 }
 

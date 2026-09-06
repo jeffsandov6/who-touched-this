@@ -4,13 +4,17 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #14 adds exact-revision, complete-editable-site screenshot capture for future visual
-History. Capture remains an explicit local maintainer operation; it does not write Firebase, History,
-turn, contribution, or deployment state. The canonical repository is still private and public
-contributions are not open.
+Milestone #15 adds a fail-closed production configuration contract, release preflight, explicit
+project-pinned deployment commands, pre-launch indexing control, read-only smoke testing, and a
+maintainer production runbook. Nothing has been deployed. The canonical repository is still private
+and public contributions are not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub review/merge automation,
 remote screenshot archival, final creative design, and production deployment remain deferred.
+
+Production preparation and eventual release procedures are documented in
+[`docs/PRODUCTION.md`](docs/PRODUCTION.md). Production remains a deliberate maintainer operation;
+contributor CI has no deployment step or production credentials.
 
 ## Technology
 

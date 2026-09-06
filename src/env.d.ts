@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly PUBLIC_FIREBASE_STORAGE_BUCKET?: string;
   readonly PUBLIC_USE_FIREBASE_EMULATORS?: string;
   readonly PUBLIC_CONTRIBUTOR_PREVIEW?: string;
+  readonly PUBLIC_SITE_INDEXING_ENABLED?: string;
 }
 
 interface ImportMeta {

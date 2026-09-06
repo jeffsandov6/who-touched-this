@@ -10,6 +10,8 @@ functions/lib/
 .env
 .env.*
 !.env.example
+!.env.production.example
+!functions/.env.who-touched-this.example
 .secret.local
 
 # Logs
