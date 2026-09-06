@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { SNAPSHOT_CONFIG } from './config.mjs';
 import { isPng, sha256File } from './integrity.mjs';
 import { createRouteKeyMap, normalizeSnapshotRoute } from './routes.mjs';
+import { validateSnapshotManifest } from '../../src/platform/snapshots/schema.ts';
 
 export function formatContributionNumber(number) {
   if (!Number.isSafeInteger(number) || number < 0) throw new Error('Contribution number must be a non-negative safe integer.');
@@ -56,7 +57,7 @@ export async function verifySnapshotBundle(bundlePath) {
   const manifestPath = resolve(bundlePath, 'manifest.json');
   let manifest;
   try {
-    manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+    manifest = validateSnapshotManifest(JSON.parse(await readFile(manifestPath, 'utf8')));
   } catch (error) {
     throw new Error(`Malformed or missing snapshot manifest: ${error.message}`);
   }

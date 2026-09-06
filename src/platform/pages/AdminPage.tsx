@@ -44,6 +44,7 @@ import {
 import AdminCurrentTurnPanel from '../components/AdminCurrentTurn';
 import AdminPendingInvitationPanel from '../components/AdminPendingInvitation';
 import AdminMediaManager from '../components/AdminMediaManager';
+import AdminSnapshotArchive from '../components/AdminSnapshotArchive';
 import {
   DEFAULT_TURN_DURATION_HOURS,
   validateInvitationDeadline,
@@ -468,6 +469,8 @@ export default function AdminPage() {
           </section>
 
           <AdminMediaManager />
+
+          <AdminSnapshotArchive />
 
           <div className="admin-filters" aria-label="Queue filters">
             <div className="form-field">

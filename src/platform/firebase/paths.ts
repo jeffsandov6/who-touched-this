@@ -8,6 +8,7 @@ export const FIRESTORE_COLLECTIONS = {
   turns: 'turns',
   contributions: 'contributions',
   historyEvents: 'historyEvents',
+  contributionSnapshots: 'contributionSnapshots',
   site: 'site',
 } as const;
 

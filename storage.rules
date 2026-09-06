@@ -45,6 +45,27 @@ service firebase.storage {
         && request.resource.contentType.matches('^(image|audio|video)/[A-Za-z0-9][A-Za-z0-9.+-]*$');
     }
 
+    function validContributionLabel(label) {
+      return label.matches('^[0-9]{3,}$');
+    }
+
+    function validSnapshotCaptureId(captureId) {
+      return captureId.matches('^[A-Za-z0-9-]{1,100}$');
+    }
+
+    function validSnapshotRouteKey(fileName) {
+      return fileName.matches('^[A-Za-z0-9_-]{1,180}[.]png$');
+    }
+
+    function validSnapshotIdentity(label, captureId) {
+      return request.resource.metadata.contributionNumber is string
+        && request.resource.metadata.contributionNumber.matches('^[0-9]+$')
+        && request.resource.metadata.contributionLabel == label
+        && request.resource.metadata.captureId == captureId
+        && validContributionLabel(label)
+        && validSnapshotCaptureId(captureId);
+    }
+
     // Founder media is deliberately public by known object path. Namespace
     // enumeration and every mutation remain private admin operations.
     match /public/canvas/founder/{path=**} {
@@ -62,6 +83,44 @@ service firebase.storage {
       allow delete: if isActiveAdmin()
         && validFounderAssetId(assetId)
         && validFounderFileName(fileName);
+    }
+
+    // Finalized visual History is public by known immutable object path. Only an
+    // active stable-GitHub-ID admin may stage new archive objects; no browser can
+    // enumerate, overwrite, mutate metadata, or delete them.
+    match /public/history/contributions/{path=**} {
+      allow list: if false;
+    }
+
+    match /public/history/contributions/{contributionLabel}/{captureId}/manifest.json {
+      allow get: if validContributionLabel(contributionLabel) && validSnapshotCaptureId(captureId);
+      allow create: if isActiveAdmin()
+        && resource == null
+        && validSnapshotIdentity(contributionLabel, captureId)
+        && request.resource.size > 0
+        && request.resource.size <= 1024 * 1024
+        && request.resource.contentType == 'application/json';
+      allow update, delete: if false;
+    }
+
+    match /public/history/contributions/{contributionLabel}/{captureId}/{side}/{fileName} {
+      allow get: if validContributionLabel(contributionLabel)
+        && validSnapshotCaptureId(captureId)
+        && side in ['before', 'after']
+        && validSnapshotRouteKey(fileName);
+      allow create: if isActiveAdmin()
+        && resource == null
+        && validSnapshotIdentity(contributionLabel, captureId)
+        && side in ['before', 'after']
+        && validSnapshotRouteKey(fileName)
+        && request.resource.metadata.side == side
+        && request.resource.metadata.routeKey + '.png' == fileName
+        && request.resource.metadata.sha256 is string
+        && request.resource.metadata.sha256.matches('^[0-9a-f]{64}$')
+        && request.resource.size > 0
+        && request.resource.size <= 20 * 1024 * 1024
+        && request.resource.contentType == 'image/png';
+      allow update, delete: if false;
     }
 
     match /{path=**} {

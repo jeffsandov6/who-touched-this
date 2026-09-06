@@ -1,0 +1,220 @@
+import { githubIdFromAuthToken } from '../email/retry-invitation.js';
+
+const SCREENSHOT_MAX_BYTES = 20 * 1024 * 1024;
+const MANIFEST_MAX_BYTES = 1024 * 1024;
+const CAPTURE_ID = /^[A-Za-z0-9-]{1,100}$/;
+const SHA256 = /^[0-9a-f]{64}$/;
+const GIT_SHA = /^[0-9a-f]{40}$/;
+const ROUTE_KEY = /^[A-Za-z0-9_-]{1,180}$/;
+
+export type SnapshotFinalizeErrorCode = 'unauthenticated' | 'permission-denied' | 'invalid-argument' | 'failed-precondition' | 'not-found';
+
+export class SnapshotFinalizeError extends Error {
+  constructor(public readonly code: SnapshotFinalizeErrorCode, message: string) {
+    super(message);
+    this.name = 'SnapshotFinalizeError';
+  }
+}
+
+interface ObjectMetadata {
+  path: string;
+  size: number;
+  contentType?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface SnapshotFinalizeDependencies {
+  loadAdmin(githubUserId: string): Promise<Record<string, unknown> | null>;
+  contributionExists(contributionNumber: number): Promise<boolean>;
+  snapshotExists(contributionNumber: number): Promise<boolean>;
+  loadObject(path: string): Promise<{ metadata: ObjectMetadata; contents?: Buffer } | null>;
+  listObjects(prefix: string): Promise<string[]>;
+  createSnapshot(contributionNumber: number, data: Record<string, unknown>): Promise<void>;
+  archivedAt(): unknown;
+}
+
+function contributionLabel(value: number): string {
+  if (!Number.isSafeInteger(value) || value < 0) throw new SnapshotFinalizeError('invalid-argument', 'Contribution number is invalid.');
+  return String(value).padStart(3, '0');
+}
+
+function object(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new SnapshotFinalizeError('failed-precondition', `${label} is malformed.`);
+  return value as Record<string, unknown>;
+}
+
+function exactKeys(value: Record<string, unknown>, keys: string[], label: string): void {
+  if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...keys].sort())) {
+    throw new SnapshotFinalizeError('failed-precondition', `${label} contains unsupported fields.`);
+  }
+}
+
+function route(value: unknown): string {
+  if (typeof value !== 'string' || !value || value !== value.trim() || !value.startsWith('/')
+    || value.includes('//') || value.includes('\\') || value.includes('%')
+    || /[\u0000-\u001f\u007f?#]/.test(value)) throw new SnapshotFinalizeError('failed-precondition', 'Archive route is malformed.');
+  const normalized = value === '/' ? '/' : value.replace(/\/+$/, '');
+  if (['/admin', '/api', '/auth', '/history', '/join', '/faq', '/rules'].some((reserved) => normalized === reserved || normalized.startsWith(`${reserved}/`))) {
+    throw new SnapshotFinalizeError('failed-precondition', 'Archive route is protected.');
+  }
+  return normalized;
+}
+
+function routes(value: unknown, allowEmpty = false): string[] {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) throw new SnapshotFinalizeError('failed-precondition', 'Archive routes are malformed.');
+  const normalized = value.map(route);
+  if (new Set(normalized).size !== normalized.length) throw new SnapshotFinalizeError('failed-precondition', 'Archive routes contain duplicates.');
+  return normalized;
+}
+
+function parseManifest(raw: Buffer, contributionNumber: number, captureId: string) {
+  let value: unknown;
+  try { value = JSON.parse(raw.toString('utf8')); }
+  catch { throw new SnapshotFinalizeError('failed-precondition', 'Uploaded manifest is malformed.'); }
+  const manifest = object(value, 'Uploaded manifest');
+  exactKeys(manifest, [
+    'schemaVersion', 'contributionNumber', 'contributionLabel', 'captureId', 'capturedAt',
+    'git', 'routeRegistry', 'canonicalRoutes', 'additionalRoutes', 'capturedRoutes',
+    'capture', 'screenshots',
+  ], 'Uploaded manifest');
+  if (manifest.schemaVersion !== 1) throw new SnapshotFinalizeError('failed-precondition', 'Uploaded manifest schema is unsupported.');
+  if (manifest.contributionNumber !== contributionNumber || manifest.contributionLabel !== contributionLabel(contributionNumber)
+    || manifest.captureId !== captureId) throw new SnapshotFinalizeError('failed-precondition', 'Uploaded manifest identity does not match the archive.');
+  if (typeof manifest.capturedAt !== 'string' || !Number.isFinite(Date.parse(manifest.capturedAt))) {
+    throw new SnapshotFinalizeError('failed-precondition', 'Manifest capture timestamp is malformed.');
+  }
+  const git = object(manifest.git, 'Manifest Git metadata');
+  exactKeys(git, ['before', 'after'], 'Manifest Git metadata');
+  if (typeof git.before !== 'string' || typeof git.after !== 'string' || !GIT_SHA.test(git.before)
+    || !GIT_SHA.test(git.after) || git.before === git.after) throw new SnapshotFinalizeError('failed-precondition', 'Manifest Git metadata is malformed.');
+  const routeRegistry = object(manifest.routeRegistry, 'Manifest route registry');
+  exactKeys(routeRegistry, ['path', 'revision'], 'Manifest route registry');
+  if (routeRegistry.path !== 'src/platform/config/editable-routes.json' || routeRegistry.revision !== git.after) {
+    throw new SnapshotFinalizeError('failed-precondition', 'Manifest route registry is malformed.');
+  }
+  const canonicalRoutes = routes(manifest.canonicalRoutes);
+  const additionalRoutes = routes(manifest.additionalRoutes, true);
+  const capturedRoutes = routes(manifest.capturedRoutes);
+  if (new Set([...canonicalRoutes, ...additionalRoutes]).size !== capturedRoutes.length
+    || JSON.stringify([...canonicalRoutes, ...additionalRoutes]) !== JSON.stringify(capturedRoutes)) {
+    throw new SnapshotFinalizeError('failed-precondition', 'Manifest route metadata disagrees.');
+  }
+  if (!Array.isArray(manifest.screenshots) || manifest.screenshots.length !== capturedRoutes.length) {
+    throw new SnapshotFinalizeError('failed-precondition', 'Manifest screenshot records disagree.');
+  }
+  const capture = object(manifest.capture, 'Manifest capture configuration');
+  exactKeys(capture, ['viewport', 'deviceScaleFactor', 'fullPage', 'format', 'locale', 'timezoneId', 'waitMs'], 'Manifest capture configuration');
+  const viewport = object(capture.viewport, 'Manifest viewport');
+  exactKeys(viewport, ['width', 'height'], 'Manifest viewport');
+  if (!Number.isSafeInteger(viewport.width) || !Number.isSafeInteger(viewport.height)
+    || Number(viewport.width) < 1 || Number(viewport.height) < 1 || capture.deviceScaleFactor !== 1
+    || capture.fullPage !== true || capture.format !== 'png' || typeof capture.locale !== 'string'
+    || typeof capture.timezoneId !== 'string' || !Number.isSafeInteger(capture.waitMs)
+    || Number(capture.waitMs) < 0 || Number(capture.waitMs) > 10_000) {
+    throw new SnapshotFinalizeError('failed-precondition', 'Manifest capture configuration is malformed.');
+  }
+  const keys = new Set<string>();
+  const screenshotRecords = manifest.screenshots.map((entry, index) => {
+    const record = object(entry, 'Manifest screenshot record');
+    exactKeys(record, ['route', 'key', 'before', 'after'], 'Manifest screenshot record');
+    if (record.route !== capturedRoutes[index] || typeof record.key !== 'string' || !ROUTE_KEY.test(record.key) || keys.has(record.key)) {
+      throw new SnapshotFinalizeError('failed-precondition', 'Manifest screenshot records disagree.');
+    }
+    keys.add(record.key);
+    const sides = Object.fromEntries(['before', 'after'].map((side) => {
+      const item = object(record[side], 'Manifest screenshot side');
+      exactKeys(item, ['path', 'sha256'], 'Manifest screenshot side');
+      const expectedPath = `${side}/${record.key}.png`;
+      if (item.path !== expectedPath || typeof item.sha256 !== 'string' || !SHA256.test(item.sha256)) {
+        throw new SnapshotFinalizeError('failed-precondition', 'Manifest screenshot side is malformed.');
+      }
+      return [side, { path: expectedPath, sha256: item.sha256 }];
+    }));
+    return { route: record.route as string, routeKey: record.key, before: sides.before, after: sides.after } as {
+      route: string; routeKey: string; before: { path: string; sha256: string }; after: { path: string; sha256: string };
+    };
+  });
+  return { git: git as { before: string; after: string }, canonicalRoutes, additionalRoutes, capturedRoutes, screenshotRecords, viewport, capture };
+}
+
+function validateObject(metadata: ObjectMetadata, expected: { path: string; type: string; max: number; custom: Record<string, string> }): void {
+  if (metadata.path !== expected.path || metadata.contentType !== expected.type
+    || !Number.isSafeInteger(metadata.size) || metadata.size <= 0 || metadata.size > expected.max
+    || Object.entries(expected.custom).some(([key, value]) => metadata.metadata?.[key] !== value)) {
+    throw new SnapshotFinalizeError('failed-precondition', `Archive object validation failed: ${expected.path}`);
+  }
+}
+
+export async function finalizeSnapshotArchiveRequest(
+  authToken: Record<string, unknown> | null,
+  input: unknown,
+  dependencies: SnapshotFinalizeDependencies,
+): Promise<{ status: 'finalized'; contributionNumber: number }> {
+  if (!authToken) throw new SnapshotFinalizeError('unauthenticated', 'Authentication is required.');
+  const githubUserId = githubIdFromAuthToken(authToken);
+  if (!githubUserId) throw new SnapshotFinalizeError('permission-denied', 'Access denied.');
+  const admin = await dependencies.loadAdmin(githubUserId);
+  if (!admin || admin.githubUserId !== githubUserId || admin.active !== true || !['owner', 'admin'].includes(String(admin.role))) {
+    throw new SnapshotFinalizeError('permission-denied', 'Access denied.');
+  }
+  const request = object(input, 'Finalization request');
+  if (Object.keys(request).sort().join(',') !== 'captureId,contributionNumber'
+    || typeof request.contributionNumber !== 'number' || typeof request.captureId !== 'string'
+    || !CAPTURE_ID.test(request.captureId)) throw new SnapshotFinalizeError('invalid-argument', 'Finalization request is invalid.');
+  const number = request.contributionNumber;
+  const label = contributionLabel(number);
+  const captureId = request.captureId;
+  if (!await dependencies.contributionExists(number)) throw new SnapshotFinalizeError('not-found', 'Permanent contribution does not exist.');
+  if (await dependencies.snapshotExists(number)) throw new SnapshotFinalizeError('failed-precondition', 'This contribution already has a finalized snapshot archive.');
+  const prefix = `public/history/contributions/${label}/${captureId}`;
+  const manifestPath = `${prefix}/manifest.json`;
+  const manifestObject = await dependencies.loadObject(manifestPath);
+  if (!manifestObject?.contents) throw new SnapshotFinalizeError('failed-precondition', 'Uploaded manifest is missing.');
+  validateObject(manifestObject.metadata, {
+    path: manifestPath, type: 'application/json', max: MANIFEST_MAX_BYTES,
+    custom: { contributionNumber: String(number), contributionLabel: label, captureId },
+  });
+  const manifest = parseManifest(manifestObject.contents, number, captureId);
+  const publicRoutes = [];
+  const expectedPaths = [manifestPath];
+  for (const record of manifest.screenshotRecords) {
+    const publicRecord: Record<string, unknown> = { route: record.route, routeKey: record.routeKey };
+    for (const side of ['before', 'after'] as const) {
+      const item = record[side];
+      const path = `${prefix}/${item.path}`;
+      expectedPaths.push(path);
+      const objectRecord = await dependencies.loadObject(path);
+      if (!objectRecord) throw new SnapshotFinalizeError('failed-precondition', `Archive screenshot is missing: ${item.path}`);
+      validateObject(objectRecord.metadata, {
+        path, type: 'image/png', max: SCREENSHOT_MAX_BYTES,
+        custom: { contributionNumber: String(number), contributionLabel: label, captureId, routeKey: record.routeKey, side, sha256: item.sha256 },
+      });
+      publicRecord[side] = { storagePath: path, sha256: item.sha256 };
+    }
+    publicRoutes.push(publicRecord);
+  }
+  const actualPaths = (await dependencies.listObjects(prefix)).sort();
+  if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths.sort())) {
+    throw new SnapshotFinalizeError('failed-precondition', 'Archive object count or paths do not match the manifest.');
+  }
+  await dependencies.createSnapshot(number, {
+    schemaVersion: 1,
+    contributionNumber: number,
+    captureId,
+    beforeGitSha: manifest.git.before,
+    afterGitSha: manifest.git.after,
+    canonicalRoutes: manifest.canonicalRoutes,
+    additionalRoutes: manifest.additionalRoutes,
+    capturedRoutes: manifest.capturedRoutes,
+    routes: publicRoutes,
+    manifestStoragePath: manifestPath,
+    viewport: {
+      width: manifest.viewport.width,
+      height: manifest.viewport.height,
+      deviceScaleFactor: manifest.capture.deviceScaleFactor,
+      fullPage: manifest.capture.fullPage,
+    },
+    archivedAt: dependencies.archivedAt(),
+  });
+  return { status: 'finalized', contributionNumber: number };
+}

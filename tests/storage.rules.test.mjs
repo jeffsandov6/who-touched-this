@@ -12,6 +12,7 @@ import {
   getBytes,
   listAll,
   ref,
+  updateMetadata,
   uploadBytes,
 } from 'firebase/storage';
 
@@ -43,9 +44,14 @@ function mediaReference(context, path = publicPath) {
   return ref(context.storage(), path);
 }
 
-async function upload(context, path, type, bytes = new Uint8Array([1, 2, 3])) {
-  return uploadBytes(mediaReference(context, path), bytes, { contentType: type });
+async function upload(context, path, type, bytes = new Uint8Array([1, 2, 3]), customMetadata) {
+  return uploadBytes(mediaReference(context, path), bytes, { contentType: type, customMetadata });
 }
+
+const historyCapture = '2026-01-01T00-00-00-000Z--abcdef01';
+const historyPrefix = `public/history/contributions/042/${historyCapture}`;
+const historyMetadata = { contributionNumber: '42', contributionLabel: '042', captureId: historyCapture };
+const historyPngMetadata = { ...historyMetadata, routeKey: 'home', side: 'before', sha256: 'a'.repeat(64) };
 
 before(async () => {
   environment = await initializeTestEnvironment({ projectId, storage: { rules } });
@@ -61,6 +67,8 @@ beforeEach(async () => {
       setDoc(doc(firestore, `admins/${inactiveAdmin.id}`), { githubUserId: inactiveAdmin.id, role: 'owner', active: false }),
       upload(context, publicPath, 'image/png'),
       upload(context, 'private/internal/secret.png', 'image/png'),
+      upload(context, `${historyPrefix}/manifest.json`, 'application/json', new TextEncoder().encode('{}'), historyMetadata),
+      upload(context, `${historyPrefix}/before/home.png`, 'image/png', new Uint8Array([1, 2, 3]), historyPngMetadata),
     ]);
   });
 });
@@ -148,4 +156,52 @@ test('anonymous users cannot enumerate founder media while active admins can lis
   await assertFails(listAll(ref(environment.unauthenticatedContext().storage(), founderRoot)));
   const listing = await assertSucceeds(listAll(ref(contextFor(admin).storage(), founderRoot)));
   assert.ok(listing.prefixes.length > 0);
+});
+
+test('known History manifest and screenshots are publicly readable but archives cannot be listed', async () => {
+  const anonymous = environment.unauthenticatedContext();
+  await assertSucceeds(getBytes(mediaReference(anonymous, `${historyPrefix}/manifest.json`)));
+  await assertSucceeds(getBytes(mediaReference(anonymous, `${historyPrefix}/before/home.png`)));
+  await assertFails(listAll(ref(anonymous.storage(), 'public/history/contributions')));
+  await assertFails(listAll(ref(contextFor(owner).storage(), 'public/history/contributions')));
+});
+
+test('ordinary, invited, active, and inactive-admin identities cannot create History archives', async () => {
+  for (const identity of [contributor, invitedContributor, activeContributor, inactiveAdmin]) {
+    const prefix = `public/history/contributions/043/${historyCapture}`;
+    await assertFails(upload(contextFor(identity), `${prefix}/before/home.png`, 'image/png', new Uint8Array([1]), {
+      contributionNumber: '43', contributionLabel: '043', captureId: historyCapture,
+      routeKey: 'home', side: 'before', sha256: 'b'.repeat(64),
+    }));
+  }
+});
+
+test('active owner and admin can create valid immutable PNG and manifest archive objects', async () => {
+  for (const [identity, label] of [[owner, '043'], [admin, '044']]) {
+    const prefix = `public/history/contributions/${label}/${historyCapture}`;
+    const common = { contributionNumber: String(Number(label)), contributionLabel: label, captureId: historyCapture };
+    await assertSucceeds(upload(contextFor(identity), `${prefix}/manifest.json`, 'application/json', new TextEncoder().encode('{}'), common));
+    await assertSucceeds(upload(contextFor(identity), `${prefix}/after/home.png`, 'image/png', new Uint8Array([1]), {
+      ...common, routeKey: 'home', side: 'after', sha256: 'b'.repeat(64),
+    }));
+  }
+});
+
+test('History archive path, content type, size, and metadata are strictly bounded', async () => {
+  const ownerContext = contextFor(owner);
+  const prefix = `public/history/contributions/043/${historyCapture}`;
+  const common = { contributionNumber: '43', contributionLabel: '043', captureId: historyCapture };
+  await assertFails(upload(ownerContext, `public/history/other/043/${historyCapture}/before/home.png`, 'image/png', new Uint8Array([1]), { ...common, routeKey: 'home', side: 'before', sha256: 'b'.repeat(64) }));
+  await assertFails(upload(ownerContext, `${prefix}/before/home.png`, 'image/jpeg', new Uint8Array([1]), { ...common, routeKey: 'home', side: 'before', sha256: 'b'.repeat(64) }));
+  await assertFails(upload(ownerContext, `${prefix}/before/home.png`, 'image/png', new Uint8Array([1]), { ...common, routeKey: 'home', side: 'after', sha256: 'b'.repeat(64) }));
+  await assertFails(upload(ownerContext, `${prefix}/manifest.json`, 'text/plain', new Uint8Array([1]), common));
+});
+
+test('History screenshot and manifest cannot be overwritten, metadata-updated, or deleted by browser admins', async () => {
+  const ownerContext = contextFor(owner);
+  await assertFails(upload(ownerContext, `${historyPrefix}/before/home.png`, 'image/png', new Uint8Array([9]), historyPngMetadata));
+  await assertFails(upload(ownerContext, `${historyPrefix}/manifest.json`, 'application/json', new Uint8Array([9]), historyMetadata));
+  await assertFails(updateMetadata(mediaReference(ownerContext, `${historyPrefix}/before/home.png`), { customMetadata: { ...historyPngMetadata, sha256: 'b'.repeat(64) } }));
+  await assertFails(deleteObject(mediaReference(ownerContext, `${historyPrefix}/before/home.png`)));
+  await assertFails(deleteObject(mediaReference(ownerContext, `${historyPrefix}/manifest.json`)));
 });

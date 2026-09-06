@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { FieldValue, getFirestore } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
 import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
@@ -26,6 +27,7 @@ import { ResendEmailProvider } from './email/resend-provider.js';
 import { retryInvitationDelivery, RetryInvitationError } from './email/retry-invitation.js';
 import type { EmailProvider } from './email/types.js';
 import { handleGitHubWebhook } from './github/webhook.js';
+import { finalizeSnapshotArchiveRequest, SnapshotFinalizeError } from './snapshots/finalize.js';
 
 if (getApps().length === 0) initializeApp();
 
@@ -161,6 +163,54 @@ export const retryInvitationEmail = onCall({
     }
     safeLogFailure('Admin invitation-email retry failed.', 'callable', error);
     throw new HttpsError('unavailable', 'Email delivery failed. Try again later.');
+  }
+});
+
+export const finalizeSnapshotArchive = onCall({ region: 'us-central1' }, async (request) => {
+  const firestore = getFirestore();
+  const bucket = getStorage().bucket();
+  try {
+    return await finalizeSnapshotArchiveRequest(request.auth?.token ?? null, request.data, {
+      async loadAdmin(id) {
+        const snapshot = await firestore.doc(`admins/${id}`).get();
+        return snapshot.exists ? snapshot.data() ?? null : null;
+      },
+      async contributionExists(number) {
+        return (await firestore.doc(`contributions/${number}`).get()).exists;
+      },
+      async snapshotExists(number) {
+        return (await firestore.doc(`contributionSnapshots/${number}`).get()).exists;
+      },
+      async loadObject(path) {
+        const file = bucket.file(path);
+        const [exists] = await file.exists();
+        if (!exists) return null;
+        const [metadata] = await file.getMetadata();
+        const base = {
+          metadata: {
+            path,
+            size: Number(metadata.size),
+            contentType: metadata.contentType ?? '',
+            metadata: metadata.metadata as Record<string, string> ?? {},
+          },
+        };
+        if (!path.endsWith('/manifest.json')) return base;
+        const [contents] = await file.download();
+        return { ...base, contents };
+      },
+      async listObjects(prefix) {
+        const [files] = await bucket.getFiles({ prefix: `${prefix}/` });
+        return files.map((file) => file.name);
+      },
+      async createSnapshot(number, data) {
+        await firestore.doc(`contributionSnapshots/${number}`).create(data);
+      },
+      archivedAt: () => FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    if (error instanceof SnapshotFinalizeError) throw new HttpsError(error.code, error.message);
+    safeLogFailure('Snapshot archive finalization failed.', 'snapshot-archive', error);
+    throw new HttpsError('failed-precondition', 'Snapshot archive could not be finalized.');
   }
 });
 

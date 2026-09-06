@@ -1,4 +1,5 @@
 import { normalizePullRequestSubmission } from './turn-lifecycle.ts';
+import type { PublicContributionSnapshot } from './snapshots/public.ts';
 
 export type PublicHistoryItem =
   | {
@@ -14,6 +15,7 @@ export type PublicHistoryItem =
       contributorMessage?: string;
       prNumber: number;
       prUrl: string;
+      snapshot?: PublicContributionSnapshot;
     }
   | {
       id: string;

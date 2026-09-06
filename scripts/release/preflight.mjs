@@ -55,7 +55,7 @@ export async function runReleasePreflight(options) {
     ['npm', ['run', 'functions:check']], ['npm', ['run', 'functions:build']],
     ['npm', ['run', 'test:contributor']], ['npm', ['run', 'functions:test']],
     ['npm', ['run', 'test:contribution-validator']], ['npm', ['run', 'test:snapshots']],
-    ['npm', ['run', 'test:release']],
+    ['npm', ['run', 'test:snapshot-archive']], ['npm', ['run', 'test:release']],
   ];
   for (const [command, args] of commands) await run(command, args);
   const artifact = await (options.scanArtifact ?? scanProductionArtifact)(join(options.repoRoot, 'dist'));
