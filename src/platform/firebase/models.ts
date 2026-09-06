@@ -144,12 +144,15 @@ export interface InvitationRecord {
 export interface PublicContributionRecord {
   number: number;
   season: number;
+  contributionKind?: 'community' | 'founder_seed';
   githubUsername: string;
   displayName: string;
   summary: string;
   contributorMessage?: string;
   prNumber: number;
   prUrl: string;
+  beforeGitSha?: string;
+  afterGitSha?: string;
   mergedAt: Timestamp;
   createdAt: Timestamp;
 }
@@ -186,6 +189,7 @@ export type HistoryEventType = (typeof HISTORY_EVENT_TYPES)[number];
 /** Public-safe chronology item: historyEvents/{turnId}. */
 export interface PublicHistoryEvent {
   type: HistoryEventType;
+  contributionKind?: 'community' | 'founder_seed';
   season: number;
   displayName: string;
   githubUsername: string;

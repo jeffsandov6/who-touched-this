@@ -61,7 +61,9 @@ export default function HistoryPage() {
               {event.type === 'contribution' ? (
                 <article>
                   <p className="history-event-kind">
-                    Contribution {formatContributionNumber(event.contributionNumber)}
+                    {event.contributionKind === 'founder_seed' ? 'Founder Contribution' : 'Contribution'}{' '}
+                    {formatContributionNumber(event.contributionNumber)}
+                    {event.contributionKind === 'founder_seed' && <span className="history-founder-badge">Founder</span>}
                   </p>
                   <h2>{event.summary}</h2>
                   <p>

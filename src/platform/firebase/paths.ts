@@ -26,8 +26,8 @@ function assertPathSegment(value: string, label: string): string {
 }
 
 function assertContributionNumber(contributionNumber: number): number {
-  if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 1) {
-    throw new Error('Contribution number must be a positive safe integer.');
+  if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) {
+    throw new Error('Contribution number must be a non-negative safe integer.');
   }
 
   return contributionNumber;

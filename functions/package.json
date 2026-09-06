@@ -15,7 +15,9 @@
     "test:emulator:lifecycle": "node integration/lifecycle-trigger.mjs",
     "test:emulator:webhook": "node integration/github-webhook.mjs",
     "test:emulator:reminders": "node integration/reminder-dispatch.mjs",
-    "emulator:seed:snapshots": "node integration/snapshot-archive-seed.mjs"
+    "test:emulator:founder": "node integration/founder-bootstrap.mjs",
+    "emulator:seed:snapshots": "node integration/snapshot-archive-seed.mjs",
+    "emulator:prepare:founder": "node integration/founder-bootstrap-seed.mjs"
   },
   "dependencies": {
     "firebase-admin": "14.3.0",

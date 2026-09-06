@@ -6,13 +6,18 @@ import { buildSnapshotManifest, verifySnapshotBundle } from './snapshots/manifes
 import { sha256 } from './snapshots/integrity.mjs';
 import { createRouteKeyMap, validateCanonicalRouteRegistry } from './snapshots/routes.mjs';
 
-const contributionNumber = 1;
-const captureId = 'emulator-snapshot-fixture';
+const argumentIndex = process.argv.indexOf('--contribution');
+const contributionNumber = argumentIndex >= 0 ? Number(process.argv[argumentIndex + 1]) : 1;
+if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) {
+  throw new Error('Fixture contribution number must be a non-negative safe integer.');
+}
+const contributionLabel = String(contributionNumber).padStart(3, '0');
+const captureId = contributionNumber === 0 ? 'emulator-founder-snapshot-fixture' : 'emulator-snapshot-fixture';
 const routes = validateCanonicalRouteRegistry(registry);
 const keys = createRouteKeyMap(routes);
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 const checksum = sha256(png);
-const output = resolve('.wtt/snapshot-archive-fixture/contribution-001', captureId);
+const output = resolve(`.wtt/snapshot-archive-fixture/contribution-${contributionLabel}`, captureId);
 
 if (await stat(output).then(() => true).catch(() => false)) {
   throw new Error(`Fixture already exists and was not overwritten: ${output}`);

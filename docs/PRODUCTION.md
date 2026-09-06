@@ -8,12 +8,15 @@ is not a contribution.
 ## Architecture and prerequisites
 
 Production consists of Firebase Hosting static output, Firestore Rules and indexes, Storage Rules,
-and Node.js 22 Firebase Functions. Milestone #16 adds the `finalizeSnapshotArchive` callable, immutable
-`public/history/contributions/**` Storage policy, public `contributionSnapshots/**` metadata, and History
-UI; all four deployed surfaces must be released together before archive use. Before first deployment, the owner must confirm Firebase/GCP
-billing and API requirements, provision the default Storage bucket, authenticate the repository-pinned
-Firebase CLI, and have access to Firebase Auth, Secret Manager, Hosting, DNS, Resend, and the GitHub
-OAuth/GitHub App settings. Do not run release tooling against unreviewed contributor code.
+and Node.js 22 Firebase Functions. Milestone #17 adds the owner-only
+`recordFounderContributionZero` callable and Founder #000 Admin/History presentation. Milestone #16
+adds the `finalizeSnapshotArchive` callable, immutable `public/history/contributions/**` Storage
+policy, public `contributionSnapshots/**` metadata, and History UI; all four deployed surfaces must be
+released together before archive use. Before first deployment, the owner must confirm Firebase/GCP
+billing and API requirements, provision the default Storage bucket, authenticate the
+repository-pinned Firebase CLI, and have access to Firebase Auth, Secret Manager, Hosting, DNS,
+Resend, and the GitHub OAuth/GitHub App settings. Do not run release tooling against unreviewed
+contributor code.
 
 ## Local production configuration
 
@@ -174,7 +177,8 @@ npm run deploy:hosting
 ```
 
 `deploy:rules` deploys Firestore Rules/indexes and Storage Rules. `deploy:functions` deploys the
-existing triggers, hourly scheduler, callable retry, snapshot finalizer, and webhook endpoint. `deploy:hosting` first
+existing triggers, hourly scheduler, callable retry, snapshot finalizer, owner-only founder recorder,
+and webhook endpoint. `deploy:hosting` first
 runs the complete release preflight, which creates a fresh production—not contributor—`dist/`, then
 deploys Hosting. Firebase Hosting's configured predeploy build runs production build again, so stale
 output is not used. There is intentionally no all-in-one or automatic deployment command.
@@ -199,6 +203,14 @@ output is not used. There is intentionally no all-in-one or automatic deployment
 16. Keep indexing disabled until the actual public launch.
 
 This milestone performs none of these production steps.
+
+Before recording the real Founder Contribution #000, deploy the reviewed Function and Hosting UI from
+the same canonical release and verify owner authorization in production. The owner must then create,
+review, and manually merge the separate creative PR; retain GitHub's assigned PR number and exact
+BEFORE/AFTER canonical SHAs; record #000 once in Admin; capture/review/verify/archive its snapshots;
+and only then deliberately deploy the creative site when ready. Recording #000 is neither a GitHub
+merge nor a Hosting deployment and sends no lifecycle email. Never test this one-time operation with
+synthetic values in production.
 
 Before production snapshot archival, verify the deployed release includes the History Storage Rules,
 `contributionSnapshots/**` Firestore read/immutability Rules, `finalizeSnapshotArchive` Function, and
