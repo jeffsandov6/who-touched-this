@@ -39,10 +39,6 @@ function getFirebaseOptions(): FirebaseOptions {
   };
 }
 
-export function useFirebaseEmulators(): boolean {
-  return import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true';
-}
-
 export function useContributorPreview(): boolean {
   return import.meta.env.MODE === 'contributor'
     || (import.meta.env.DEV && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true');
@@ -72,7 +68,7 @@ export function connectFirebaseEmulatorOnce(
 ): void {
   const connectionState = getEmulatorConnectionState();
 
-  if (useFirebaseEmulators() && !connectionState[service]) {
+  if (!connectionState[service]) {
     connect();
     connectionState[service] = true;
   }

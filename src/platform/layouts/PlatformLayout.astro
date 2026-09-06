@@ -2,6 +2,7 @@
 import Navigation from '../components/Navigation';
 import SiteStatus from '../components/SiteStatus';
 import ContributorSiteStatus from '../components/ContributorSiteStatus';
+import { robotsMetaContent } from '../config/site-indexing';
 import '../../styles/global.css';
 
 interface Props {
@@ -16,6 +17,7 @@ const {
 const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched This`;
 const contributorPreview = import.meta.env.MODE === 'contributor'
   || (import.meta.env.DEV && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true');
+const robots = robotsMetaContent(import.meta.env.PUBLIC_SITE_INDEXING_ENABLED);
 ---
 
 <!doctype html>
@@ -24,6 +26,7 @@ const contributorPreview = import.meta.env.MODE === 'contributor'
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    {robots && <meta name="robots" content={robots} />}
     <meta name="generator" content={Astro.generator} />
     <title>{pageTitle}</title>
   </head>

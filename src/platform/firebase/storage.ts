@@ -8,8 +8,10 @@ export function getPlatformStorage(): FirebaseStorage {
     throw new Error('Missing Firebase Storage configuration: PUBLIC_FIREBASE_STORAGE_BUCKET');
   }
   const storage = getStorage(app);
-  connectFirebaseEmulatorOnce('storage', () =>
-    connectStorageEmulator(storage, '127.0.0.1', 9199),
-  );
+  if (import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true') {
+    connectFirebaseEmulatorOnce('storage', () =>
+      connectStorageEmulator(storage, '127.0.0.1', 9199),
+    );
+  }
   return storage;
 }

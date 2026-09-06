@@ -39,9 +39,11 @@ export async function getAdminInvitationEmailDelivery(
 export async function retryFailedInvitationEmail(invitationId: string): Promise<void> {
   if (!invitationId || invitationId.includes('/')) throw new Error('Invitation ID is invalid.');
   const functions = getFunctions(getFirebaseApp(), 'us-central1');
-  connectFirebaseEmulatorOnce('functions', () =>
-    connectFunctionsEmulator(functions, '127.0.0.1', 5001),
-  );
+  if (import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true') {
+    connectFirebaseEmulatorOnce('functions', () =>
+      connectFunctionsEmulator(functions, '127.0.0.1', 5001),
+    );
+  }
   try {
     await httpsCallable<{ invitationId: string }, { status: string }>(
       functions, 'retryInvitationEmail',
