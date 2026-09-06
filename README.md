@@ -4,13 +4,13 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #15 adds a fail-closed production configuration contract, release preflight, explicit
-project-pinned deployment commands, pre-launch indexing control, read-only smoke testing, and a
-maintainer production runbook. Nothing has been deployed. The canonical repository is still private
-and public contributions are not open.
+Milestone #16 adds protected import and immutable public archival of reviewed snapshot bundles,
+trusted server finalization, and expandable BEFORE/AFTER comparisons in public History. Capture and
+archive remain separate deliberate maintainer operations. Nothing has been deployed or uploaded to
+production; the canonical repository is still private and public contributions are not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub review/merge automation,
-remote screenshot archival, final creative design, and production deployment remain deferred.
+automatic screenshot capture/archive, final creative design, and production deployment remain deferred.
 
 Production preparation and eventual release procedures are documented in
 [`docs/PRODUCTION.md`](docs/PRODUCTION.md). Production remains a deliberate maintainer operation;
@@ -178,12 +178,86 @@ to review every route's BEFORE and AFTER images side by side, then verify integr
 npm run snapshots:verify -- .wtt/snapshots/contribution-042/<capture-id>
 ```
 
-Capture is observational and local-only in Milestone #14. It creates no Firestore documents and does
-not change versions, turns, queue state, History, or contributions. A later protected workflow may
-archive each immutable bundle beneath a convention such as
-`public/history/contributions/{contributionNumber}/{captureId}/`, with all route images and metadata
-publicly readable but writes maintainer-controlled. Storage Rules and public History are not broadened
-for that future convention yet.
+Capture remains observational and local. It creates no Firestore documents and does not change
+versions, turns, queue state, History, or contributions. After visually reviewing `index.html` and
+running `snapshots:verify`, an authenticated active owner/admin can open `/admin` → Snapshot Archive,
+select that complete capture directory, review its SHA/route/checksum summary, and explicitly archive
+it. The browser verifies every PNG checksum and uploads only `manifest.json` plus BEFORE/AFTER PNGs to:
+
+```text
+public/history/contributions/{zero-padded-number}/{captureId}/
+```
+
+A trusted `finalizeSnapshotArchive` callable then verifies admin identity, the permanent contribution,
+uploaded manifest, exact object set, MIME/size/path/checksum metadata, and the one-archive policy before
+creating immutable public `contributionSnapshots/{number}` metadata. The local `index.html` is not
+uploaded. Interrupted uploads can retry the same capture: matching immutable objects are reused and
+public History changes only after finalization. Unfinalized orphan objects are not shown and require a
+future protected cleanup process.
+
+Public History queries snapshot metadata once, attaches it only to permanent contribution events, and
+initially shows a compact “Before & after · N pages” control. Expanding it uses the historical routes
+stored in the archive—not today's registry—and only then resolves public Storage URLs. Screenshots are
+lazy-loaded with explicit BEFORE/AFTER labels and alt text; failures do not hide the contribution.
+Known archive objects and manifests are anonymously readable, but directories cannot be listed and no
+browser client can overwrite or delete archive objects or metadata.
+
+The browser computes SHA-256 over the selected local PNG bytes before upload. Finalization rereads the
+uploaded manifest and verifies each immutable object's path, MIME type, size, and checksum metadata
+against it without downloading every image. That metadata comparison is retry-safe integrity plumbing,
+not independent cryptographic proof of the remote bytes; the trusted maintainer's reviewed browser
+session is the byte-verification boundary. Finalized metadata is written only after the complete exact
+object set exists. One finalized archive per contribution is canonical in V1; correction, replacement,
+deletion, and orphan cleanup are deliberately deferred.
+
+### Emulator snapshot archive walkthrough
+
+Start the complete local suite and normal Astro development in separate terminals:
+
+```sh
+npm run firebase:emulators
+npm run dev
+```
+
+With the Firestore Emulator running, seed only synthetic emulator data and generate a tiny verified
+three-route bundle:
+
+```sh
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+GCLOUD_PROJECT=who-touched-this \
+npm --prefix functions run emulator:seed:snapshots
+
+npm run snapshots:fixture
+npm run snapshots:verify -- \
+  .wtt/snapshot-archive-fixture/contribution-001/emulator-snapshot-fixture
+```
+
+The seed command refuses to run without that exact emulator host/project. It creates active owner
+`admins/9001`, synthetic permanent `contributions/1`, and its public History event only in Emulator
+Firestore. In the Auth Emulator, sign into `/admin` with the mock GitHub identity whose stable provider
+ID is `9001`. In **Snapshot Archive**, select:
+
+```text
+.wtt/snapshot-archive-fixture/contribution-001/emulator-snapshot-fixture/
+```
+
+Confirm the summary reports three canonical pages and six valid checksums, then archive. Storage
+Emulator should contain seven immutable objects beneath:
+
+```text
+public/history/contributions/001/emulator-snapshot-fixture/
+```
+
+Firestore Emulator should contain `contributionSnapshots/1`. Open `/history`, expand “Before & after ·
+3 pages,” and verify Home, `/random`, and `/thoughts` each show BEFORE and AFTER. Sign out or use an
+incognito window to repeat the History check; known image URLs remain public. The authoritative
+authorization checks are `npm run firebase:storage:rules:test` and `npm run firebase:rules:test`.
+
+To inspect interrupted-upload behavior without production data, use browser DevTools offline mode or
+cancel during a larger emulator-only bundle before finalization. No `contributionSnapshots` document
+appears. Restore connectivity and select the same capture again: matching immutable objects are reused,
+missing objects upload, and finalization occurs only after completeness checks. Tiny fixture files may
+finish too quickly for manual cancellation; importer/finalizer tests cover the same retry contract.
 
 ## Firebase development
 
@@ -567,8 +641,8 @@ permanently consumes a contribution number. The next turn targets the new versio
 ### Public History
 
 `/history` is a small hydrated public view because History changes independently of static Astro
-builds. It queries only public `historyEvents/**` and, for successful events, the matching public
-`contributions/{number}` document. Events are displayed newest-first.
+builds. It queries public `historyEvents/**`, successful `contributions/{number}`, and one public
+`contributionSnapshots/**` collection snapshot. Events are displayed newest-first.
 
 Successful events prominently show Contribution number, contributor presentation identity,
 summary, optional message, GitHub PR, and merge time. Explicit expiration and skipping also create
@@ -592,6 +666,9 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
   expiration, skip, and merge-recording transitions. Queue creation/deletion,
   contributor mutation, arbitrary participation/queue transitions, terminal-turn mutation,
   arbitrary public History/contribution writes, and admin writes remain denied.
+- `contributionSnapshots/{contributionNumber}` is public-readable, schema-versioned visual-history
+  metadata. Every browser role, including admins, is denied create/update/delete; only the authorized
+  finalization Function writes the first canonical archive.
 - `admins/**` is private trusted authorization configuration. A GitHub-authenticated account may get
   only its own document; listing and all client writes are denied.
 - `site/admin` is the private pending-invitation/current-turn singleton. Only active admins may read

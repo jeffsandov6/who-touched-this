@@ -154,6 +154,27 @@ export interface PublicContributionRecord {
   createdAt: Timestamp;
 }
 
+/** Public-safe immutable visual archive. Written only by trusted Functions. */
+export interface PublicContributionSnapshotRecord {
+  schemaVersion: 1;
+  contributionNumber: number;
+  captureId: string;
+  beforeGitSha: string;
+  afterGitSha: string;
+  canonicalRoutes: string[];
+  additionalRoutes: string[];
+  capturedRoutes: string[];
+  routes: Array<{
+    route: string;
+    routeKey: string;
+    before: { storagePath: string; sha256: string };
+    after: { storagePath: string; sha256: string };
+  }>;
+  manifestStoragePath: string;
+  viewport: { width: number; height: number; deviceScaleFactor: number; fullPage: boolean };
+  archivedAt: Timestamp;
+}
+
 export const HISTORY_EVENT_TYPES = [
   'contribution',
   'turn_expired',

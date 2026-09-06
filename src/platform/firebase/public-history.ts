@@ -6,6 +6,7 @@ import {
 } from '../history';
 import { getPlatformFirestore } from './firestore';
 import { contributionDocumentPath, FIRESTORE_COLLECTIONS } from './paths';
+import { parsePublicContributionSnapshot } from '../snapshots/public';
 
 export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
   const firestore = getPlatformFirestore();
@@ -13,6 +14,11 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
     collection(firestore, FIRESTORE_COLLECTIONS.historyEvents),
     orderBy('occurredAt', 'desc'),
   ));
+  const snapshotDocuments = await getDocs(collection(firestore, FIRESTORE_COLLECTIONS.contributionSnapshots));
+  const snapshots = new Map(snapshotDocuments.docs.flatMap((document) => {
+    const parsed = parsePublicContributionSnapshot(document.data());
+    return parsed ? [[parsed.contributionNumber, parsed] as const] : [];
+  }));
 
   return Promise.all(snapshot.docs.map(async (eventDocument) => {
     const event = parseHistoryEvent(eventDocument.id, eventDocument.data());
@@ -41,6 +47,9 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
         : {}),
       prNumber: contribution.prNumber,
       prUrl: contribution.prUrl,
+      ...(snapshots.get(event.contributionNumber)
+        ? { snapshot: snapshots.get(event.contributionNumber) }
+        : {}),
     };
   }));
 }

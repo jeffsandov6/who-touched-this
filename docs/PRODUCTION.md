@@ -8,7 +8,9 @@ is not a contribution.
 ## Architecture and prerequisites
 
 Production consists of Firebase Hosting static output, Firestore Rules and indexes, Storage Rules,
-and Node.js 22 Firebase Functions. Before first deployment, the owner must confirm Firebase/GCP
+and Node.js 22 Firebase Functions. Milestone #16 adds the `finalizeSnapshotArchive` callable, immutable
+`public/history/contributions/**` Storage policy, public `contributionSnapshots/**` metadata, and History
+UI; all four deployed surfaces must be released together before archive use. Before first deployment, the owner must confirm Firebase/GCP
 billing and API requirements, provision the default Storage bucket, authenticate the repository-pinned
 Firebase CLI, and have access to Firebase Auth, Secret Manager, Hosting, DNS, Resend, and the GitHub
 OAuth/GitHub App settings. Do not run release tooling against unreviewed contributor code.
@@ -172,7 +174,7 @@ npm run deploy:hosting
 ```
 
 `deploy:rules` deploys Firestore Rules/indexes and Storage Rules. `deploy:functions` deploys the
-existing triggers, hourly scheduler, callable retry, and webhook endpoint. `deploy:hosting` first
+existing triggers, hourly scheduler, callable retry, snapshot finalizer, and webhook endpoint. `deploy:hosting` first
 runs the complete release preflight, which creates a fresh production—not contributor—`dist/`, then
 deploys Hosting. Firebase Hosting's configured predeploy build runs production build again, so stale
 output is not used. There is intentionally no all-in-one or automatic deployment command.
@@ -186,7 +188,7 @@ output is not used. There is intentionally no all-in-one or automatic deployment
 5. Set the two Secret Manager values using the commands above.
 6. Verify the Resend domain/sender and required DNS.
 7. Configure required Storage Rules-to-Firestore IAM permission.
-8. Run all checks, Rules tests, and `npm run release:preflight` from clean `main`.
+8. Run all checks, snapshot archive tests, Rules tests, and `npm run release:preflight` from clean `main`.
 9. Run `npm run deploy:rules`.
 10. Run `npm run deploy:functions`.
 11. Configure/install the GitHub App webhook using the newly deployed endpoint.
@@ -197,6 +199,12 @@ output is not used. There is intentionally no all-in-one or automatic deployment
 16. Keep indexing disabled until the actual public launch.
 
 This milestone performs none of these production steps.
+
+Before production snapshot archival, verify the deployed release includes the History Storage Rules,
+`contributionSnapshots/**` Firestore read/immutability Rules, `finalizeSnapshotArchive` Function, and
+Hosting History/Admin UI from the same reviewed commit. Capture and verify exact-revision bundles
+locally first; archival is a separate authenticated admin action. Do not upload a production archive
+until its permanent contribution exists and the local comparison viewer has been reviewed.
 
 ## Read-only smoke test
 
@@ -248,4 +256,4 @@ Before public announcement: complete all production prerequisites, stateful test
 HTTPS verification; make the repository public; configure branch protection/code-owner and required
 CI checks; verify GitHub App installation; create Founder Contribution #000 through the deliberate
 workflow; switch indexing to enabled and redeploy/smoke-test Hosting. Repository launch, PR #000,
-snapshot archival, and production deployment are outside Milestone #15.
+automatic snapshot capture/archive and production deployment remain outside the current milestone.

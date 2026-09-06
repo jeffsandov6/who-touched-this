@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { loadPublicHistory } from '../firebase/public-history';
 import { formatContributionNumber, type PublicHistoryItem } from '../history';
+import HistorySnapshots from '../components/HistorySnapshots';
 
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -76,6 +77,7 @@ export default function HistoryPage() {
                     <a href={event.prUrl} rel="noreferrer">GitHub PR #{event.prNumber}</a>
                     {' · '}Merged {formatDate(event.occurredAt)}
                   </p>
+                  {event.snapshot && <HistorySnapshots snapshot={event.snapshot} />}
                 </article>
               ) : (
                 <article>
