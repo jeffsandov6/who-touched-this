@@ -26,7 +26,11 @@ async function seedAdmin(active = true) {
   }));
 }
 
-async function seedCurrent(status = 'active', dueAt = Timestamp.fromMillis(Date.now() + 60_000)) {
+async function seedCurrent(
+  status = 'active',
+  dueAt = Timestamp.fromMillis(Date.now() + 60_000),
+  { totalContributions = 0 } = {},
+) {
   const createdAt = Timestamp.fromMillis(Date.now() - 120_000);
   const submittedAt = Timestamp.fromMillis(Date.now() - 60_000);
   const reviewStartedAt = Timestamp.fromMillis(Date.now() - 30_000);
@@ -57,7 +61,7 @@ async function seedCurrent(status = 'active', dueAt = Timestamp.fromMillis(Date.
         activeTurnId: 'current-turn', pendingInvitationId: null, updatedAt: createdAt,
       }),
       setDoc(doc(firestore, 'site/public'), {
-        currentVersion: 0, totalContributions: 0, turnStatus: status,
+        currentVersion: 0, totalContributions, turnStatus: status,
         targetContributionNumber: 1,
         currentContributor: { githubUsername: contributor.username, displayName: 'Octo Contributor' },
         dueAt, updatedAt: createdAt,
@@ -395,6 +399,26 @@ test('valid under-review merge creates public records, completes private state, 
     || publicSite.data()?.currentVersion !== 1 || publicSite.data()?.totalContributions !== 1
     || publicSite.data()?.currentContributor !== null || publicSite.data()?.targetContributionNumber !== null
     || publicSite.data()?.dueAt !== null) throw new Error('Merged state was inconsistent.');
+});
+
+test('Community #001 after Founder #000 advances version to 1 and total contributions to 2', async () => {
+  await seedAdmin();
+  await seedCurrent('under_review', Timestamp.fromMillis(Date.now() + 60_000), {
+    totalContributions: 1,
+  });
+  const firestore = firestoreFor(admin);
+  await assertSucceeds(mergeBatch(firestore, {
+    publicUpdates: { currentVersion: 1, totalContributions: 2 },
+  }));
+  const [contribution, publicSite] = await Promise.all([
+    getDoc(doc(firestore, 'contributions/1')),
+    getDoc(doc(firestore, 'site/public')),
+  ]);
+  if (contribution.data()?.number !== 1
+    || publicSite.data()?.currentVersion !== 1
+    || publicSite.data()?.totalContributions !== 2) {
+    throw new Error('Community #001 counters were inconsistent after Founder #000.');
+  }
 });
 
 for (const [name, options] of [

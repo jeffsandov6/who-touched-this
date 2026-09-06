@@ -36,6 +36,7 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
       contribution.number !== event.contributionNumber ||
       contribution.displayName !== event.displayName ||
       contribution.githubUsername !== event.githubUsername ||
+      contribution.contributionKind !== event.contributionKind ||
       contribution.mergedAt.getTime() !== event.occurredAt.getTime()
     ) throw new Error('A public contribution is missing or inconsistent.');
 
@@ -47,6 +48,9 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
         : {}),
       prNumber: contribution.prNumber,
       prUrl: contribution.prUrl,
+      ...(contribution.beforeGitSha && contribution.afterGitSha
+        ? { beforeGitSha: contribution.beforeGitSha, afterGitSha: contribution.afterGitSha }
+        : {}),
       ...(snapshots.get(event.contributionNumber)
         ? { snapshot: snapshots.get(event.contributionNumber) }
         : {}),

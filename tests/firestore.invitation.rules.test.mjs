@@ -30,7 +30,7 @@ function firestoreFor(identity) {
   return environment.authenticatedContext(identity.uid, claims(identity.id)).firestore();
 }
 
-async function seed({ adminActive = true, secondContributor = false } = {}) {
+async function seed({ adminActive = true, secondContributor = false, totalContributions = 0 } = {}) {
   const now = Timestamp.now();
   await environment.withSecurityRulesDisabled(async (context) => {
     const firestore = context.firestore();
@@ -52,7 +52,7 @@ async function seed({ adminActive = true, secondContributor = false } = {}) {
         priority: 0, updatedAt: now,
       }),
       setDoc(doc(firestore, 'site/public'), {
-        currentVersion: 0, totalContributions: 0, turnStatus: 'none',
+        currentVersion: 0, totalContributions, turnStatus: 'none',
         targetContributionNumber: null, currentContributor: null, dueAt: null, updatedAt: now,
       }),
       setDoc(doc(firestore, 'site/admin'), {
@@ -346,6 +346,26 @@ test('the invited GitHub identity can accept in one complete transaction', async
     || publicSite.data()?.currentVersion !== 0 || publicSite.data()?.totalContributions !== 0
     || publicSite.data()?.turnStatus !== 'active') {
     throw new Error('Acceptance state was inconsistent.');
+  }
+});
+
+test('the first community turn after Founder #000 targets Contribution #001', async () => {
+  await seed({ totalContributions: 1 });
+  await seedPending();
+  const firestore = firestoreFor(contributor);
+  await assertSucceeds(acceptBatch(firestore, {
+    target: 1,
+    publicOverrides: { currentVersion: 0, totalContributions: 1 },
+  }));
+  const [turn, publicSite] = await Promise.all([
+    getDoc(doc(firestoreFor(admin), 'turns/turn-1')),
+    getDoc(doc(firestore, 'site/public')),
+  ]);
+  if (turn.data()?.targetContributionNumber !== 1
+    || publicSite.data()?.currentVersion !== 0
+    || publicSite.data()?.totalContributions !== 1
+    || publicSite.data()?.targetContributionNumber !== 1) {
+    throw new Error('Founder #000 distorted the first community contribution target.');
   }
 });
 

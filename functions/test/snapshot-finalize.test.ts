@@ -74,7 +74,11 @@ test('active owner finalizes a valid complete archive into one public document',
   assert.equal('githubUserId' in created, false);
 });
 
-test('contribution zero and active admin role are supported', async () => {
+test('contribution-zero archive requires a permanent founder record, then uses the normal 000 namespace', async () => {
+  await expectCode(
+    finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 0, captureId }, dependencies({ number: 0, contribution: false }).deps),
+    'not-found',
+  );
   const { deps, writes } = dependencies({ number: 0, admin: { githubUserId: '9001', active: true, role: 'admin' } });
   await finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 0, captureId }, deps);
   const created = writes[0];

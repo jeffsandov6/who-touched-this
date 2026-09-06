@@ -45,6 +45,7 @@ import AdminCurrentTurnPanel from '../components/AdminCurrentTurn';
 import AdminPendingInvitationPanel from '../components/AdminPendingInvitation';
 import AdminMediaManager from '../components/AdminMediaManager';
 import AdminSnapshotArchive from '../components/AdminSnapshotArchive';
+import AdminFounderSeed from '../components/AdminFounderSeed';
 import {
   DEFAULT_TURN_DURATION_HOURS,
   validateInvitationDeadline,
@@ -469,6 +470,8 @@ export default function AdminPage() {
           </section>
 
           <AdminMediaManager />
+
+          <AdminFounderSeed isOwner={adminRole === 'owner'} />
 
           <AdminSnapshotArchive />
 

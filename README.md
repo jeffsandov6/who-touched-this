@@ -4,10 +4,10 @@ Who Touched This is a social coding experiment in which one public website is mo
 
 ## Status
 
-Milestone #16 adds protected import and immutable public archival of reviewed snapshot bundles,
-trusted server finalization, and expandable BEFORE/AFTER comparisons in public History. Capture and
-archive remain separate deliberate maintainer operations. Nothing has been deployed or uploaded to
-production; the canonical repository is still private and public contributions are not open.
+Milestone #17 adds the owner-only, one-time trusted bootstrap used to record a real, already-merged
+Founder Contribution #000 without inventing a queue, invitation, participation, or turn. Nothing has
+been deployed or written to production; the canonical repository is still private and public
+contributions are not open.
 
 The editable PR #000 canvas has intentionally not been designed yet. GitHub review/merge automation,
 automatic screenshot capture/archive, final creative design, and production deployment remain deferred.
@@ -92,6 +92,101 @@ maintainer coordination; the maintainer can use protected Firebase Storage manag
 contributor the resulting public download URL. That URL can be used directly from `src/canvas/**`
 without Firebase credentials or Firebase initialization. Contributors receive neither Storage write
 access nor an internal Storage path as their integration artifact.
+
+## Founder Contribution #000 bootstrap
+
+Founder Contribution #000 is the first real creative contribution, not platform maintenance or an
+application startup seed. Milestone #17 provides only the protected recording infrastructure. The
+creative canvas remains empty until the owner deliberately creates, reviews, and merges a separate
+creative PR.
+
+The future maintainer sequence is:
+
+1. Ensure this bootstrap infrastructure is already merged into canonical `main`.
+2. Create a dedicated creative branch and modify only the intended canvas.
+3. Open a normal PR against `JeffSandov6/who-touched-this:main` and review/test it.
+4. Manually merge it. Record the exact canonical main SHA immediately before the merge, the exact SHA
+   containing the merge, and GitHub's assigned PR number. GitHub PR #27 can legitimately become Who
+   Touched This Contribution #000; these number systems are independent.
+5. Sign into `/admin` as the active owner and open **Founder Contribution #000**.
+6. Enter the intentional public alias, PR number, summary, optional public message, BEFORE SHA, and
+   AFTER SHA. Confirm the permanent one-time operation.
+7. Copy the generated `snapshots:capture` command, capture all historical editable routes, review the
+   local viewer, and run `snapshots:verify`.
+8. Open `/admin` → Snapshot Archive and archive the reviewed bundle.
+9. Use the deliberate production release procedure only when ready. Recording #000 does not deploy.
+
+The callable accepts no contribution number, GitHub username, PR URL, timestamps, counters, or
+lifecycle state from the browser. It derives those fields, requires a stable-ID authenticated active
+`owner`, and atomically creates `contributions/0`, `historyEvents/founder_seed_000`, and the inactive
+public counter projection. It rejects a repeat, any earlier permanent contribution, a pending
+invitation, an active-turn lock, or an active/submitted/under-review public projection.
+
+The resulting public state is intentionally:
+
+```text
+currentVersion = 0
+totalContributions = 1
+turnStatus = none
+```
+
+There is no founder queue, participation, invitation, turn, countdown, or lifecycle email. The next
+ordinary accepted community turn still targets `currentVersion + 1`, which is Contribution #001; its
+successful merge produces `currentVersion = 1` and `totalContributions = 2`.
+
+The server validates both Git SHAs as distinct full hexadecimal commit identities and stores them in
+the immutable public founder contribution. It does not claim to prove ancestry. The subsequent exact-
+revision snapshot command resolves the commits and proves BEFORE is an ancestor of AFTER:
+
+```sh
+npm run snapshots:capture -- \
+  --contribution 0 \
+  --before <RECORDED_BEFORE_SHA> \
+  --after <RECORDED_AFTER_SHA>
+```
+
+Once `contributions/0` exists, the ordinary snapshot finalizer accepts the normal archive namespace
+`public/history/contributions/000/{captureId}/`; no founder-only snapshot path or fake lifecycle is
+needed.
+
+### Emulator founder bootstrap walkthrough
+
+Start the full emulators and Astro in separate terminals, then deliberately prepare the empty state:
+
+```sh
+npm run firebase:emulators
+npm run dev
+
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 \
+GCLOUD_PROJECT=who-touched-this \
+npm --prefix functions run emulator:prepare:founder
+```
+
+The helper refuses to run without the exact emulator host/project. In the Auth Emulator GitHub flow,
+use stable provider ID `9001`, open `/admin`, and record synthetic values such as alias `Founder`, PR
+number `27`, summary `Initial creative seed`, and two different 40-character hexadecimal SHAs. Inspect
+`contributions/0`, `historyEvents/founder_seed_000`, and `site/public` in Emulator UI. Confirm no
+founder document exists in queue, participation, invitations, turns, or email deliveries. History
+must show **Founder Contribution #000**, while Admin becomes read-only and shows the copyable capture
+command. A second callable attempt must be rejected.
+
+To verify snapshot compatibility after recording:
+
+```sh
+npm run snapshots:fixture -- --contribution 0
+npm run snapshots:verify -- \
+  .wtt/snapshot-archive-fixture/contribution-000/emulator-founder-snapshot-fixture
+```
+
+Select that directory in Admin → Snapshot Archive. It uses the standard
+`public/history/contributions/000/emulator-founder-snapshot-fixture/` namespace and finalizes
+`contributionSnapshots/0` only because the permanent founder record now exists.
+
+For the negative lock check, restart with fresh emulator data, join a synthetic contributor, and use
+the existing Admin invitation flow to create a pending invitation (or accept it to create an active
+turn). Leave that lock in place and submit the Founder #000 form. The callable must reject it without
+changing the invitation, turn, queue, participation, or public projection. The trusted unit suite
+exercises pending, active, submitted, and under-review blocking states.
 
 ## Complete-site contribution snapshots
 
@@ -649,6 +744,10 @@ summary, optional message, GitHub PR, and merge time. Explicit expiration and sk
 compact public events such as `Turn for #001 — Expired`; these explain the chronology without
 mislabeling an unsuccessful turn as Contribution #001. Event documents never contain email,
 Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or private reasons.
+Founder Contribution #000 uses the additive public `contributionKind: "founder_seed"` discriminator,
+so History labels it distinctly without pretending it had a turn. Older/community records without a
+kind remain valid and default to `community`. The founder record also preserves public-safe exact Git
+provenance for later snapshot capture.
 
 ### Firestore boundaries
 
@@ -666,6 +765,9 @@ Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or priv
   expiration, skip, and merge-recording transitions. Queue creation/deletion,
   contributor mutation, arbitrary participation/queue transitions, terminal-turn mutation,
   arbitrary public History/contribution writes, and admin writes remain denied.
+- Founder #000 creation is not exposed through Firestore Rules. The owner-only trusted callable uses
+  Admin SDK access after verifying the stable numeric provider ID and atomic pre-seed invariants;
+  every browser remains unable to edit or delete the resulting contribution and History record.
 - `contributionSnapshots/{contributionNumber}` is public-readable, schema-versioned visual-history
   metadata. Every browser role, including admins, is denied create/update/delete; only the authorized
   finalization Function writes the first canonical archive.

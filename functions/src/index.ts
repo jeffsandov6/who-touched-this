@@ -28,6 +28,7 @@ import { retryInvitationDelivery, RetryInvitationError } from './email/retry-inv
 import type { EmailProvider } from './email/types.js';
 import { handleGitHubWebhook } from './github/webhook.js';
 import { finalizeSnapshotArchiveRequest, SnapshotFinalizeError } from './snapshots/finalize.js';
+import { recordFounderSeedContribution, FounderSeedError } from './founder/record.js';
 
 if (getApps().length === 0) initializeApp();
 
@@ -211,6 +212,56 @@ export const finalizeSnapshotArchive = onCall({ region: 'us-central1' }, async (
     if (error instanceof SnapshotFinalizeError) throw new HttpsError(error.code, error.message);
     safeLogFailure('Snapshot archive finalization failed.', 'snapshot-archive', error);
     throw new HttpsError('failed-precondition', 'Snapshot archive could not be finalized.');
+  }
+});
+
+export const recordFounderContributionZero = onCall({ region: 'us-central1' }, async (request) => {
+  const firestore = getFirestore();
+  try {
+    return await recordFounderSeedContribution(request.auth?.token ?? null, request.data, {
+      canonicalRepository: githubRepository.value(),
+      timestamp: () => FieldValue.serverTimestamp(),
+      runTransaction: (operation) => firestore.runTransaction(async (transaction) => operation({
+        async loadAdmin(id) {
+          const snapshot = await transaction.get(firestore.doc(`admins/${id}`));
+          return snapshot.exists ? snapshot.data() ?? null : null;
+        },
+        async loadPrivateSite() {
+          const snapshot = await transaction.get(firestore.doc('site/admin'));
+          return snapshot.exists ? snapshot.data() ?? null : null;
+        },
+        async loadPublicSite() {
+          const snapshot = await transaction.get(firestore.doc('site/public'));
+          return snapshot.exists ? snapshot.data() ?? null : null;
+        },
+        async anyContributionExists() {
+          return !(await transaction.get(firestore.collection('contributions').limit(1))).empty;
+        },
+        async founderContributionExists() {
+          return (await transaction.get(firestore.doc('contributions/0'))).exists;
+        },
+        async founderHistoryExists() {
+          const [deterministic, anyZero] = await Promise.all([
+            transaction.get(firestore.doc('historyEvents/founder_seed_000')),
+            transaction.get(firestore.collection('historyEvents').where('contributionNumber', '==', 0).limit(1)),
+          ]);
+          return deterministic.exists || !anyZero.empty;
+        },
+        createContribution(data) {
+          transaction.create(firestore.doc('contributions/0'), data);
+        },
+        createHistory(data) {
+          transaction.create(firestore.doc('historyEvents/founder_seed_000'), data);
+        },
+        setPublicSite(data) {
+          transaction.set(firestore.doc('site/public'), data);
+        },
+      })),
+    });
+  } catch (error) {
+    if (error instanceof FounderSeedError) throw new HttpsError(error.code, error.message);
+    safeLogFailure('Founder Contribution #000 recording failed.', 'founder-seed', error);
+    throw new HttpsError('failed-precondition', 'Founder Contribution #000 could not be recorded.');
   }
 });
 
