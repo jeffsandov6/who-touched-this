@@ -29,11 +29,11 @@ function SnapshotImage({ image, side, contributionNumber, route }: {
 
   return (
     <figure>
-      <figcaption>{side.toUpperCase()}</figcaption>
-      {error ? <p className="notice">Screenshot unavailable.</p> : url ? (
+      <figcaption>{side}</figcaption>
+      {error ? <p className="notice">screenshot unavailable.</p> : url ? (
         <img loading="lazy" src={url} alt={snapshotImageAlt(side, contributionNumber, route)} onError={() => setError(true)} />
       ) : (
-        <p role="status">Loading screenshot…</p>
+        <p role="status">loading screenshot…</p>
       )}
     </figure>
   );
@@ -42,9 +42,9 @@ function SnapshotImage({ image, side, contributionNumber, route }: {
 export default function HistorySnapshots({ snapshot }: { snapshot: PublicContributionSnapshot }) {
   const [expanded, setExpanded] = useState(false);
   return (
-    <section className="history-snapshots" aria-label={`Contribution #${String(snapshot.contributionNumber).padStart(3, '0')} snapshots`}>
+    <section className="history-snapshots" aria-label={`contribution #${String(snapshot.contributionNumber).padStart(3, '0')} snapshots`}>
       <button className="button button-secondary" type="button" aria-expanded={expanded} onClick={() => setExpanded((value) => !value)}>
-        {expanded ? 'Hide snapshots' : `View snapshots — ${snapshotHistorySummary(snapshot)}`}
+        {expanded ? 'hide snapshots' : `view snapshots — ${snapshotHistorySummary(snapshot)}`}
       </button>
       {expanded && snapshot.routes.map((record) => (
         <section className="history-snapshot-route" key={record.route}>

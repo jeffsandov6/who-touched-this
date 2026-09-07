@@ -295,7 +295,7 @@ export default function JoinPage() {
                   }
                 />
                 <small id="display-name-help">
-                  required. this is the public name that may appear in contribution history.
+                  required. this is your public name & may appear in site history, including for a turn that ends without a contribution.
                 </small>
               </div>
 

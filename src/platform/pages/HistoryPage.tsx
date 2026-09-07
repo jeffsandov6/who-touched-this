@@ -36,19 +36,19 @@ export default function HistoryPage() {
 
   return (
     <section className="page-content" aria-labelledby="history-heading">
-      <h1 id="history-heading">History</h1>
-      <p>The public chronology of accepted contributions and turns that ended without one.</p>
+      <h1 id="history-heading">history</h1>
+      <p>every accepted contribution lives here. this is basically the site's permanent record of who touched what.</p>
       {error ? (
         <div className="notice notice-error" role="alert">
-          <p>History could not be loaded.</p>
+          <p>history could not be loaded.</p>
           <button className="button button-secondary" type="button" onClick={() => void refresh()}>
-            Try again
+            try again
           </button>
         </div>
       ) : loading ? (
-        <p role="status">Loading History…</p>
+        <p role="status">loading history…</p>
       ) : events.length === 0 ? (
-        <p className="empty-state">No History events yet.</p>
+        <p className="empty-state">no history yet.</p>
       ) : (
         <ol className="history-timeline">
           {events.map((event) => (
@@ -61,9 +61,9 @@ export default function HistoryPage() {
               {event.type === 'contribution' ? (
                 <article>
                   <p className="history-event-kind">
-                    {event.contributionKind === 'founder_seed' ? 'Founder Contribution' : 'Contribution'}{' '}
+                    {event.contributionKind === 'founder_seed' ? 'founder contribution' : 'contribution'}{' '}
                     {formatContributionNumber(event.contributionNumber)}
-                    {event.contributionKind === 'founder_seed' && <span className="history-founder-badge">Founder</span>}
+                    {event.contributionKind === 'founder_seed' && <span className="history-founder-badge">founder</span>}
                   </p>
                   <h2>{event.summary}</h2>
                   <p>
@@ -77,22 +77,20 @@ export default function HistoryPage() {
                   )}
                   <p>
                     <a href={event.prUrl} rel="noreferrer">GitHub PR #{event.prNumber}</a>
-                    {' · '}Merged {formatDate(event.occurredAt)}
+                    {' · '}merged {formatDate(event.occurredAt)}
                   </p>
                   {event.snapshot && <HistorySnapshots snapshot={event.snapshot} />}
                 </article>
               ) : (
                 <article>
                   <p className="history-event-kind">
-                    Turn for {formatContributionNumber(event.targetContributionNumber)}
+                    turn for {formatContributionNumber(event.targetContributionNumber)}
                   </p>
                   <p>
-                    <strong>{event.displayName}</strong>{' '}
-                    <a href={`https://github.com/${event.githubUsername}`} rel="noreferrer">
-                      @{event.githubUsername}
-                    </a>
-                    {' — '}{event.type === 'turn_expired' ? 'Expired' : 'Skipped'}
+                    <strong>{event.displayName}</strong>
+                    {' - '}{event.type === 'turn_expired' ? 'contribution window expired' : 'turn skipped'}
                   </p>
+                  <p>no shame. life happens.</p>
                   <time dateTime={event.occurredAt.toISOString()}>{formatDate(event.occurredAt)}</time>
                 </article>
               )}
