@@ -333,6 +333,9 @@ export default function JoinPage() {
                     setFormValues((current) => ({ ...current, socialUrl: event.target.value }))
                   }
                 />
+                <small>
+                  optional. if you complete a contribution, this link may be shown with your public history entry.
+                </small>
               </div>
 
               <div className="join-rules">
@@ -354,9 +357,10 @@ export default function JoinPage() {
                   />
                   <span>
                     i've read & agree to the rules. i understand that i get at most one ordinary contribution per
-                    GitHub account per season; joining doesn't guarantee an immediate turn; my GitHub identity,
-                    display name, accepted contribution, PR, & contributor message may become public; & my contact
-                    email & exact queue position stay private.
+                    GitHub account per season; joining doesn't guarantee an immediate turn; my display name may appear
+                    publicly in site history; if i complete a contribution, my GitHub identity, accepted contribution,
+                    PR, contributor message, & optional social link may become public; & my contact email & exact queue
+                    position stay private.
                   </span>
                 </label>
               </div>
