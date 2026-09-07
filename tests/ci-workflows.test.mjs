@@ -7,7 +7,8 @@ const build = await readFile(new URL('../.github/workflows/contributor-build.yml
 
 test('trusted boundary workflow is base-controlled metadata-only execution', () => {
   assert.match(boundary, /pull_request_target:/);
-  assert.match(boundary, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
+  assert.match(boundary, /uses: actions\/checkout@v4/);
+  assert.doesNotMatch(boundary, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
   assert.doesNotMatch(boundary, /github\.event\.pull_request\.head/);
   assert.doesNotMatch(boundary, /npm (?:ci|install|run)/);
   assert.doesNotMatch(boundary, /\$\{\{\s*secrets\./);
