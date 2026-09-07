@@ -30,14 +30,18 @@ export default function InvitationAcceptance({ invitation, busy, onAccept }: Pro
 
   return (
     <section className="invitation-acceptance" aria-labelledby="invitation-heading">
-      <h2 id="invitation-heading">It&apos;s your turn.</h2>
+      <h2 id="invitation-heading">it&apos;s your turn.</h2>
       <p>
-        Accept by <strong>{formatDate(invitation.acceptBy)}</strong>. Once you accept, your
-        contribution window begins.
+        accept by <strong>{formatDate(invitation.acceptBy)}</strong>. once you accept, your
+        contribution window starts immediately.
       </p>
-      <p>You&apos;ll have {formatTurnDuration(invitation.turnDurationHours)} after accepting.</p>
+      <p>you&apos;ll have {formatTurnDuration(invitation.turnDurationHours)} from the moment you accept.</p>
       <p>
-        Time to accept: <Countdown dueAtMillis={invitation.acceptBy.getTime()} />
+        time left to accept: <Countdown dueAtMillis={invitation.acceptBy.getTime()} />
+      </p>
+
+      <p>
+        if you don&apos;t accept before the deadline, the invitation will expire.
       </p>
       <button
         className="button"
@@ -45,7 +49,7 @@ export default function InvitationAcceptance({ invitation, busy, onAccept }: Pro
         disabled={busy || deadlinePassed}
         onClick={() => void onAccept()}
       >
-        {busy ? 'Accepting…' : deadlinePassed ? 'Acceptance deadline passed' : 'Accept turn'}
+        {busy ? 'accepting…' : deadlinePassed ? 'acceptance deadline passed' : 'accept turn'}
       </button>
     </section>
   );

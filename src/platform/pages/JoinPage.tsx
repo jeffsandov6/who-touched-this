@@ -71,7 +71,7 @@ export default function JoinPage() {
 
   useEffect(() => {
     let active = true;
-    let unsubscribe = () => {};
+    let unsubscribe = () => { };
 
     try {
       unsubscribe = observeAuthState((user) => {
@@ -98,7 +98,7 @@ export default function JoinPage() {
             if (active) {
               setIdentity(null);
               setErrorMessage(
-                safeMessage(error, 'Your authenticated GitHub identity could not be loaded.'),
+                safeMessage(error, 'your authenticated GitHub identity could not be loaded.'),
               );
             }
           } finally {
@@ -107,7 +107,7 @@ export default function JoinPage() {
         })();
       });
     } catch {
-      setErrorMessage('Firebase configuration is unavailable. Check the local environment setup.');
+      setErrorMessage('Firebase configuration is unavailable. check the local environment setup.');
       setAuthLoading(false);
     }
 
@@ -140,7 +140,7 @@ export default function JoinPage() {
     try {
       await signOutOfPlatform();
     } catch {
-      setErrorMessage('Sign out could not be completed. Please try again.');
+      setErrorMessage('sign out could not be completed. please try again.');
     } finally {
       setBusy(false);
     }
@@ -171,11 +171,11 @@ export default function JoinPage() {
       setParticipationStatus(result.status);
       setMessage(
         result.kind === 'joined'
-          ? "You're in the queue. Your exact position is private."
+          ? "you're in the queue. your exact position is private."
           : participationStatusMessage(result.status),
       );
     } catch (error) {
-      setErrorMessage(safeMessage(error, 'The queue could not be joined. Please try again.'));
+      setErrorMessage(safeMessage(error, 'the queue could not be joined. Please try again.'));
     } finally {
       setBusy(false);
     }
@@ -190,9 +190,9 @@ export default function JoinPage() {
       await acceptInvitation(identity.githubUserId, invitation.invitationId);
       setInvitation(null);
       setParticipationStatus('active');
-      setMessage('Your turn is active. The contribution countdown has started.');
+      setMessage('your turn is active. the contribution countdown has started.');
     } catch (error) {
-      setErrorMessage(safeMessage(error, 'The invitation could not be accepted.'));
+      setErrorMessage(safeMessage(error, 'the invitation could not be accepted.'));
     } finally {
       setBusy(false);
     }
@@ -202,10 +202,10 @@ export default function JoinPage() {
 
   return (
     <section className="page-content join-page" aria-labelledby="join-heading">
-      <h1 id="join-heading">Join</h1>
+      <h1 id="join-heading">join</h1>
       <p>
-        Authenticate with GitHub to join the private Season 1 contribution queue. Joining does not
-        grant write access to the repository or guarantee an immediate turn.
+        sign in with GitHub to join the private season 1 contribution queue. joining doesn't give you
+        write access to the main repository or guarantee an immediate turn.
       </p>
 
       {errorMessage && (
@@ -219,18 +219,17 @@ export default function JoinPage() {
       ) : !identity ? (
         <div className="join-auth-panel">
           <p>
-            Your stable GitHub provider identity—not your username, display name, or email—is used
-            to enforce one ordinary contribution per GitHub account per season.
+            we use your GitHub account to enforce one ordinary contribution per account per season.
           </p>
           <button className="button" type="button" onClick={handleGitHubSignIn} disabled={busy}>
-            {busy ? 'Opening GitHub…' : 'Continue with GitHub'}
+            {busy ? 'opening GitHub…' : 'continue with GitHub'}
           </button>
         </div>
       ) : (
         <>
           <section className="github-identity" aria-labelledby="github-identity-heading">
             <div>
-              <h2 id="github-identity-heading">Authenticated GitHub identity</h2>
+              <h2 id="github-identity-heading">authenticated GitHub identity</h2>
               {identity.githubUsername ? (
                 <p>
                   <a href={identity.profileUrl ?? undefined} rel="noreferrer">
@@ -266,8 +265,8 @@ export default function JoinPage() {
           ) : joinIdentityView === 'reauthenticate' ? (
             <div className="notice">
               <p>
-                Reopen GitHub authentication to recover presentation details before joining. Your
-                stable GitHub provider ID is already verified.
+                sign in with GitHub again so we can reload your account details. your GitHub account
+                is already verified.
               </p>
               <button
                 className="button button-secondary"
@@ -275,13 +274,13 @@ export default function JoinPage() {
                 onClick={handleGitHubSignIn}
                 disabled={busy}
               >
-                Refresh GitHub identity
+                refresh GitHub account
               </button>
             </div>
           ) : (
             <form className="join-form" onSubmit={handleSubmit}>
               <div className="form-field">
-                <label htmlFor="display-name">Display name or nickname (required)</label>
+                <label htmlFor="display-name">display name or nickname (required)</label>
                 <input
                   id="display-name"
                   name="displayName"
@@ -296,12 +295,12 @@ export default function JoinPage() {
                   }
                 />
                 <small id="display-name-help">
-                  Required. This is the public name that may appear in contribution history.
+                  required. this is your public name & may appear in site history, including for a turn that ends without a contribution.
                 </small>
               </div>
 
               <div className="form-field">
-                <label htmlFor="contact-email">Contact email</label>
+                <label htmlFor="contact-email">contact email</label>
                 <input
                   id="contact-email"
                   name="email"
@@ -315,13 +314,12 @@ export default function JoinPage() {
                   }
                 />
                 <small>
-                  This email is private and is used to contact you when your turn is approaching or
-                  active.
+                  this email stays private. we'll use it for invitations, reminders, turn updates, & contribution status.
                 </small>
               </div>
 
               <div className="form-field">
-                <label htmlFor="social-url">Social link (optional)</label>
+                <label htmlFor="social-url">social link (optional)</label>
                 <input
                   id="social-url"
                   name="socialUrl"
@@ -335,37 +333,46 @@ export default function JoinPage() {
                     setFormValues((current) => ({ ...current, socialUrl: event.target.value }))
                   }
                 />
+                <small>
+                  optional. if you complete a contribution, this link may be shown with your public history entry.
+                </small>
               </div>
 
-              <label className="rules-acknowledgement">
-                <input
-                  type="checkbox"
-                  required
-                  checked={formValues.rulesAcknowledged}
-                  onChange={(event) =>
-                    setFormValues((current) => ({
-                      ...current,
-                      rulesAcknowledged: event.target.checked,
-                    }))
-                  }
-                />
-                <span>
-                  I understand that I receive at most one ordinary contribution per GitHub account
-                  per season; a future turn will be bounded and every PR reviewed; my GitHub
-                  identity, public display name, accepted contribution, PR, and contributor message
-                  may become public; my contact email remains private; joining does not guarantee an
-                  immediate turn; and my exact queue position is not publicly displayed.
-                </span>
-              </label>
+              <div className="join-rules">
+                <p className="form-help">
+                  please read the <a href="/rules">rules</a> before joining.
+                </p>
+
+                <label className="rules-acknowledgement">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={formValues.rulesAcknowledged}
+                    onChange={(event) =>
+                      setFormValues((current) => ({
+                        ...current,
+                        rulesAcknowledged: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span>
+                    i've read & agree to the rules. i understand that i get at most one ordinary contribution per
+                    GitHub account per season; joining doesn't guarantee an immediate turn; my display name may appear
+                    publicly in site history; if i complete a contribution, my GitHub identity, accepted contribution,
+                    PR, contributor message, & optional social link may become public; & my contact email & exact queue
+                    position stay private.
+                  </span>
+                </label>
+              </div>
 
               <button className="button" type="submit" disabled={busy}>
-                {busy ? 'Joining…' : 'Join Season 1 queue'}
+                {busy ? 'joining…' : 'join season 1 queue'}
               </button>
             </form>
           )}
 
           <button className="button-link" type="button" onClick={handleSignOut} disabled={busy}>
-            Sign out
+            sign out
           </button>
         </>
       )}
