@@ -17,7 +17,7 @@ export function validateTurnDurationHours(value: number): number {
     value > MAX_TURN_DURATION_HOURS
   ) {
     throw new InvitationValidationError(
-      `Contribution duration must be a whole number from ${MIN_TURN_DURATION_HOURS} to ${MAX_TURN_DURATION_HOURS} hours.`,
+      `contribution duration must be a whole number from ${MIN_TURN_DURATION_HOURS} to ${MAX_TURN_DURATION_HOURS} hours.`,
     );
   }
   return value;
@@ -28,7 +28,7 @@ export function validateInvitationDeadline(acceptBy: Date, nowMillis = Date.now(
   const latest = nowMillis + MAX_INVITATION_WINDOW_HOURS * 60 * 60 * 1_000;
   if (!Number.isFinite(acceptByMillis) || acceptByMillis <= nowMillis || acceptByMillis > latest) {
     throw new InvitationValidationError(
-      `Invitation deadline must be within the next ${MAX_INVITATION_WINDOW_HOURS} hours.`,
+      `invitation deadline must be within the next ${MAX_INVITATION_WINDOW_HOURS} hours.`,
     );
   }
   return acceptBy;
@@ -40,7 +40,7 @@ export function calculateTurnDueAtMillis(
 ): number {
   validateTurnDurationHours(turnDurationHours);
   if (!Number.isFinite(acceptedAtMillis)) {
-    throw new InvitationValidationError('Acceptance time is invalid.');
+    throw new InvitationValidationError('acceptance time is invalid.');
   }
   return acceptedAtMillis + turnDurationHours * 60 * 60 * 1_000;
 }

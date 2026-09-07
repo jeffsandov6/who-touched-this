@@ -18,10 +18,10 @@ export function isSupportedFounderMediaType(contentType: string): boolean {
 export function sanitizeMediaFileName(fileName: string): string {
   const normalized = fileName.normalize('NFKC').trim();
   if (!normalized || normalized.includes('/') || normalized.includes('\\') || normalized.includes('\0')) {
-    throw new Error('The media filename is invalid.');
+    throw new Error('the media filename is invalid.');
   }
   if (normalized === '.' || normalized === '..' || normalized.includes('..')) {
-    throw new Error('The media filename cannot contain path traversal segments.');
+    throw new Error('the media filename cannot contain path traversal segments.');
   }
 
   const sanitized = normalized
@@ -33,13 +33,13 @@ export function sanitizeMediaFileName(fileName: string): string {
     .replace(/[._-]+$/, '');
 
   if (!SAFE_FILE_NAME_PATTERN.test(sanitized)) {
-    throw new Error('The media filename has no usable characters.');
+    throw new Error('the media filename has no usable characters.');
   }
   return sanitized;
 }
 
 export function buildFounderMediaPath(assetId: string, fileName: string): string {
-  if (!ASSET_ID_PATTERN.test(assetId)) throw new Error('The media asset ID is invalid.');
+  if (!ASSET_ID_PATTERN.test(assetId)) throw new Error('the media asset id is invalid.');
   return `${FOUNDER_MEDIA_PREFIX}/${assetId}/${sanitizeMediaFileName(fileName)}`;
 }
 
@@ -53,27 +53,27 @@ export function isAllowedPublicCanvasMediaPath(storagePath: string): boolean {
 
 export function assertAllowedPublicCanvasMediaPath(storagePath: string): void {
   if (!isAllowedPublicCanvasMediaPath(storagePath)) {
-    throw new Error('The requested path is not approved public canvas media.');
+    throw new Error('the requested path is not approved public canvas media.');
   }
 }
 
 export function validateFounderMediaFile(file: MediaFileLike): void {
   sanitizeMediaFileName(file.name);
   if (!isSupportedFounderMediaType(file.type)) {
-    throw new Error('Choose an image, audio, or video file.');
+    throw new Error('choose an image, audio, or video file.');
   }
   if (!Number.isSafeInteger(file.size) || file.size <= 0) {
-    throw new Error('The media file must not be empty.');
+    throw new Error('the media file must not be empty.');
   }
   if (file.size > MAX_FOUNDER_MEDIA_BYTES) {
-    throw new Error(`The media file must be ${MAX_FOUNDER_MEDIA_MIB} MiB or smaller.`);
+    throw new Error(`the media file must be ${MAX_FOUNDER_MEDIA_MIB} mib or smaller.`);
   }
 }
 
 export function formatMediaBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} KiB`;
-  return `${(bytes / 1024 ** 2).toFixed(1)} MiB`;
+  if (bytes < 1024) return `${bytes} b`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(1)} kib`;
+  return `${(bytes / 1024 ** 2).toFixed(1)} mib`;
 }
 
 export function formatUploadProgress(transferred: number, total: number): number {

@@ -27,26 +27,26 @@ export default function SiteStatus() {
     : null;
   const contributor = siteState.currentContributor
     ? `${siteState.currentContributor.displayName} (@${siteState.currentContributor.githubUsername})`
-    : 'None';
+    : 'none';
   const presentation = getPublicTurnPresentation(siteState.turnStatus);
 
   return (
-    <aside className="site-status" aria-label="Site status">
+    <aside className="site-status" aria-label="site status">
       <dl>
         <div>
-          <dt>Version</dt>
+          <dt>version</dt>
           <dd>#{formattedVersion}</dd>
         </div>
         <div>
-          <dt>Contributions</dt>
+          <dt>contributions</dt>
           <dd>{siteState.totalContributions}</dd>
         </div>
         <div>
-          <dt>Current contributor</dt>
+          <dt>current contributor</dt>
           <dd>{contributor}</dd>
         </div>
         <div>
-          <dt>Turn status</dt>
+          <dt>turn status</dt>
           <dd>{presentation.statusLabel}</dd>
         </div>
         {formattedTarget && (
@@ -57,7 +57,7 @@ export default function SiteStatus() {
         )}
         {presentation.showCountdown && siteState.dueAtMillis !== null && (
           <div>
-            <dt>Time remaining</dt>
+            <dt>time remaining</dt>
             <dd><Countdown dueAtMillis={siteState.dueAtMillis} /></dd>
           </div>
         )}

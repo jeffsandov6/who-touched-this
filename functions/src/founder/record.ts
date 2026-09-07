@@ -58,27 +58,27 @@ function trimmedString(value: unknown, label: string, maximum: number, optional 
 
 export function validateFounderSeedInput(value: unknown): FounderSeedInput {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new FounderSeedError('invalid-argument', 'Founder Contribution #000 details are invalid.');
+    throw new FounderSeedError('invalid-argument', 'founder contribution #000 details are invalid.');
   }
   const input = value as Record<string, unknown>;
   const allowed = ['afterGitSha', 'beforeGitSha', 'contributorMessage', 'prNumber', 'publicDisplayName', 'summary'];
   if (Object.keys(input).some((key) => !allowed.includes(key))
     || !['afterGitSha', 'beforeGitSha', 'prNumber', 'publicDisplayName', 'summary'].every((key) => key in input)) {
-    throw new FounderSeedError('invalid-argument', 'Founder Contribution #000 details are invalid.');
+    throw new FounderSeedError('invalid-argument', 'founder contribution #000 details are invalid.');
   }
-  const publicDisplayName = trimmedString(input.publicDisplayName, 'Public founder name', DISPLAY_NAME_MAX)!;
-  const summary = trimmedString(input.summary, 'Contribution summary', SUMMARY_MAX)!;
-  const contributorMessage = trimmedString(input.contributorMessage, 'Founder message', MESSAGE_MAX, true);
+  const publicDisplayName = trimmedString(input.publicDisplayName, 'public founder name', DISPLAY_NAME_MAX)!;
+  const summary = trimmedString(input.summary, 'contribution summary', SUMMARY_MAX)!;
+  const contributorMessage = trimmedString(input.contributorMessage, 'founder message', MESSAGE_MAX, true);
   if (!Number.isSafeInteger(input.prNumber) || Number(input.prNumber) < 1) {
     throw new FounderSeedError('invalid-argument', 'GitHub pull request number is invalid.');
   }
   if (typeof input.beforeGitSha !== 'string' || typeof input.afterGitSha !== 'string') {
-    throw new FounderSeedError('invalid-argument', 'Git provenance is invalid.');
+    throw new FounderSeedError('invalid-argument', 'git provenance is invalid.');
   }
   const beforeGitSha = input.beforeGitSha.toLowerCase();
   const afterGitSha = input.afterGitSha.toLowerCase();
   if (!GIT_SHA.test(beforeGitSha) || !GIT_SHA.test(afterGitSha) || beforeGitSha === afterGitSha) {
-    throw new FounderSeedError('invalid-argument', 'Git provenance is invalid.');
+    throw new FounderSeedError('invalid-argument', 'git provenance is invalid.');
   }
   return {
     publicDisplayName,
@@ -110,10 +110,10 @@ export async function recordFounderSeedContribution(
   rawInput: unknown,
   dependencies: FounderSeedDependencies,
 ): Promise<{ status: 'recorded'; contributionNumber: 0 }> {
-  if (!authToken) throw new FounderSeedError('unauthenticated', 'Authentication is required.');
+  if (!authToken) throw new FounderSeedError('unauthenticated', 'authentication is required.');
   const githubUserId = githubIdFromAuthToken(authToken);
   if (!githubUserId || !/^[0-9]+$/.test(githubUserId)) {
-    throw new FounderSeedError('permission-denied', 'Access denied.');
+    throw new FounderSeedError('permission-denied', 'access denied.');
   }
   const repositoryParts = dependencies.canonicalRepository.split('/');
   const githubUsername = repositoryParts[0] ?? '';
@@ -121,7 +121,7 @@ export async function recordFounderSeedContribution(
   if (dependencies.canonicalRepository !== CANONICAL_REPOSITORY
     || repositoryParts.length !== 2 || !/^[A-Za-z0-9-]{1,39}$/.test(githubUsername)
     || !/^[A-Za-z0-9_.-]+$/.test(repositoryName)) {
-    throw new FounderSeedError('failed-precondition', 'Canonical GitHub repository configuration is invalid.');
+    throw new FounderSeedError('failed-precondition', 'canonical GitHub repository configuration is invalid.');
   }
 
   return dependencies.runTransaction(async (transaction) => {
@@ -134,17 +134,17 @@ export async function recordFounderSeedContribution(
       transaction.founderHistoryExists(),
     ]);
     if (!admin || admin.githubUserId !== githubUserId || admin.active !== true || admin.role !== 'owner') {
-      throw new FounderSeedError('permission-denied', 'Only the active owner can record Founder Contribution #000.');
+      throw new FounderSeedError('permission-denied', 'only the active owner can record founder contribution #000.');
     }
     const input = validateFounderSeedInput(rawInput);
     if (founderContribution || founderHistory) {
-      throw new FounderSeedError('failed-precondition', 'Founder Contribution #000 has already been recorded.');
+      throw new FounderSeedError('failed-precondition', 'founder contribution #000 has already been recorded.');
     }
     if (anyContribution) {
-      throw new FounderSeedError('failed-precondition', 'Founder Contribution #000 must precede every permanent contribution.');
+      throw new FounderSeedError('failed-precondition', 'founder contribution #000 must precede every permanent contribution.');
     }
     if (!validUnlockedPrivateSite(privateSite) || !validInactivePublicSite(publicSite)) {
-      throw new FounderSeedError('failed-precondition', 'Founder Contribution #000 cannot be recorded during an invitation or turn.');
+      throw new FounderSeedError('failed-precondition', 'founder contribution #000 cannot be recorded during an invitation or turn.');
     }
 
     const timestamp = dependencies.timestamp();

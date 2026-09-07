@@ -22,12 +22,12 @@ export default function AdminSnapshotArchive() {
       setPhase('ready');
     } catch (cause) {
       setPhase('idle');
-      setError(cause instanceof Error ? cause.message : 'Snapshot bundle validation failed.');
+      setError(cause instanceof Error ? cause.message : 'snapshot bundle validation failed.');
     }
   }
 
   async function archive() {
-    if (!bundle || !window.confirm(`Archive Contribution #${bundle.manifest.contributionLabel} snapshots permanently?`)) return;
+    if (!bundle || !window.confirm(`archive contribution #${bundle.manifest.contributionLabel} snapshots permanently?`)) return;
     setError(null);
     setPhase('uploading');
     try {
@@ -41,18 +41,18 @@ export default function AdminSnapshotArchive() {
     } catch {
       activeUpload.current = null;
       setPhase('ready');
-      setError('Archive incomplete — public snapshot metadata was not finalized. Retry this same bundle to resume missing uploads.');
+      setError('archive incomplete — public snapshot metadata was not finalized. retry this same bundle to resume missing uploads.');
     }
   }
 
   return (
     <section className="admin-media" aria-labelledby="snapshot-archive-heading">
-      <h2 id="snapshot-archive-heading">Snapshot Archive</h2>
-      <p className="admin-private-note">Import one reviewed local capture bundle. Finalized History archives cannot be replaced or deleted here.</p>
+      <h2 id="snapshot-archive-heading">snapshot archive</h2>
+      <p className="admin-private-note">import one reviewed local capture bundle. finalized history archives cannot be replaced or deleted here.</p>
       {error && <p className="notice notice-error" role="alert">{error}</p>}
-      {phase === 'done' && bundle && <p className="notice" role="status">Archived Contribution #{bundle.manifest.contributionLabel}: {bundle.manifest.capturedRoutes.length} pages, {bundle.validChecksums} screenshots.</p>}
+      {phase === 'done' && bundle && <p className="notice" role="status">archived contribution #{bundle.manifest.contributionLabel}: {bundle.manifest.capturedRoutes.length} pages, {bundle.validChecksums} screenshots.</p>}
       <div className="form-field">
-        <label htmlFor="snapshot-bundle">Local snapshot bundle directory</label>
+        <label htmlFor="snapshot-bundle">local snapshot bundle directory</label>
         <input
           id="snapshot-bundle"
           type="file"
@@ -62,28 +62,28 @@ export default function AdminSnapshotArchive() {
           onChange={(event) => void select(event.target.files)}
         />
       </div>
-      {phase === 'validating' && <p role="status">Validating manifest and screenshot checksums…</p>}
+      {phase === 'validating' && <p role="status">validating manifest & screenshot checksums…</p>}
       {bundle && phase !== 'validating' && (
         <div className="admin-start-turn">
-          <h3>Contribution #{bundle.manifest.contributionLabel}</h3>
+          <h3>contribution #{bundle.manifest.contributionLabel}</h3>
           <dl>
-            <div><dt>BEFORE SHA</dt><dd><code>{bundle.manifest.git.before}</code></dd></div>
-            <div><dt>AFTER SHA</dt><dd><code>{bundle.manifest.git.after}</code></dd></div>
-            <div><dt>Canonical pages</dt><dd>{bundle.manifest.canonicalRoutes.length}</dd></div>
-            <div><dt>Screenshots</dt><dd>{bundle.validChecksums}</dd></div>
-            <div><dt>Integrity</dt><dd>{bundle.validChecksums} / {bundle.manifest.capturedRoutes.length * 2} checksums valid</dd></div>
+            <div><dt>before sha</dt><dd><code>{bundle.manifest.git.before}</code></dd></div>
+            <div><dt>after sha</dt><dd><code>{bundle.manifest.git.after}</code></dd></div>
+            <div><dt>canonical pages</dt><dd>{bundle.manifest.canonicalRoutes.length}</dd></div>
+            <div><dt>screenshots</dt><dd>{bundle.validChecksums}</dd></div>
+            <div><dt>integrity</dt><dd>{bundle.validChecksums} / {bundle.manifest.capturedRoutes.length * 2} checksums valid</dd></div>
           </dl>
-          <p>Routes: {bundle.manifest.capturedRoutes.join(', ')}</p>
+          <p>routes: {bundle.manifest.capturedRoutes.join(', ')}</p>
           {phase === 'uploading' && (
             <div role="status">
               <progress value={progress.completed} max={progress.total}>{Math.floor(progress.completed)} / {progress.total}</progress>
               <span> {Math.floor(progress.completed)} / {progress.total} objects</span>
             </div>
           )}
-          {phase === 'finalizing' && <p role="status">Finalizing archive…</p>}
+          {phase === 'finalizing' && <p role="status">finalizing archive…</p>}
           <div className="admin-turn-actions">
-            <button className="button" type="button" onClick={() => void archive()} disabled={phase !== 'ready'}>Archive snapshots</button>
-            {phase === 'uploading' && <button className="button button-secondary" type="button" onClick={() => activeUpload.current?.cancel()}>Cancel upload</button>}
+            <button className="button" type="button" onClick={() => void archive()} disabled={phase !== 'ready'}>archive snapshots</button>
+            {phase === 'uploading' && <button className="button button-secondary" type="button" onClick={() => activeUpload.current?.cancel()}>cancel upload</button>}
           </div>
         </div>
       )}

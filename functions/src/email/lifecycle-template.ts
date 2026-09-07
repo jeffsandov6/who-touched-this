@@ -36,14 +36,14 @@ function validateName(value: string): string {
 }
 
 function emailDocument(subject: string, name: string, paragraphs: string[], cta: string, label: string) {
-  const text = [`Hello ${name},`, '', ...paragraphs, '', `${label}: ${cta}`].join('\n');
+  const text = [`hello ${name},`, '', ...paragraphs, '', `${label}: ${cta}`].join('\n');
   const htmlParagraphs = paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('\n      ');
   const html = `<!doctype html>
 <html lang="en">
   <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#202124">
     <main style="max-width:600px;margin:0 auto;padding:24px">
-      <h1 style="font-size:22px">Who Touched This</h1>
-      <p>Hello ${escapeHtml(name)},</p>
+      <h1 style="font-size:22px">who touched this</h1>
+      <p>hello ${escapeHtml(name)},</p>
       ${htmlParagraphs}
       <p><a href="${escapeHtml(cta)}">${escapeHtml(label)}</a></p>
     </main>
@@ -61,25 +61,25 @@ export function buildInvitationReminderEmail(input: InvitationReminderInput): Se
   const deadline = formatInvitationDate(input.acceptBy);
   const duration = formatTurnDuration(input.turnDurationHours);
   return finish(input, emailDocument(
-    'Your Who Touched This invitation expires soon', name,
+    'your who touched this invitation expires soon', name,
     [
-      `Your invitation expires at ${deadline}.`,
-      `Your contribution clock has not started. After accepting, you will have ${duration}.`,
-      'Sign in with the same GitHub account you used to join.',
+      `your invitation expires at ${deadline}.`,
+      `your contribution clock has not started. after accepting, you will have ${duration}.`,
+      'sign in with the same GitHub account you used to join.',
     ],
-    applicationUrl(input.appOrigin, '/join'), 'Review your invitation',
+    applicationUrl(input.appOrigin, '/join'), 'review your invitation',
   ));
 }
 
 export function buildTurnStartedEmail(input: TurnInput): SendEmailInput {
   const name = validateName(input.displayName);
   return finish(input, emailDocument(
-    'Your Who Touched This turn has started', name,
+    'your who touched this turn has started', name,
     [
-      `The clock is now running for Contribution #${String(input.targetContributionNumber).padStart(3, '0')}.`,
-      `Your absolute deadline is ${formatInvitationDate(input.dueAt)}.`,
+      `the clock is now running for contribution #${String(input.targetContributionNumber).padStart(3, '0')}.`,
+      `your absolute deadline is ${formatInvitationDate(input.dueAt)}.`,
     ],
-    applicationUrl(input.appOrigin, '/join'), 'View your turn',
+    applicationUrl(input.appOrigin, '/join'), 'view your turn',
   ));
 }
 
@@ -89,28 +89,28 @@ export function buildTurnReminderEmail(
 ): SendEmailInput {
   const name = validateName(input.displayName);
   const subject = threshold === 72
-    ? '3 days left on your Who Touched This turn'
-    : '24 hours left on your Who Touched This turn';
+    ? '3 days left on your who touched this turn'
+    : '24 hours left on your who touched this turn';
   return finish(input, emailDocument(
     subject, name,
     [
-      `About ${threshold} hours remain for Contribution #${String(input.targetContributionNumber).padStart(3, '0')}.`,
-      `Your absolute deadline is ${formatInvitationDate(input.dueAt)}.`,
+      `about ${threshold} hours remain for contribution #${String(input.targetContributionNumber).padStart(3, '0')}.`,
+      `your absolute deadline is ${formatInvitationDate(input.dueAt)}.`,
     ],
-    applicationUrl(input.appOrigin, '/join'), 'View your turn',
+    applicationUrl(input.appOrigin, '/join'), 'view your turn',
   ));
 }
 
 export function buildDeadlinePassedEmail(input: TurnInput): SendEmailInput {
   const name = validateName(input.displayName);
   return finish(input, emailDocument(
-    'Your Who Touched This deadline has passed', name,
+    'your who touched this deadline has passed', name,
     [
-      `The deadline for Contribution #${String(input.targetContributionNumber).padStart(3, '0')} passed at ${formatInvitationDate(input.dueAt)}.`,
-      'Your turn remains technically open until the owner explicitly closes it.',
-      'If you already have a pull request ready, you may still submit it or contact the owner, but late acceptance is not guaranteed.',
+      `the deadline for contribution #${String(input.targetContributionNumber).padStart(3, '0')} passed at ${formatInvitationDate(input.dueAt)}.`,
+      'your turn remains technically open until the owner explicitly closes it.',
+      'if you already have a pull request ready, you may still submit it or contact the owner, but late acceptance is not guaranteed.',
     ],
-    applicationUrl(input.appOrigin, '/join'), 'View your turn',
+    applicationUrl(input.appOrigin, '/join'), 'view your turn',
   ));
 }
 
@@ -125,13 +125,13 @@ export function buildContributionCompletedEmail(input: ContributionInput): SendE
     throw new Error('PR URL is invalid.');
   }
   return finish(input, emailDocument(
-    `Contribution #${number} is now part of Who Touched This`, name,
+    `contribution #${number} is now part of who touched this`, name,
     [
-      `Contribution #${number} is now a permanent part of Who Touched This.`,
-      `Summary: ${summary}`,
+      `contribution #${number} is now a permanent part of who touched this.`,
+      `summary: ${summary}`,
       `GitHub pull request: ${pr.toString()}`,
-      'Thank you for contributing to the experiment.',
+      'thank you for contributing to the experiment.',
     ],
-    applicationUrl(input.appOrigin, '/history'), 'View public history',
+    applicationUrl(input.appOrigin, '/history'), 'view public history',
   ));
 }

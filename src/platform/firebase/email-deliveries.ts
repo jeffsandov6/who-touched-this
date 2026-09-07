@@ -25,10 +25,10 @@ export async function getAdminInvitationEmailDelivery(
   if (!snapshot.exists()) return null;
   const data = snapshot.data();
   if (!['sending', 'sent', 'failed'].includes(data.status)) {
-    throw new Error('Email delivery status is malformed.');
+    throw new Error('email delivery status is malformed.');
   }
   if (data.sentAt !== undefined && !(data.sentAt instanceof Timestamp)) {
-    throw new Error('Email delivery timestamp is malformed.');
+    throw new Error('email delivery timestamp is malformed.');
   }
   return {
     status: data.status as EmailDeliveryStatus,
@@ -37,7 +37,7 @@ export async function getAdminInvitationEmailDelivery(
 }
 
 export async function retryFailedInvitationEmail(invitationId: string): Promise<void> {
-  if (!invitationId || invitationId.includes('/')) throw new Error('Invitation ID is invalid.');
+  if (!invitationId || invitationId.includes('/')) throw new Error('invitation id is invalid.');
   const functions = getFunctions(getFirebaseApp(), 'us-central1');
   if (import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true') {
     connectFirebaseEmulatorOnce('functions', () =>
@@ -51,12 +51,12 @@ export async function retryFailedInvitationEmail(invitationId: string): Promise<
   } catch (error) {
     if (error instanceof FirebaseError) {
       if (error.code === 'functions/permission-denied' || error.code === 'functions/unauthenticated') {
-        throw new Error('Admin authorization could not be verified.');
+        throw new Error('admin authorization could not be verified.');
       }
       if (error.code === 'functions/failed-precondition') {
-        throw new Error('This invitation email is no longer eligible for retry.');
+        throw new Error('this invitation email is no longer eligible for retry.');
       }
     }
-    throw new Error('The invitation email could not be retried. Try again later.');
+    throw new Error('the invitation email could not be retried. try again later.');
   }
 }

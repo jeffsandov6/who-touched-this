@@ -71,5 +71,5 @@ test('display helpers bound progress and format sizes', () => {
   assert.equal(formatUploadProgress(50, 100), 50);
   assert.equal(formatUploadProgress(200, 100), 100);
   assert.equal(formatUploadProgress(10, 0), 0);
-  assert.equal(formatMediaBytes(1024 ** 2), '1.0 MiB');
+  assert.equal(formatMediaBytes(1024 ** 2), '1.0 mib');
 });

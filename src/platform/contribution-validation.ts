@@ -19,18 +19,18 @@ export function validateContributionDetails(
 ): ValidatedContributionDetails {
   const summary = summaryInput.trim();
   if (!summary) {
-    throw new ContributionValidationError('Enter a contribution summary.');
+    throw new ContributionValidationError('enter a contribution summary.');
   }
   if (summary.length > CONTRIBUTION_SUMMARY_MAX_LENGTH) {
     throw new ContributionValidationError(
-      `Contribution summary must be ${CONTRIBUTION_SUMMARY_MAX_LENGTH} characters or fewer.`,
+      `contribution summary must be ${CONTRIBUTION_SUMMARY_MAX_LENGTH} characters or fewer.`,
     );
   }
 
   const contributorMessage = contributorMessageInput.trim();
   if (contributorMessage.length > CONTRIBUTOR_MESSAGE_MAX_LENGTH) {
     throw new ContributionValidationError(
-      `Contributor message must be ${CONTRIBUTOR_MESSAGE_MAX_LENGTH} characters or fewer.`,
+      `contributor message must be ${CONTRIBUTOR_MESSAGE_MAX_LENGTH} characters or fewer.`,
     );
   }
 
@@ -53,7 +53,7 @@ export function calculateMergedCounters(
     !Number.isSafeInteger(targetContributionNumber) ||
     targetContributionNumber !== currentVersion + 1
   ) {
-    throw new ContributionValidationError('Contribution numbering is inconsistent.');
+    throw new ContributionValidationError('contribution numbering is inconsistent.');
   }
 
   return {

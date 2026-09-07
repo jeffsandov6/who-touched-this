@@ -36,7 +36,7 @@ export async function getOwnAdminAuthorization(
 
     return { authorized, role: authorized ? data.role ?? null : null };
   } catch (error) {
-    throw toAdminServiceError(error, 'Admin authorization could not be verified.');
+    throw toAdminServiceError(error, 'admin authorization could not be verified.');
   }
 }
 
@@ -45,10 +45,10 @@ export function toAdminServiceError(error: unknown, fallback: string): AdminServ
 
   if (error instanceof FirebaseError) {
     const messages: Record<string, string> = {
-      'firestore/permission-denied': 'Access denied.',
-      'firestore/unavailable': 'The admin service is temporarily unavailable.',
-      'firestore/aborted': 'The queue changed during this operation. Please try again.',
-      'firestore/deadline-exceeded': 'The admin operation timed out. Please try again.',
+      'firestore/permission-denied': 'access denied.',
+      'firestore/unavailable': 'the admin service is temporarily unavailable.',
+      'firestore/aborted': 'the queue changed during this operation. please try again.',
+      'firestore/deadline-exceeded': 'the admin operation timed out. please try again.',
     };
     return new AdminServiceError(messages[error.code] ?? fallback);
   }

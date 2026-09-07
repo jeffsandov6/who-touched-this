@@ -1,5 +1,6 @@
 import { normalizePullRequestSubmission } from './turn-lifecycle.ts';
 import type { PublicContributionSnapshot } from './snapshots/public.ts';
+import { isSafeSocialUrl } from './firebase/join-validation.ts';
 
 export type PublicHistoryItem =
   | {
@@ -14,6 +15,7 @@ export type PublicHistoryItem =
       occurredAt: Date;
       summary: string;
       contributorMessage?: string;
+      socialUrl?: string;
       prNumber: number;
       prUrl: string;
       beforeGitSha?: string;
@@ -130,6 +132,7 @@ export interface ParsedContribution {
   githubUsername: string;
   summary: string;
   contributorMessage?: string;
+  socialUrl?: string;
   prNumber: number;
   prUrl: string;
   beforeGitSha?: string;
@@ -142,6 +145,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
   if (!data || typeof data !== 'object') return null;
   const record = data as Record<string, unknown>;
   const hasMessage = 'contributorMessage' in record;
+  const hasSocialUrl = 'socialUrl' in record;
   const hasKind = 'contributionKind' in record;
   const hasBeforeSha = 'beforeGitSha' in record;
   const hasAfterSha = 'afterGitSha' in record;
@@ -150,7 +154,8 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
     !hasExactKeys(record, [
       'number', 'season', 'displayName', 'githubUsername', 'summary',
       ...(hasKind ? ['contributionKind'] : []),
-      ...(hasMessage ? ['contributorMessage'] : []), 'prNumber', 'prUrl', 'mergedAt', 'createdAt',
+      ...(hasMessage ? ['contributorMessage'] : []),
+      ...(hasSocialUrl ? ['socialUrl'] : []), 'prNumber', 'prUrl', 'mergedAt', 'createdAt',
       ...(hasBeforeSha ? ['beforeGitSha'] : []),
       ...(hasAfterSha ? ['afterGitSha'] : []),
     ]) ||
@@ -171,6 +176,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
       record.contributorMessage.length < 1 ||
       record.contributorMessage.length > 280
     )) ||
+    (hasSocialUrl && !isSafeSocialUrl(record.socialUrl)) ||
     typeof record.prUrl !== 'string' ||
     !Number.isSafeInteger(record.prNumber) ||
     hasBeforeSha !== hasAfterSha ||
@@ -201,6 +207,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
     githubUsername: record.githubUsername as string,
     summary: record.summary,
     ...(hasMessage ? { contributorMessage: record.contributorMessage as string } : {}),
+    ...(hasSocialUrl ? { socialUrl: record.socialUrl as string } : {}),
     prNumber: record.prNumber as number,
     prUrl: record.prUrl,
     ...(hasBeforeSha ? {

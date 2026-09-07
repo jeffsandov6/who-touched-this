@@ -111,14 +111,14 @@ export function parsePublicContributionSnapshot(value: unknown): PublicContribut
 }
 
 export function snapshotHistorySummary(snapshot: PublicContributionSnapshot): string {
-  return `Before & after · ${snapshot.routes.length} ${snapshot.routes.length === 1 ? 'page' : 'pages'}`;
+  return `before & after · ${snapshot.routes.length} ${snapshot.routes.length === 1 ? 'page' : 'pages'}`;
 }
 
 export function historicalRouteLabel(route: string): string {
-  return route === '/' ? 'Home' : route;
+  return route === '/' ? 'home' : route;
 }
 
 export function snapshotImageAlt(side: 'before' | 'after', contributionNumber: number, route: string): string {
   const label = String(contributionNumber).padStart(3, '0');
-  return `${side === 'before' ? 'Before' : 'After'} Contribution #${label} — ${route}`;
+  return `${side === 'before' ? 'before' : 'after'} contribution #${label} — ${route}`;
 }

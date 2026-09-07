@@ -27,7 +27,7 @@ function assertPathSegment(value: string, label: string): string {
 
 function assertContributionNumber(contributionNumber: number): number {
   if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) {
-    throw new Error('Contribution number must be a non-negative safe integer.');
+    throw new Error('contribution number must be a non-negative safe integer.');
   }
 
   return contributionNumber;
@@ -35,14 +35,14 @@ function assertContributionNumber(contributionNumber: number): number {
 
 function assertSeason(season: number): number {
   if (!Number.isSafeInteger(season) || season < 1) {
-    throw new Error('Season must be a positive safe integer.');
+    throw new Error('season must be a positive safe integer.');
   }
 
   return season;
 }
 
 export function contributorDocumentId(githubUserId: string): string {
-  return assertPathSegment(githubUserId, 'GitHub user ID');
+  return assertPathSegment(githubUserId, 'GitHub user id');
 }
 
 export function adminDocumentId(githubUserId: string): string {
@@ -74,19 +74,19 @@ export function queueDocumentPath(season: number, githubUserId: string): string 
 }
 
 export function turnDocumentPath(turnId: string): string {
-  return `${FIRESTORE_COLLECTIONS.turns}/${assertPathSegment(turnId, 'Turn ID')}`;
+  return `${FIRESTORE_COLLECTIONS.turns}/${assertPathSegment(turnId, 'turn id')}`;
 }
 
 export function invitationDocumentPath(invitationId: string): string {
-  return `${FIRESTORE_COLLECTIONS.invitations}/${assertPathSegment(invitationId, 'Invitation ID')}`;
+  return `${FIRESTORE_COLLECTIONS.invitations}/${assertPathSegment(invitationId, 'invitation id')}`;
 }
 
 export function invitationEmailDeliveryId(invitationId: string): string {
-  return `invitation_${assertPathSegment(invitationId, 'Invitation ID')}`;
+  return `invitation_${assertPathSegment(invitationId, 'invitation id')}`;
 }
 
 export function emailDeliveryDocumentPath(deliveryId: string): string {
-  return `${FIRESTORE_COLLECTIONS.emailDeliveries}/${assertPathSegment(deliveryId, 'Delivery ID')}`;
+  return `${FIRESTORE_COLLECTIONS.emailDeliveries}/${assertPathSegment(deliveryId, 'delivery id')}`;
 }
 
 export function contributionDocumentPath(contributionNumber: number): string {
@@ -94,7 +94,7 @@ export function contributionDocumentPath(contributionNumber: number): string {
 }
 
 export function historyEventDocumentPath(turnId: string): string {
-  return `${FIRESTORE_COLLECTIONS.historyEvents}/${assertPathSegment(turnId, 'History event ID')}`;
+  return `${FIRESTORE_COLLECTIONS.historyEvents}/${assertPathSegment(turnId, 'history event id')}`;
 }
 
 export const PUBLIC_SITE_DOCUMENT_PATH =

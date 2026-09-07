@@ -30,15 +30,15 @@ export interface FounderSeedRequest {
 export function validateFounderSeedForm(input: FounderSeedFormInput): FounderSeedRequest {
   const publicDisplayName = input.publicDisplayName.trim();
   if (!publicDisplayName || publicDisplayName.length > FOUNDER_DISPLAY_NAME_MAX_LENGTH) {
-    throw new Error(`Public founder name must be 1–${FOUNDER_DISPLAY_NAME_MAX_LENGTH} characters.`);
+    throw new Error(`public founder name must be 1–${FOUNDER_DISPLAY_NAME_MAX_LENGTH} characters.`);
   }
   const number = Number(input.prNumber.trim());
-  if (!Number.isSafeInteger(number) || number < 1) throw new Error('Enter a positive GitHub pull request number.');
+  if (!Number.isSafeInteger(number) || number < 1) throw new Error('enter a positive GitHub pull request number.');
   const details = validateContributionDetails(input.summary, input.contributorMessage);
   const beforeGitSha = input.beforeGitSha.trim().toLowerCase();
   const afterGitSha = input.afterGitSha.trim().toLowerCase();
   if (!GIT_SHA.test(beforeGitSha) || !GIT_SHA.test(afterGitSha) || beforeGitSha === afterGitSha) {
-    throw new Error('Enter two different full 40-character Git commit SHAs.');
+    throw new Error('enter two different full 40-character git commit shas.');
   }
   return {
     publicDisplayName,
@@ -51,13 +51,13 @@ export function validateFounderSeedForm(input: FounderSeedFormInput): FounderSee
 }
 
 export function founderPullRequestUrl(prNumber: number): string {
-  if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error('Pull request number is invalid.');
+  if (!Number.isSafeInteger(prNumber) || prNumber < 1) throw new Error('pull request number is invalid.');
   return `https://github.com/${FOUNDER_GITHUB_REPOSITORY}/pull/${prNumber}`;
 }
 
 export function founderSnapshotCommand(beforeGitSha: string, afterGitSha: string): string {
   if (!GIT_SHA.test(beforeGitSha) || !GIT_SHA.test(afterGitSha) || beforeGitSha === afterGitSha) {
-    throw new Error('Founder Git provenance is invalid.');
+    throw new Error('founder git provenance is invalid.');
   }
   return [
     'npm run snapshots:capture -- \\',

@@ -43,15 +43,15 @@ test('expiration becomes available exactly at the deadline for active turns', ()
 
 test('maps current public states to restrained presentation', () => {
   assert.deepEqual(getPublicTurnPresentation('active'), {
-    statusLabel: 'Active', targetLabel: 'Working on', showCountdown: true,
+    statusLabel: 'active', targetLabel: 'working on', showCountdown: true,
   });
   assert.deepEqual(getPublicTurnPresentation('submitted'), {
-    statusLabel: 'PR submitted', targetLabel: 'Contribution', showCountdown: false,
+    statusLabel: 'pr submitted', targetLabel: 'contribution', showCountdown: false,
   });
   assert.deepEqual(getPublicTurnPresentation('under_review'), {
-    statusLabel: 'Under review', targetLabel: 'Contribution', showCountdown: false,
+    statusLabel: 'under review', targetLabel: 'contribution', showCountdown: false,
   });
   assert.deepEqual(getPublicTurnPresentation('none'), {
-    statusLabel: 'No active turn', targetLabel: null, showCountdown: false,
+    statusLabel: 'no active turn', targetLabel: null, showCountdown: false,
   });
 });

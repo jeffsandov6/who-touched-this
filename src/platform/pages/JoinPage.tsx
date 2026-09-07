@@ -175,7 +175,7 @@ export default function JoinPage() {
           : participationStatusMessage(result.status),
       );
     } catch (error) {
-      setErrorMessage(safeMessage(error, 'the queue could not be joined. Please try again.'));
+      setErrorMessage(safeMessage(error, 'the queue could not be joined. please try again.'));
     } finally {
       setBusy(false);
     }
@@ -215,7 +215,7 @@ export default function JoinPage() {
       )}
 
       {authLoading ? (
-        <p role="status">Checking authentication…</p>
+        <p role="status">checking authentication…</p>
       ) : !identity ? (
         <div className="join-auth-panel">
           <p>
@@ -359,7 +359,7 @@ export default function JoinPage() {
                     i've read & agree to the rules. i understand that i get at most one ordinary contribution per
                     GitHub account per season; joining doesn't guarantee an immediate turn; my display name may appear
                     publicly in site history; if i complete a contribution, my GitHub identity, accepted contribution,
-                    PR, contributor message, & optional social link may become public; & my contact email & exact queue
+                    pr, contributor message, & optional social link may become public; & my contact email & exact queue
                     position stay private.
                   </span>
                 </label>

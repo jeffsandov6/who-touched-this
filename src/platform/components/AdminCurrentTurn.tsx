@@ -54,7 +54,7 @@ export default function AdminCurrentTurn({
   async function handleMerged(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!window.confirm(
-      'Record this contribution as merged? The pull request should already be merged on GitHub.',
+      'record this contribution as merged? the pull request should already be merged on GitHub.',
     )) return;
     await onRecordMerged(summary, contributorMessage);
   }
@@ -62,38 +62,38 @@ export default function AdminCurrentTurn({
   return (
     <div className="admin-turn-panel">
       <dl className="admin-current-turn-details">
-        <div><dt>Contributor</dt><dd><strong>{turn.displayName}</strong></dd></div>
+        <div><dt>contributor</dt><dd><strong>{turn.displayName}</strong></dd></div>
         <div>
           <dt>GitHub</dt>
           <dd><a href={turn.githubProfileUrl} rel="noreferrer">@{turn.githubUsername}</a></dd>
         </div>
-        <div><dt>Private contact</dt><dd><a href={`mailto:${turn.email}`}>{turn.email}</a></dd></div>
-        <div><dt>Target contribution</dt><dd>#{turn.targetContributionNumber}</dd></div>
-        <div><dt>Status</dt><dd>{turn.status.replace('_', ' ')}</dd></div>
-        <div><dt>Started</dt><dd>{formatDate(turn.startedAt)}</dd></div>
-        <div><dt>Deadline</dt><dd>{formatDate(turn.dueAt)}</dd></div>
+        <div><dt>private contact</dt><dd><a href={`mailto:${turn.email}`}>{turn.email}</a></dd></div>
+        <div><dt>target contribution</dt><dd>#{turn.targetContributionNumber}</dd></div>
+        <div><dt>status</dt><dd>{turn.status.replace('_', ' ')}</dd></div>
+        <div><dt>started</dt><dd>{formatDate(turn.startedAt)}</dd></div>
+        <div><dt>deadline</dt><dd>{formatDate(turn.dueAt)}</dd></div>
         {turn.status === 'active' && (
           <div>
-            <dt>Time remaining</dt>
+            <dt>time remaining</dt>
             <dd><Countdown dueAtMillis={turn.dueAt.getTime()} /></dd>
           </div>
         )}
         {turn.prNumber && turn.prUrl && (
-          <div><dt>Pull request</dt><dd><a href={turn.prUrl} rel="noreferrer">#{turn.prNumber}</a></dd></div>
+          <div><dt>pull request</dt><dd><a href={turn.prUrl} rel="noreferrer">#{turn.prNumber}</a></dd></div>
         )}
         {turn.submittedAt && (
-          <div><dt>Submitted</dt><dd>{formatDate(turn.submittedAt)}</dd></div>
+          <div><dt>submitted</dt><dd>{formatDate(turn.submittedAt)}</dd></div>
         )}
         {turn.reviewStartedAt && (
-          <div><dt>Review started</dt><dd>{formatDate(turn.reviewStartedAt)}</dd></div>
+          <div><dt>review started</dt><dd>{formatDate(turn.reviewStartedAt)}</dd></div>
         )}
       </dl>
 
       {turn.status === 'active' && (
         <form className="admin-pr-form" onSubmit={(event) => void handleSubmission(event)}>
-          <h3>Record PR submission</h3>
+          <h3>record pr submission</h3>
           <div className="form-field">
-            <label htmlFor="turn-pr-url">GitHub pull request URL</label>
+            <label htmlFor="turn-pr-url">GitHub pull request url</label>
             <input
               id="turn-pr-url"
               type="url"
@@ -105,7 +105,7 @@ export default function AdminCurrentTurn({
             />
           </div>
           <div className="form-field">
-            <label htmlFor="turn-pr-number">GitHub PR number</label>
+            <label htmlFor="turn-pr-number">GitHub pr number</label>
             <input
               id="turn-pr-number"
               type="number"
@@ -118,19 +118,19 @@ export default function AdminCurrentTurn({
             />
           </div>
           <button className="button" type="submit" disabled={busy}>
-            {busy ? 'Updating…' : 'Record PR submission'}
+            {busy ? 'updating…' : 'record pr submission'}
           </button>
         </form>
       )}
 
       {turn.status === 'under_review' && (
         <form className="admin-merge-form" onSubmit={(event) => void handleMerged(event)}>
-          <h3>Record successful contribution</h3>
+          <h3>record successful contribution</h3>
           <p className="admin-private-note">
-            This records an outcome only. Merge the pull request manually on GitHub first.
+            this records an outcome only. merge the pull request manually on GitHub first.
           </p>
           <div className="form-field">
-            <label htmlFor="contribution-summary">Contribution summary</label>
+            <label htmlFor="contribution-summary">contribution summary</label>
             <textarea
               id="contribution-summary"
               value={summary}
@@ -139,10 +139,10 @@ export default function AdminCurrentTurn({
               disabled={busy}
               required
             />
-            <small>Public, required, and limited to {CONTRIBUTION_SUMMARY_MAX_LENGTH} characters.</small>
+            <small>public, required, & limited to {CONTRIBUTION_SUMMARY_MAX_LENGTH} characters.</small>
           </div>
           <div className="form-field">
-            <label htmlFor="contributor-message">Contributor message (optional)</label>
+            <label htmlFor="contributor-message">contributor message (optional)</label>
             <textarea
               id="contributor-message"
               value={contributorMessage}
@@ -150,10 +150,10 @@ export default function AdminCurrentTurn({
               maxLength={CONTRIBUTOR_MESSAGE_MAX_LENGTH}
               disabled={busy}
             />
-            <small>Public and limited to {CONTRIBUTOR_MESSAGE_MAX_LENGTH} characters.</small>
+            <small>public & limited to {CONTRIBUTOR_MESSAGE_MAX_LENGTH} characters.</small>
           </div>
           <button className="button" type="submit" disabled={busy}>
-            {busy ? 'Recording…' : 'Record merged contribution'}
+            {busy ? 'recording…' : 'record merged contribution'}
           </button>
         </form>
       )}
@@ -161,7 +161,7 @@ export default function AdminCurrentTurn({
       <div className="admin-turn-actions">
         {turn.status === 'submitted' && (
           <button className="button" type="button" onClick={() => void onMarkUnderReview()} disabled={busy}>
-            Mark under review
+            mark under review
           </button>
         )}
         {canExpireTurn(turn.status, turn.dueAt.getTime(), nowMillis) && (
@@ -169,26 +169,26 @@ export default function AdminCurrentTurn({
             className="button button-danger"
             type="button"
             onClick={() => {
-              if (window.confirm('Expire this turn? This cannot be undone in the application.')) {
+              if (window.confirm('expire this turn? this cannot be undone in the application.')) {
                 void onExpire();
               }
             }}
             disabled={busy}
           >
-            Expire turn
+            expire turn
           </button>
         )}
         <button
           className="button button-danger-secondary"
           type="button"
           onClick={() => {
-            if (window.confirm('Skip this turn? This cannot be undone in the application.')) {
+            if (window.confirm('skip this turn? this cannot be undone in the application.')) {
               void onSkip();
             }
           }}
           disabled={busy}
         >
-          Skip turn
+          skip turn
         </button>
       </div>
 

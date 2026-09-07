@@ -84,7 +84,7 @@ test('Admin founder UI is owner-gated, confirms once, then presents immutable re
   const source = await readFile(new URL('../src/platform/components/AdminFounderSeed.tsx', import.meta.url), 'utf8');
   assert.match(source, /isOwner/);
   assert.match(source, /window\.confirm/);
-  assert.match(source, /already merged creative founder PR/);
+  assert.match(source, /already merged creative founder pr/);
   assert.match(source, /recorded \?/);
   assert.match(source, /readOnly/);
   assert.match(source, /founderSnapshotCommand/);
@@ -94,7 +94,7 @@ test('Admin founder UI is owner-gated, confirms once, then presents immutable re
 
 test('History gives founder seed distinct contribution wording without a founder turn', async () => {
   const source = await readFile(new URL('../src/platform/pages/HistoryPage.tsx', import.meta.url), 'utf8');
-  assert.match(source, /Founder Contribution/);
+  assert.match(source, /founder contribution/);
   assert.match(source, /history-founder-badge/);
   assert.doesNotMatch(source, /Founder Turn/);
 });

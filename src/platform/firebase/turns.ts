@@ -105,7 +105,7 @@ function parseCurrentTurn(
     data.endedAt !== undefined ||
     !hasValidSubmission
   ) {
-    throw new AdminServiceError('The current turn contains unsupported data.');
+    throw new AdminServiceError('the current turn contains unsupported data.');
   }
   return data as unknown as TurnRecord & { status: 'active' | 'submitted' | 'under_review' };
 }
@@ -119,19 +119,19 @@ export async function loadAdminCurrentTurn(): Promise<AdminCurrentTurn | null> {
     const activeTurnId = privateSiteSnapshot.data().activeTurnId;
     if (activeTurnId === null) return null;
     if (typeof activeTurnId !== 'string' || !activeTurnId) {
-      throw new AdminServiceError('Private current-turn state is malformed.');
+      throw new AdminServiceError('private current-turn state is malformed.');
     }
 
     const turnSnapshot = await getDoc(doc(firestore, turnDocumentPath(activeTurnId)));
     if (!turnSnapshot.exists()) {
-      throw new AdminServiceError('The active turn record is missing.');
+      throw new AdminServiceError('the active turn record is missing.');
     }
     const turn = parseCurrentTurn(activeTurnId, turnSnapshot.data());
     const contributorSnapshot = await getDoc(
       doc(firestore, contributorDocumentPath(turn.githubUserId)),
     );
     if (!contributorSnapshot.exists()) {
-      throw new AdminServiceError('The active contributor record is missing.');
+      throw new AdminServiceError('the active contributor record is missing.');
     }
     const contributor = parseAdminContributor(
       contributorSnapshot.data(),
@@ -156,7 +156,7 @@ export async function loadAdminCurrentTurn(): Promise<AdminCurrentTurn | null> {
       ...(turn.reviewStartedAt ? { reviewStartedAt: turn.reviewStartedAt.toDate() } : {}),
     };
   } catch (error) {
-    throw toAdminServiceError(error, 'The current turn could not be loaded.');
+    throw toAdminServiceError(error, 'the current turn could not be loaded.');
   }
 }
 
@@ -173,13 +173,13 @@ function assertCurrentPublicProjection(
   if (!publicState || publicState.turnStatus !== turn.status
     || publicState.targetContributionNumber !== turn.targetContributionNumber
     || publicState.dueAtMillis !== turn.dueAt.toMillis()) {
-    throw new AdminServiceError('The public current-turn state is inconsistent.');
+    throw new AdminServiceError('the public current-turn state is inconsistent.');
   }
 }
 
 function assertActiveAdmin(exists: boolean, data: Record<string, unknown>, githubUserId: string) {
   if (!exists || !activeAdminRecordIsValid(data, githubUserId)) {
-    throw new AdminServiceError('Access denied.');
+    throw new AdminServiceError('access denied.');
   }
 }
 
@@ -203,12 +203,12 @@ export async function recordPullRequestSubmission(input: RecordPullRequestInput)
       ]);
       assertActiveAdmin(adminSnapshot.exists(), adminSnapshot.data() ?? {}, input.adminGithubUserId);
       const turnId = privateSiteSnapshot.data()?.activeTurnId;
-      if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('There is no current turn.');
+      if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('there is no current turn.');
       const turnReference = doc(firestore, turnDocumentPath(turnId));
       const turnSnapshot = await transaction.get(turnReference);
-      if (!turnSnapshot.exists()) throw new AdminServiceError('The current turn is missing.');
+      if (!turnSnapshot.exists()) throw new AdminServiceError('the current turn is missing.');
       const turn = parseCurrentTurn(turnId, turnSnapshot.data());
-      if (turn.status !== 'active') throw new AdminServiceError('A pull request can only be recorded for an active turn.');
+      if (turn.status !== 'active') throw new AdminServiceError('a pull request can only be recorded for an active turn.');
       const publicState = publicSiteSnapshot.exists() ? tryParsePublicSiteState(publicSiteSnapshot.data()) : null;
       assertCurrentPublicProjection(publicState, turn);
       transaction.update(turnReference, {
@@ -218,7 +218,7 @@ export async function recordPullRequestSubmission(input: RecordPullRequestInput)
       transaction.update(publicSiteReference, { turnStatus: 'submitted', updatedAt: serverTimestamp() });
     });
   } catch (error) {
-    throw toAdminServiceError(error, 'The pull request submission could not be recorded.');
+    throw toAdminServiceError(error, 'the pull request submission could not be recorded.');
   }
 }
 
@@ -234,19 +234,19 @@ export async function markCurrentTurnUnderReview(adminGithubUserId: string): Pro
       ]);
       assertActiveAdmin(adminSnapshot.exists(), adminSnapshot.data() ?? {}, adminGithubUserId);
       const turnId = privateSiteSnapshot.data()?.activeTurnId;
-      if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('There is no current turn.');
+      if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('there is no current turn.');
       const turnReference = doc(firestore, turnDocumentPath(turnId));
       const turnSnapshot = await transaction.get(turnReference);
-      if (!turnSnapshot.exists()) throw new AdminServiceError('The current turn is missing.');
+      if (!turnSnapshot.exists()) throw new AdminServiceError('the current turn is missing.');
       const turn = parseCurrentTurn(turnId, turnSnapshot.data());
-      if (turn.status !== 'submitted') throw new AdminServiceError('Only a submitted turn can be marked under review.');
+      if (turn.status !== 'submitted') throw new AdminServiceError('only a submitted turn can be marked under review.');
       const publicState = publicSiteSnapshot.exists() ? tryParsePublicSiteState(publicSiteSnapshot.data()) : null;
       assertCurrentPublicProjection(publicState, turn);
       transaction.update(turnReference, { status: 'under_review', reviewStartedAt: serverTimestamp(), updatedAt: serverTimestamp() });
       transaction.update(publicSiteReference, { turnStatus: 'under_review', updatedAt: serverTimestamp() });
     });
   } catch (error) {
-    throw toAdminServiceError(error, 'The turn could not be marked under review.');
+    throw toAdminServiceError(error, 'the turn could not be marked under review.');
   }
 }
 
@@ -262,13 +262,13 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
       ]);
       assertActiveAdmin(adminSnapshot.exists(), adminSnapshot.data() ?? {}, adminGithubUserId);
       const turnId = privateSiteSnapshot.data()?.activeTurnId;
-      if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('There is no current turn.');
+      if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('there is no current turn.');
       const turnReference = doc(firestore, turnDocumentPath(turnId));
       const turnSnapshot = await transaction.get(turnReference);
-      if (!turnSnapshot.exists()) throw new AdminServiceError('The current turn is missing.');
+      if (!turnSnapshot.exists()) throw new AdminServiceError('the current turn is missing.');
       const turn = parseCurrentTurn(turnId, turnSnapshot.data());
       if (nextStatus === 'expired' && !canExpireTurn(turn.status, turn.dueAt.toMillis(), Date.now())) {
-        throw new AdminServiceError('An active turn can be expired only after its deadline.');
+        throw new AdminServiceError('an active turn can be expired only after its deadline.');
       }
       const participationReference = doc(firestore, participationDocumentPath(CURRENT_SEASON, turn.githubUserId));
       const queueReference = doc(firestore, queueDocumentPath(CURRENT_SEASON, turn.githubUserId));
@@ -280,14 +280,14 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
       ]);
       if (!participationSnapshot.exists() || participationSnapshot.data().githubUserId !== turn.githubUserId
         || participationSnapshot.data().season !== CURRENT_SEASON || participationSnapshot.data().status !== 'active') {
-        throw new AdminServiceError('The current participation state is inconsistent.');
+        throw new AdminServiceError('the current participation state is inconsistent.');
       }
-      if (!queueSnapshot.exists()) throw new AdminServiceError('The current queue entry is missing.');
+      if (!queueSnapshot.exists()) throw new AdminServiceError('the current queue entry is missing.');
       const queue = parseAdminQueueEntry(queueSnapshot.data(), turn.githubUserId);
-      if (queue.status !== 'active') throw new AdminServiceError('The current queue state is inconsistent.');
-      if (!contributorSnapshot.exists()) throw new AdminServiceError('The current contributor is missing.');
+      if (queue.status !== 'active') throw new AdminServiceError('the current queue state is inconsistent.');
+      if (!contributorSnapshot.exists()) throw new AdminServiceError('the current contributor is missing.');
       const contributor = parseAdminContributor(contributorSnapshot.data(), turn.githubUserId);
-      if (historyEventSnapshot.exists()) throw new AdminServiceError('This turn already has a History event.');
+      if (historyEventSnapshot.exists()) throw new AdminServiceError('this turn already has a history event.');
       const publicState = publicSiteSnapshot.exists() ? tryParsePublicSiteState(publicSiteSnapshot.data()) : null;
       assertCurrentPublicProjection(publicState, turn);
       transaction.update(turnReference, { status: nextStatus, endedAt: serverTimestamp(), updatedAt: serverTimestamp() });
@@ -313,7 +313,7 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
       } satisfies WithFieldValue<PublicHistoryEvent>);
     });
   } catch (error) {
-    throw toAdminServiceError(error, nextStatus === 'expired' ? 'The turn could not be expired.' : 'The turn could not be skipped.');
+    throw toAdminServiceError(error, nextStatus === 'expired' ? 'the turn could not be expired.' : 'the turn could not be skipped.');
   }
 }
 
@@ -364,14 +364,14 @@ export async function recordMergedContribution(
 
       const turnId = privateSiteSnapshot.data()?.activeTurnId;
       if (typeof turnId !== 'string' || !turnId) {
-        throw new AdminServiceError('There is no current turn.');
+        throw new AdminServiceError('there is no current turn.');
       }
       const turnReference = doc(firestore, turnDocumentPath(turnId));
       const turnSnapshot = await transaction.get(turnReference);
-      if (!turnSnapshot.exists()) throw new AdminServiceError('The current turn is missing.');
+      if (!turnSnapshot.exists()) throw new AdminServiceError('the current turn is missing.');
       const turn = parseCurrentTurn(turnId, turnSnapshot.data());
       if (turn.status !== 'under_review' || !turn.prNumber || !turn.prUrl) {
-        throw new AdminServiceError('Only an under-review turn can be recorded as merged.');
+        throw new AdminServiceError('only an under-review turn can be recorded as merged.');
       }
 
       const publicState = publicSiteSnapshot.exists()
@@ -412,7 +412,7 @@ export async function recordMergedContribution(
         transaction.get(historyEventReference),
       ]);
 
-      if (!contributorSnapshot.exists()) throw new AdminServiceError('The contributor is missing.');
+      if (!contributorSnapshot.exists()) throw new AdminServiceError('the contributor is missing.');
       const contributor = parseAdminContributor(contributorSnapshot.data(), turn.githubUserId);
       if (
         !participationSnapshot.exists() ||
@@ -420,17 +420,17 @@ export async function recordMergedContribution(
         participationSnapshot.data().season !== CURRENT_SEASON ||
         participationSnapshot.data().status !== 'active' ||
         'contributionNumber' in participationSnapshot.data()
-      ) throw new AdminServiceError('The participation state is inconsistent.');
-      if (!queueSnapshot.exists()) throw new AdminServiceError('The queue entry is missing.');
+      ) throw new AdminServiceError('the participation state is inconsistent.');
+      if (!queueSnapshot.exists()) throw new AdminServiceError('the queue entry is missing.');
       const queue = parseAdminQueueEntry(queueSnapshot.data(), turn.githubUserId);
       if (queue.status !== 'active' || queue.contributionNumber !== undefined) {
-        throw new AdminServiceError('The queue state is inconsistent.');
+        throw new AdminServiceError('the queue state is inconsistent.');
       }
       if (contributionSnapshot.exists()) {
-        throw new AdminServiceError('This contribution number already exists.');
+        throw new AdminServiceError('this contribution number already exists.');
       }
       if (historyEventSnapshot.exists()) {
-        throw new AdminServiceError('This turn already has a History event.');
+        throw new AdminServiceError('this turn already has a history event.');
       }
 
       const contribution = {
@@ -442,6 +442,7 @@ export async function recordMergedContribution(
         ...(details.contributorMessage
           ? { contributorMessage: details.contributorMessage }
           : {}),
+        ...(contributor.socialUrl ? { socialUrl: contributor.socialUrl } : {}),
         prNumber: turn.prNumber,
         prUrl: turn.prUrl,
         mergedAt: serverTimestamp(),
@@ -493,6 +494,6 @@ export async function recordMergedContribution(
       return turn.targetContributionNumber;
     });
   } catch (error) {
-    throw toAdminServiceError(error, 'The merged contribution could not be recorded.');
+    throw toAdminServiceError(error, 'the merged contribution could not be recorded.');
   }
 }

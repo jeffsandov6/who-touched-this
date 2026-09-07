@@ -25,7 +25,7 @@ test('countdown never becomes negative and reports expiration', () => {
   const state = getCountdownState(1000, 5000);
   assert.equal(state.totalSeconds, 0);
   assert.deepEqual([state.days, state.hours, state.minutes, state.seconds], [0, 0, 0, 0]);
-  assert.equal(formatCountdown(state), 'Deadline passed');
+  assert.equal(formatCountdown(state), 'deadline passed');
 });
 
 test('missing public site state falls back to the safe initial state', () => {

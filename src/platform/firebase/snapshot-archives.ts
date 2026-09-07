@@ -74,7 +74,7 @@ export function uploadSnapshotArchive(
     let completed = 0;
     onProgress(0, entries.length);
     for (const entry of entries) {
-      if (cancelled) throw new Error('Snapshot archive upload was cancelled.');
+      if (cancelled) throw new Error('snapshot archive upload was cancelled.');
       const path = snapshotArchiveObjectPath(bundle.manifest, entry.relativePath);
       if (await existingObjectMatches(path, entry.metadata)) {
         completed += 1;
@@ -104,6 +104,6 @@ export async function finalizeSnapshotArchive(contributionNumber: number, captur
 }
 
 export async function getPublicHistorySnapshotUrl(storagePath: string): Promise<string> {
-  if (!isAllowedPublicHistorySnapshotPath(storagePath)) throw new Error('Public History snapshot path is invalid.');
+  if (!isAllowedPublicHistorySnapshotPath(storagePath)) throw new Error('public history snapshot path is invalid.');
   return getDownloadURL(ref(getPlatformStorage(), storagePath));
 }

@@ -24,7 +24,7 @@ function getFirebaseOptions(): FirebaseOptions {
   const missingVariables = Object.values(requiredConfig).filter((name) => !environment[name]);
 
   if (missingVariables.length > 0) {
-    throw new Error(`Missing Firebase configuration: ${missingVariables.join(', ')}`);
+    throw new Error(`missing Firebase configuration: ${missingVariables.join(', ')}`);
   }
 
   return {

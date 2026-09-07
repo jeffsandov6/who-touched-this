@@ -63,19 +63,19 @@ test('browser importer rejects missing, changed, duplicate, unsafe, and mismatch
   const changed = filesFor();
   changed[1] = selectedFile([Buffer.concat([png, Buffer.from([9])])], 'home.png', 'image/png', `${captureId}/before/home.png`);
   await assert.rejects(validateSelectedSnapshotBundle(changed), /checksum/);
-  await assert.rejects(validateSelectedSnapshotBundle([...filesFor(), filesFor()[1]]), /Duplicate/);
+  await assert.rejects(validateSelectedSnapshotBundle([...filesFor(), filesFor()[1]]), /duplicate/);
   const unsafe = filesFor();
   Object.defineProperty(unsafe[1], 'webkitRelativePath', { value: `${captureId}/../before/home.png`, configurable: true });
   await assert.rejects(validateSelectedSnapshotBundle(unsafe), /unsafe/);
   const wrong = manifest(); wrong.captureId = 'different';
-  await assert.rejects(validateSelectedSnapshotBundle(filesFor(wrong)), /capture ID/);
+  await assert.rejects(validateSelectedSnapshotBundle(filesFor(wrong)), /capture id/);
   const oversized = filesFor();
   Object.defineProperty(oversized[1], 'size', { value: 20 * 1024 * 1024 + 1 });
-  await assert.rejects(validateSelectedSnapshotBundle(oversized), /allowed PNG/);
+  await assert.rejects(validateSelectedSnapshotBundle(oversized), /allowed png/);
 });
 
 test('manifest schema rejects unsupported schema, duplicate routes, and traversal paths', () => {
-  assert.throws(() => validateSnapshotManifest({ ...manifest(), schemaVersion: 2 }), /Unsupported/);
+  assert.throws(() => validateSnapshotManifest({ ...manifest(), schemaVersion: 2 }), /unsupported/);
   assert.throws(() => validateSnapshotManifest(manifest(['/', '/'])), /duplicate/);
   const traversal = manifest(); traversal.screenshots[0].before.path = '../home.png';
   assert.throws(() => validateSnapshotManifest(traversal), /disagree|relative/);
@@ -109,11 +109,11 @@ test('public metadata supports historical three and future four route archives',
   const three = parsePublicContributionSnapshot(publicSnapshot(['/', '/random', '/thoughts']));
   const four = parsePublicContributionSnapshot(publicSnapshot(['/', '/random', '/thoughts', '/gallery']));
   assert.equal(three?.routes.length, 3);
-  assert.equal(snapshotHistorySummary(three!), 'Before & after · 3 pages');
+  assert.equal(snapshotHistorySummary(three!), 'before & after · 3 pages');
   assert.equal(four?.routes.length, 4);
-  assert.equal(historicalRouteLabel('/'), 'Home');
+  assert.equal(historicalRouteLabel('/'), 'home');
   assert.equal(historicalRouteLabel('/gallery'), '/gallery');
-  assert.equal(snapshotImageAlt('before', 42, '/random'), 'Before Contribution #042 — /random');
+  assert.equal(snapshotImageAlt('before', 42, '/random'), 'before contribution #042 — /random');
 });
 
 test('public parser fails closed for unsupported schemas and unsafe Storage records', () => {
@@ -127,7 +127,7 @@ test('History snapshot UI is collapsed, lazy, accessible, and failure tolerant',
   assert.match(source, /expanded && snapshot\.routes\.map/);
   assert.match(source, /loading="lazy"/);
   assert.match(source, /useEffect/);
-  assert.match(source, /Loading screenshot/);
-  assert.match(source, /Screenshot unavailable/);
+  assert.match(source, /loading screenshot/);
+  assert.match(source, /screenshot unavailable/);
   assert.match(source, /snapshotImageAlt/);
 });

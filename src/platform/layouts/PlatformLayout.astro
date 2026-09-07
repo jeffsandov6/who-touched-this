@@ -11,10 +11,10 @@ interface Props {
 }
 
 const {
-  title = 'Who Touched This',
-  description = 'A sequential social coding experiment.',
+  title = 'who touched this',
+  description = 'a sequential social coding experiment.',
 } = Astro.props;
-const pageTitle = title === 'Who Touched This' ? title : `${title} | Who Touched This`;
+const pageTitle = title === 'who touched this' ? title : `${title} | who touched this`;
 const contributorPreview = import.meta.env.MODE === 'contributor'
   || (import.meta.env.DEV && import.meta.env.PUBLIC_CONTRIBUTOR_PREVIEW === 'true');
 const robots = robotsMetaContent(import.meta.env.PUBLIC_SITE_INDEXING_ENABLED);
@@ -31,7 +31,7 @@ const robots = robotsMetaContent(import.meta.env.PUBLIC_SITE_INDEXING_ENABLED);
     <title>{pageTitle}</title>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Skip to content</a>
+    <a class="skip-link" href="#main-content">skip to content</a>
     <header class="platform-header">
       <Navigation currentPath={Astro.url.pathname} />
       {contributorPreview ? <ContributorSiteStatus /> : <SiteStatus client:load />}

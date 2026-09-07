@@ -149,6 +149,8 @@ export interface PublicContributionRecord {
   displayName: string;
   summary: string;
   contributorMessage?: string;
+  /** Optional HTTP(S) social link captured from the contributor when the contribution is merged. */
+  socialUrl?: string;
   prNumber: number;
   prUrl: string;
   beforeGitSha?: string;
