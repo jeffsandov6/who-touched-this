@@ -38,7 +38,7 @@ export default function AdminMediaManager() {
     try {
       setMedia(await listFounderMedia());
     } catch {
-      setError('Founder media could not be loaded. Check Storage emulator or bucket configuration.');
+      setError('founder media could not be loaded. check storage emulator or bucket configuration.');
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export default function AdminMediaManager() {
       setSelectedFile(file);
     } catch (cause) {
       setSelectedFile(null);
-      setError(cause instanceof Error ? cause.message : 'That file cannot be uploaded.');
+      setError(cause instanceof Error ? cause.message : 'that file cannot be uploaded.');
     }
   }
 
@@ -77,11 +77,11 @@ export default function AdminMediaManager() {
       const upload = uploadFounderMedia(selectedFile, setProgress);
       activeUpload.current = upload;
       const uploaded = await upload.result;
-      setMessage(`Uploaded ${uploaded.name}.`);
+      setMessage(`uploaded ${uploaded.name}.`);
       setSelectedFile(null);
       await refreshMedia();
     } catch {
-      setError('The media upload failed or was cancelled. The existing media library was not changed.');
+      setError('the media upload failed or was cancelled. the existing media library was not changed.');
     } finally {
       activeUpload.current = null;
       setUploading(false);
@@ -94,20 +94,20 @@ export default function AdminMediaManager() {
       setMessage(`${label} copied.`);
       setError(null);
     } catch {
-      setError(`${label} could not be copied. Select it manually instead.`);
+      setError(`${label} could not be copied. select it manually instead.`);
     }
   }
 
   async function handleDelete(item: FounderMediaObject) {
-    if (!window.confirm(`Delete ${item.name}? Existing references to this URL will stop working.`)) return;
+    if (!window.confirm(`delete ${item.name}? existing references to this url will stop working.`)) return;
     setMessage(null);
     setError(null);
     try {
       await deleteFounderMedia(item.path);
-      setMessage(`Deleted ${item.name}.`);
+      setMessage(`deleted ${item.name}.`);
       await refreshMedia();
     } catch {
-      setError('The media object could not be deleted.');
+      setError('the media object could not be deleted.');
     }
   }
 
@@ -115,13 +115,13 @@ export default function AdminMediaManager() {
     <section className="admin-media" aria-labelledby="admin-media-heading">
       <div className="admin-media-heading-row">
         <div>
-          <h2 id="admin-media-heading">Media</h2>
+          <h2 id="admin-media-heading">media</h2>
           <p className="admin-private-note">
-            Public founder canvas media. Uploading creates a unique object; existing objects are never overwritten.
+            public founder canvas media. uploading creates a unique object; existing objects are never overwritten.
           </p>
         </div>
         <button className="button button-secondary" type="button" onClick={() => void refreshMedia()} disabled={loading || uploading}>
-          {loading ? 'Loading…' : 'Refresh media'}
+          {loading ? 'loading…' : 'refresh media'}
         </button>
       </div>
 
@@ -130,7 +130,7 @@ export default function AdminMediaManager() {
 
       <div className="admin-media-upload">
         <div className="form-field">
-          <label htmlFor="founder-media-file">Image, audio, or video</label>
+          <label htmlFor="founder-media-file">image, audio, or video</label>
           <input
             id="founder-media-file"
             type="file"
@@ -141,7 +141,7 @@ export default function AdminMediaManager() {
         </div>
         {selectedFile && (
           <p>
-            <strong>{selectedFile.name}</strong> · {selectedFile.type || 'Unknown type'} · {formatMediaBytes(selectedFile.size)}
+            <strong>{selectedFile.name}</strong> · {selectedFile.type || 'unknown type'} · {formatMediaBytes(selectedFile.size)}
           </p>
         )}
         {uploading && (
@@ -152,20 +152,20 @@ export default function AdminMediaManager() {
         )}
         <div className="admin-turn-actions">
           <button className="button" type="button" onClick={() => void handleUpload()} disabled={!selectedFile || uploading}>
-            {uploading ? 'Uploading…' : 'Upload media'}
+            {uploading ? 'uploading…' : 'upload media'}
           </button>
           {uploading && (
             <button className="button button-secondary" type="button" onClick={() => activeUpload.current?.cancel()}>
-              Cancel upload
+              cancel upload
             </button>
           )}
         </div>
       </div>
 
       {loading && media.length === 0 ? (
-        <p role="status">Loading founder media…</p>
+        <p role="status">loading founder media…</p>
       ) : media.length === 0 ? (
-        <p className="empty-state">No founder media has been uploaded.</p>
+        <p className="empty-state">no founder media has been uploaded.</p>
       ) : (
         <ul className="admin-media-list">
           {media.map((item) => (
@@ -176,11 +176,11 @@ export default function AdminMediaManager() {
                 <span>{item.contentType} · {formatMediaBytes(item.size)}</span>
                 {item.createdAt && <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleString()}</time>}
                 <code>{item.path}</code>
-                <a href={item.downloadUrl} target="_blank" rel="noreferrer">Open public media URL</a>
+                <a href={item.downloadUrl} target="_blank" rel="noreferrer">open public media url</a>
                 <div className="admin-turn-actions">
-                  <button className="button button-secondary admin-action" type="button" onClick={() => void copy(item.path, 'Storage path')}>Copy path</button>
-                  <button className="button button-secondary admin-action" type="button" onClick={() => void copy(item.downloadUrl, 'Download URL')}>Copy URL</button>
-                  <button className="button button-danger-secondary admin-action" type="button" onClick={() => void handleDelete(item)}>Delete</button>
+                  <button className="button button-secondary admin-action" type="button" onClick={() => void copy(item.path, 'storage path')}>copy path</button>
+                  <button className="button button-secondary admin-action" type="button" onClick={() => void copy(item.downloadUrl, 'download url')}>copy url</button>
+                  <button className="button button-danger-secondary admin-action" type="button" onClick={() => void handleDelete(item)}>delete</button>
                 </div>
               </div>
             </li>

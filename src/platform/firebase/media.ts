@@ -79,7 +79,7 @@ export async function listFounderMedia(): Promise<FounderMediaObject[]> {
 }
 
 export async function deleteFounderMedia(storagePath: string): Promise<void> {
-  if (!isAllowedPublicCanvasMediaPath(storagePath)) throw new Error('Only founder canvas media can be deleted here.');
+  if (!isAllowedPublicCanvasMediaPath(storagePath)) throw new Error('only founder canvas media can be deleted here.');
   await deleteObject(ref(getPlatformStorage(), storagePath));
 }
 

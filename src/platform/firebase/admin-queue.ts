@@ -26,6 +26,7 @@ import {
   queueDocumentId,
   queueDocumentPath,
 } from './paths';
+import { isSafeSocialUrl } from './join-validation';
 
 export const MAX_QUEUE_PRIORITY = 2_147_483_647;
 
@@ -65,7 +66,7 @@ export function parseAdminQueueEntry(
       (data.contributionNumber as number) < 1
     ))
   ) {
-    throw new AdminServiceError('A queue entry contains unsupported data.');
+    throw new AdminServiceError('a queue entry contains unsupported data.');
   }
 
   return data as unknown as QueueEntry;
@@ -78,20 +79,6 @@ export function parseAdminContributor(
   ContributorRecord,
   'githubUserId' | 'githubUsername' | 'displayName' | 'email' | 'socialUrl'
 > {
-  let socialUrlIsSafe = true;
-  if (typeof data.socialUrl === 'string') {
-    try {
-      const socialUrl = new URL(data.socialUrl);
-      socialUrlIsSafe =
-        (socialUrl.protocol === 'https:' || socialUrl.protocol === 'http:') &&
-        Boolean(socialUrl.hostname) &&
-        !socialUrl.username &&
-        !socialUrl.password;
-    } catch {
-      socialUrlIsSafe = false;
-    }
-  }
-
   if (
     data.githubUserId !== expectedGithubUserId ||
     typeof data.githubUsername !== 'string' ||
@@ -100,10 +87,9 @@ export function parseAdminContributor(
     !data.displayName.trim() ||
     typeof data.email !== 'string' ||
     !data.email.trim() ||
-    (data.socialUrl !== undefined && typeof data.socialUrl !== 'string') ||
-    !socialUrlIsSafe
+    (data.socialUrl !== undefined && !isSafeSocialUrl(data.socialUrl))
   ) {
-    throw new AdminServiceError('A contributor record contains unsupported data.');
+    throw new AdminServiceError('a contributor record contains unsupported data.');
   }
 
   return data as unknown as Pick<
@@ -129,7 +115,7 @@ export async function loadSeasonOneAdminQueue(): Promise<AdminQueueItem[]> {
           typeof githubUserId !== 'string' ||
           queueSnapshotDocument.id !== queueDocumentId(CURRENT_SEASON, githubUserId)
         ) {
-          throw new AdminServiceError('A queue entry has an invalid identity.');
+          throw new AdminServiceError('a queue entry has an invalid identity.');
         }
 
         const queueEntry = parseAdminQueueEntry(queueSnapshotDocument.data(), githubUserId);
@@ -137,7 +123,7 @@ export async function loadSeasonOneAdminQueue(): Promise<AdminQueueItem[]> {
           doc(firestore, contributorDocumentPath(githubUserId)),
         );
         if (!contributorSnapshot.exists()) {
-          throw new AdminServiceError('A queue entry is missing its contributor record.');
+          throw new AdminServiceError('a queue entry is missing its contributor record.');
         }
         const contributor = parseAdminContributor(contributorSnapshot.data(), githubUserId);
 
@@ -157,7 +143,7 @@ export async function loadSeasonOneAdminQueue(): Promise<AdminQueueItem[]> {
       }),
     );
   } catch (error) {
-    throw toAdminServiceError(error, 'The private queue could not be loaded.');
+    throw toAdminServiceError(error, 'the private queue could not be loaded.');
   }
 }
 
@@ -180,7 +166,7 @@ export async function promoteWaitingQueueEntry(githubUserId: string): Promise<vo
     const selectedDocumentId = queueDocumentId(CURRENT_SEASON, githubUserId);
 
     if (!waitingReferences.some((reference) => reference.id === selectedDocumentId)) {
-      throw new AdminServiceError('Only an existing waiting queue entry can be promoted.');
+      throw new AdminServiceError('only an existing waiting queue entry can be promoted.');
     }
 
     await runTransaction(firestore, async (transaction) => {
@@ -194,7 +180,7 @@ export async function promoteWaitingQueueEntry(githubUserId: string): Promise<vo
         if (!snapshot.exists()) continue;
         const entryGithubUserId = snapshot.data().githubUserId;
         if (typeof entryGithubUserId !== 'string') {
-          throw new AdminServiceError('A queue entry has an invalid identity.');
+          throw new AdminServiceError('a queue entry has an invalid identity.');
         }
         const entry = parseAdminQueueEntry(snapshot.data(), entryGithubUserId);
         if (entry.status !== 'waiting') continue;
@@ -204,10 +190,10 @@ export async function promoteWaitingQueueEntry(githubUserId: string): Promise<vo
       }
 
       if (!selectedReference) {
-        throw new AdminServiceError('Only an existing waiting queue entry can be promoted.');
+        throw new AdminServiceError('only an existing waiting queue entry can be promoted.');
       }
       if (highestPriority >= MAX_QUEUE_PRIORITY) {
-        throw new AdminServiceError('Queue priority has reached its supported limit.');
+        throw new AdminServiceError('queue priority has reached its supported limit.');
       }
 
       transaction.update(selectedReference, {
@@ -217,7 +203,7 @@ export async function promoteWaitingQueueEntry(githubUserId: string): Promise<vo
       });
     });
   } catch (error) {
-    throw toAdminServiceError(error, 'The queue entry could not be promoted.');
+    throw toAdminServiceError(error, 'the queue entry could not be promoted.');
   }
 }
 
@@ -232,11 +218,11 @@ export async function restoreWaitingQueueEntry(githubUserId: string): Promise<vo
     await runTransaction(firestore, async (transaction) => {
       const snapshot = await transaction.get(queueReference);
       if (!snapshot.exists()) {
-        throw new AdminServiceError('The queue entry no longer exists.');
+        throw new AdminServiceError('the queue entry no longer exists.');
       }
       const entry = parseAdminQueueEntry(snapshot.data(), githubUserId);
       if (entry.status !== 'waiting') {
-        throw new AdminServiceError('Only a waiting queue entry can be restored.');
+        throw new AdminServiceError('only a waiting queue entry can be restored.');
       }
 
       transaction.update(queueReference, {
@@ -246,6 +232,6 @@ export async function restoreWaitingQueueEntry(githubUserId: string): Promise<vo
       });
     });
   } catch (error) {
-    throw toAdminServiceError(error, 'Natural queue order could not be restored.');
+    throw toAdminServiceError(error, 'natural queue order could not be restored.');
   }
 }

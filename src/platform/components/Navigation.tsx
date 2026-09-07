@@ -5,11 +5,11 @@ interface NavigationProps {
 }
 
 const links = [
-  { href: '/', label: 'Home' },
-  { href: '/history', label: 'History' },
-  { href: '/faq', label: 'FAQ' },
-  { href: '/rules', label: 'Rules' },
-  { href: '/join', label: 'Join' },
+  { href: '/', label: 'home' },
+  { href: '/history', label: 'history' },
+  { href: '/faq', label: 'faq' },
+  { href: '/rules', label: 'rules' },
+  { href: '/join', label: 'join' },
 ] as const;
 
 export default function Navigation({ currentPath }: NavigationProps) {
@@ -19,9 +19,9 @@ export default function Navigation({ currentPath }: NavigationProps) {
       : currentPath === href || currentPath.startsWith(`${href}/`);
 
   return (
-    <nav className="platform-navigation" aria-label="Primary navigation">
+    <nav className="platform-navigation" aria-label="primary navigation">
       <a className="site-name" href="/">
-        Who Touched This
+        who touched this
       </a>
       <ul>
         {links.map(({ href, label }) => (

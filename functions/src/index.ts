@@ -163,7 +163,7 @@ export const retryInvitationEmail = onCall({
       throw new HttpsError(error.code, error.message);
     }
     safeLogFailure('Admin invitation-email retry failed.', 'callable', error);
-    throw new HttpsError('unavailable', 'Email delivery failed. Try again later.');
+    throw new HttpsError('unavailable', 'email delivery failed. try again later.');
   }
 });
 
@@ -211,7 +211,7 @@ export const finalizeSnapshotArchive = onCall({ region: 'us-central1' }, async (
   } catch (error) {
     if (error instanceof SnapshotFinalizeError) throw new HttpsError(error.code, error.message);
     safeLogFailure('Snapshot archive finalization failed.', 'snapshot-archive', error);
-    throw new HttpsError('failed-precondition', 'Snapshot archive could not be finalized.');
+    throw new HttpsError('failed-precondition', 'snapshot archive could not be finalized.');
   }
 });
 
@@ -261,7 +261,7 @@ export const recordFounderContributionZero = onCall({ region: 'us-central1' }, a
   } catch (error) {
     if (error instanceof FounderSeedError) throw new HttpsError(error.code, error.message);
     safeLogFailure('Founder Contribution #000 recording failed.', 'founder-seed', error);
-    throw new HttpsError('failed-precondition', 'Founder Contribution #000 could not be recorded.');
+    throw new HttpsError('failed-precondition', 'founder contribution #000 could not be recorded.');
   }
 });
 

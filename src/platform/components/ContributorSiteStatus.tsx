@@ -3,12 +3,12 @@
 /** Static, backend-free shell fixture used only by `npm run dev:contributor`. */
 export default function ContributorSiteStatus() {
   return (
-    <aside className="site-status" aria-label="Site status">
+    <aside className="site-status" aria-label="site status">
       <dl>
-        <div><dt>Version</dt><dd>#000</dd></div>
-        <div><dt>Contributions</dt><dd>0</dd></div>
-        <div><dt>Current contributor</dt><dd>Local canvas preview</dd></div>
-        <div><dt>Turn status</dt><dd>No active turn</dd></div>
+        <div><dt>version</dt><dd>#000</dd></div>
+        <div><dt>contributions</dt><dd>0</dd></div>
+        <div><dt>current contributor</dt><dd>local canvas preview</dd></div>
+        <div><dt>turn status</dt><dd>no active turn</dd></div>
       </dl>
     </aside>
   );

@@ -103,7 +103,7 @@ function parsePendingInvitation(
     !(data.createdAt instanceof Timestamp) ||
     !(data.updatedAt instanceof Timestamp) ||
     !Number.isSafeInteger(data.turnDurationHours)
-  ) throw new InvitationError('The pending invitation contains unsupported data.');
+  ) throw new InvitationError('the pending invitation contains unsupported data.');
   validateTurnDurationHours(data.turnDurationHours as number);
   return data as unknown as InvitationRecord & { status: 'pending' };
 }
@@ -117,7 +117,7 @@ function parsePrivateSiteState(data: Record<string, unknown> | undefined): Priva
     (data.pendingInvitationId !== null
       && (typeof data.pendingInvitationId !== 'string' || !data.pendingInvitationId)) ||
     !(data.updatedAt instanceof Timestamp)
-  ) throw new InvitationError('Private site state is malformed.');
+  ) throw new InvitationError('private site state is malformed.');
   return data as unknown as PrivateSiteState;
 }
 
@@ -132,7 +132,7 @@ export async function inviteNextContributor(input: InviteContributorInput): Prom
 
   const firstWaiting = getEffectiveWaitingQueue(await loadSeasonOneAdminQueue())[0];
   if (!firstWaiting || firstWaiting.githubUserId !== input.selectedGithubUserId) {
-    throw new AdminServiceError('Only the effective first waiting contributor can be invited.');
+    throw new AdminServiceError('only the effective first waiting contributor can be invited.');
   }
 
   const firestore = getPlatformFirestore();
@@ -163,9 +163,9 @@ export async function inviteNextContributor(input: InviteContributorInput): Prom
           transaction.get(invitationReference),
         ]);
       if (!admin.exists() || !activeAdminRecordIsValid(admin.data(), input.adminGithubUserId)) {
-        throw new AdminServiceError('Access denied.');
+        throw new AdminServiceError('access denied.');
       }
-      if (!contributor.exists()) throw new AdminServiceError('The contributor is missing.');
+      if (!contributor.exists()) throw new AdminServiceError('the contributor is missing.');
       parseAdminContributor(contributor.data(), input.selectedGithubUserId);
       if (
         !participation.exists() ||
@@ -173,19 +173,19 @@ export async function inviteNextContributor(input: InviteContributorInput): Prom
         participation.data().season !== CURRENT_SEASON ||
         participation.data().status !== 'waiting' ||
         'invitationId' in participation.data()
-      ) throw new AdminServiceError('The participation record is not waiting.');
-      if (!queue.exists()) throw new AdminServiceError('The queue entry is missing.');
+      ) throw new AdminServiceError('the participation record is not waiting.');
+      if (!queue.exists()) throw new AdminServiceError('the queue entry is missing.');
       const queueEntry = parseAdminQueueEntry(queue.data(), input.selectedGithubUserId);
-      if (queueEntry.status !== 'waiting') throw new AdminServiceError('The queue entry is not waiting.');
+      if (queueEntry.status !== 'waiting') throw new AdminServiceError('the queue entry is not waiting.');
       const privateState = parsePrivateSiteState(privateSite.data());
       if (privateState?.activeTurnId || privateState?.pendingInvitationId) {
-        throw new AdminServiceError('Another turn or invitation is already current.');
+        throw new AdminServiceError('another turn or invitation is already current.');
       }
       const publicState = publicSite.exists() ? tryParsePublicSiteState(publicSite.data()) : null;
       if (publicState && publicState.turnStatus !== 'none') {
-        throw new AdminServiceError('A public turn is already current.');
+        throw new AdminServiceError('a public turn is already current.');
       }
-      if (invitation.exists()) throw new AdminServiceError('The generated invitation ID is in use.');
+      if (invitation.exists()) throw new AdminServiceError('the generated invitation id is in use.');
 
       transaction.set(invitationReference, {
         githubUserId: input.selectedGithubUserId,
@@ -211,7 +211,7 @@ export async function inviteNextContributor(input: InviteContributorInput): Prom
     });
     return invitationReference.id;
   } catch (error) {
-    throw toAdminServiceError(error, 'The contributor could not be invited.');
+    throw toAdminServiceError(error, 'the contributor could not be invited.');
   }
 }
 
@@ -225,13 +225,13 @@ export async function loadAdminPendingInvitation(): Promise<AdminPendingInvitati
     const invitationSnapshot = await getDoc(
       doc(firestore, invitationDocumentPath(state.pendingInvitationId)),
     );
-    if (!invitationSnapshot.exists()) throw new InvitationError('The pending invitation is missing.');
+    if (!invitationSnapshot.exists()) throw new InvitationError('the pending invitation is missing.');
     const invitation = parsePendingInvitation(state.pendingInvitationId, invitationSnapshot.data());
     const [contributorSnapshot, emailDelivery] = await Promise.all([
       getDoc(doc(firestore, contributorDocumentPath(invitation.githubUserId))),
       getAdminInvitationEmailDelivery(state.pendingInvitationId),
     ]);
-    if (!contributorSnapshot.exists()) throw new InvitationError('The invited contributor is missing.');
+    if (!contributorSnapshot.exists()) throw new InvitationError('the invited contributor is missing.');
     const contributor = parseAdminContributor(contributorSnapshot.data(), invitation.githubUserId);
     return {
       invitationId: state.pendingInvitationId,
@@ -247,7 +247,7 @@ export async function loadAdminPendingInvitation(): Promise<AdminPendingInvitati
       emailDelivery,
     };
   } catch (error) {
-    throw toAdminServiceError(error, 'The pending invitation could not be loaded.');
+    throw toAdminServiceError(error, 'the pending invitation could not be loaded.');
   }
 }
 
@@ -259,7 +259,7 @@ export async function getOwnPendingInvitation(
     const snapshot = await getDoc(
       doc(getPlatformFirestore(), invitationDocumentPath(invitationId)),
     );
-    if (!snapshot.exists()) throw new InvitationError('Your invitation is unavailable.');
+    if (!snapshot.exists()) throw new InvitationError('your invitation is unavailable.');
     const invitation = parsePendingInvitation(invitationId, snapshot.data(), githubUserId);
     return {
       invitationId,
@@ -271,7 +271,7 @@ export async function getOwnPendingInvitation(
     };
   } catch (error) {
     if (error instanceof InvitationError) throw error;
-    throw new InvitationError('Your invitation could not be loaded.');
+    throw new InvitationError('your invitation could not be loaded.');
   }
 }
 
@@ -298,19 +298,19 @@ export async function acceptInvitation(
         transaction.get(invitationReference), transaction.get(contributorReference),
         transaction.get(participationReference), transaction.get(publicSiteReference),
       ]);
-      if (!invitationSnapshot.exists()) throw new InvitationError('Your invitation is unavailable.');
+      if (!invitationSnapshot.exists()) throw new InvitationError('your invitation is unavailable.');
       const invitation = parsePendingInvitation(invitationId, invitationSnapshot.data(), githubUserId);
       if (Date.now() > invitation.acceptBy.toMillis()) {
-        throw new InvitationError('This invitation has passed its acceptance deadline.');
+        throw new InvitationError('this invitation has passed its acceptance deadline.');
       }
-      if (!contributorSnapshot.exists()) throw new InvitationError('Your contributor record is missing.');
+      if (!contributorSnapshot.exists()) throw new InvitationError('your contributor record is missing.');
       const contributor = parseAdminContributor(contributorSnapshot.data(), githubUserId);
       if (
         !participationSnapshot.exists() || participationSnapshot.data().githubUserId !== githubUserId ||
         participationSnapshot.data().season !== CURRENT_SEASON ||
         participationSnapshot.data().status !== 'invited' ||
         participationSnapshot.data().invitationId !== invitationId
-      ) throw new InvitationError('Your participation state is inconsistent.');
+      ) throw new InvitationError('your participation state is inconsistent.');
       const publicState = publicSiteSnapshot.exists()
         ? tryParsePublicSiteState(publicSiteSnapshot.data())
         : {
@@ -318,7 +318,7 @@ export async function acceptInvitation(
             targetContributionNumber: null, currentContributor: null, dueAtMillis: null,
           };
       if (!publicState || publicState.turnStatus !== 'none') {
-        throw new InvitationError('Another turn is already active.');
+        throw new InvitationError('another turn is already active.');
       }
       const targetContributionNumber = calculateTargetContributionNumber(publicState.currentVersion);
       const dueAt = Timestamp.fromMillis(calculateTurnDueAtMillis(
@@ -350,7 +350,7 @@ export async function acceptInvitation(
     });
   } catch (error) {
     if (error instanceof InvitationError) throw error;
-    throw new InvitationError('The invitation could not be accepted.');
+    throw new InvitationError('the invitation could not be accepted.');
   }
 }
 
@@ -364,21 +364,21 @@ export async function expirePendingInvitation(adminGithubUserId: string): Promis
         transaction.get(adminReference), transaction.get(privateSiteReference),
       ]);
       if (!adminSnapshot.exists() || !activeAdminRecordIsValid(adminSnapshot.data(), adminGithubUserId)) {
-        throw new AdminServiceError('Access denied.');
+        throw new AdminServiceError('access denied.');
       }
       const state = parsePrivateSiteState(privateSiteSnapshot.data());
       if (!state?.pendingInvitationId || state.activeTurnId !== null) {
-        throw new AdminServiceError('There is no pending invitation.');
+        throw new AdminServiceError('there is no pending invitation.');
       }
       const invitationReference = doc(
         firestore,
         invitationDocumentPath(state.pendingInvitationId),
       );
       const invitationSnapshot = await transaction.get(invitationReference);
-      if (!invitationSnapshot.exists()) throw new AdminServiceError('The invitation is missing.');
+      if (!invitationSnapshot.exists()) throw new AdminServiceError('the invitation is missing.');
       const invitation = parsePendingInvitation(state.pendingInvitationId, invitationSnapshot.data());
       if (!canExpireInvitation('pending', invitation.acceptBy.toMillis(), Date.now())) {
-        throw new AdminServiceError('The invitation cannot expire before its deadline.');
+        throw new AdminServiceError('the invitation cannot expire before its deadline.');
       }
       const participationReference = doc(
         firestore,
@@ -395,7 +395,7 @@ export async function expirePendingInvitation(adminGithubUserId: string): Promis
         !participationSnapshot.exists() || participationSnapshot.data().status !== 'invited' ||
         participationSnapshot.data().invitationId !== state.pendingInvitationId ||
         !queueSnapshot.exists() || queueSnapshot.data().status !== 'invited'
-      ) throw new AdminServiceError('Invitation state is inconsistent.');
+      ) throw new AdminServiceError('invitation state is inconsistent.');
 
       transaction.update(invitationReference, {
         status: 'expired', expiredAt: serverTimestamp(), updatedAt: serverTimestamp(),
@@ -411,6 +411,6 @@ export async function expirePendingInvitation(adminGithubUserId: string): Promis
       } satisfies WithFieldValue<PrivateSiteState>);
     });
   } catch (error) {
-    throw toAdminServiceError(error, 'The invitation could not be expired.');
+    throw toAdminServiceError(error, 'the invitation could not be expired.');
   }
 }

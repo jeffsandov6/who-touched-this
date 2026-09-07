@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import {
   calculateMergedCounters,
@@ -64,6 +65,10 @@ test('public parsers reject expanded private data', () => {
     type: 'turn_skipped', season: 1, displayName: 'Alice', githubUsername: 'alice',
     targetContributionNumber: 1, occurredAt: timestamp(1000), email: 'private@example.test',
   }), null);
+  assert.equal(parseHistoryEvent('turn-a', {
+    type: 'turn_skipped', season: 1, displayName: 'Alice', githubUsername: 'alice',
+    targetContributionNumber: 1, occurredAt: timestamp(1000), socialUrl: 'https://example.com/alice',
+  }), null);
   assert.equal(parsePublicContribution({
     number: 1, season: 1, displayName: 'Alice', githubUsername: 'alice', summary: 'Summary',
     prNumber: 27, prUrl: 'https://github.com/example/repo/pull/27',
@@ -74,11 +79,38 @@ test('public parsers reject expanded private data', () => {
 test('public contribution parsing and display formatting are deterministic', () => {
   const contribution = parsePublicContribution({
     number: 1, season: 1, displayName: 'Alice', githubUsername: 'alice', summary: 'Summary',
-    contributorMessage: 'Thanks!', prNumber: 27,
+    contributorMessage: 'Thanks!', socialUrl: 'https://example.com/alice', prNumber: 27,
     prUrl: 'https://github.com/example/repo/pull/27',
     mergedAt: timestamp(1000), createdAt: timestamp(1000),
   });
   assert.equal(contribution?.prNumber, 27);
+  assert.equal(contribution?.socialUrl, 'https://example.com/alice');
   assert.equal(formatContributionNumber(1), '#001');
   assert.equal(formatContributionNumber(123), '#123');
+});
+
+test('public contribution parsing remains compatible without a social link', () => {
+  const contribution = parsePublicContribution({
+    number: 1, season: 1, displayName: 'Alice', githubUsername: 'alice', summary: 'Summary',
+    prNumber: 27, prUrl: 'https://github.com/example/repo/pull/27',
+    mergedAt: timestamp(1000), createdAt: timestamp(1000),
+  });
+  assert.ok(contribution);
+  assert.equal('socialUrl' in contribution, false);
+});
+
+test('public contribution parser rejects unsafe social links', () => {
+  assert.equal(parsePublicContribution({
+    number: 1, season: 1, displayName: 'Alice', githubUsername: 'alice', summary: 'Summary',
+    socialUrl: 'javascript:alert(1)', prNumber: 27,
+    prUrl: 'https://github.com/example/repo/pull/27',
+    mergedAt: timestamp(1000), createdAt: timestamp(1000),
+  }), null);
+});
+
+test('History renders a labeled social link only in successful contribution entries', async () => {
+  const source = await readFile(new URL('../src/platform/pages/HistoryPage.tsx', import.meta.url), 'utf8');
+  assert.match(source, /event\.socialUrl/);
+  assert.match(source, /href=\{event\.socialUrl\} rel="noreferrer">social<\/a>/);
+  assert.ok(source.indexOf("event.type === 'contribution' ? (") < source.indexOf('event.socialUrl'));
 });

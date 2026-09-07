@@ -29,7 +29,7 @@ async function seedAdmin(active = true) {
 async function seedCurrent(
   status = 'active',
   dueAt = Timestamp.fromMillis(Date.now() + 60_000),
-  { totalContributions = 0 } = {},
+  { totalContributions = 0, socialUrl } = {},
 ) {
   const createdAt = Timestamp.fromMillis(Date.now() - 120_000);
   const submittedAt = Timestamp.fromMillis(Date.now() - 60_000);
@@ -40,7 +40,8 @@ async function seedCurrent(
       setDoc(doc(firestore, `contributors/${contributor.id}`), {
         firebaseUid: contributor.uid, githubUserId: contributor.id,
         githubUsername: contributor.username, displayName: 'Octo Contributor',
-        email: 'private@example.test', createdAt, updatedAt: createdAt,
+        email: 'private@example.test', ...(socialUrl ? { socialUrl } : {}),
+        createdAt, updatedAt: createdAt,
       }),
       setDoc(doc(firestore, `participation/1_${contributor.id}`), {
         githubUserId: contributor.id, season: 1, status: 'active', createdAt, updatedAt: createdAt,
@@ -394,11 +395,37 @@ test('valid under-review merge creates public records, completes private state, 
   if (turn.data()?.status !== 'merged' || participation.data()?.status !== 'completed'
     || participation.data()?.contributionNumber !== 1 || queue.data()?.status !== 'completed'
     || queue.data()?.contributionNumber !== 1 || contribution.data()?.number !== 1
-    || contribution.data()?.prNumber !== 12 || event.data()?.type !== 'contribution'
+    || contribution.data()?.prNumber !== 12 || 'socialUrl' in (contribution.data() ?? {})
+    || event.data()?.type !== 'contribution'
     || event.data()?.contributionNumber !== 1 || lock.data()?.activeTurnId !== null
     || publicSite.data()?.currentVersion !== 1 || publicSite.data()?.totalContributions !== 1
     || publicSite.data()?.currentContributor !== null || publicSite.data()?.targetContributionNumber !== null
     || publicSite.data()?.dueAt !== null) throw new Error('Merged state was inconsistent.');
+});
+
+test('valid merge copies the contributor social link only into the contribution record', async () => {
+  const socialUrl = 'https://example.test/octo';
+  await seedAdmin();
+  await seedCurrent('under_review', Timestamp.fromMillis(Date.now() + 60_000), { socialUrl });
+  const firestore = firestoreFor(admin);
+  await assertSucceeds(mergeBatch(firestore, { contributionUpdates: { socialUrl } }));
+  const [contribution, event] = await Promise.all([
+    getDoc(doc(firestore, 'contributions/1')),
+    getDoc(doc(firestore, 'historyEvents/current-turn')),
+  ]);
+  if (contribution.data()?.socialUrl !== socialUrl || 'socialUrl' in (event.data() ?? {})) {
+    throw new Error('The merged social link was not isolated to the contribution record.');
+  }
+});
+
+test('merge rejects omitting or changing a contributor social link', async () => {
+  const socialUrl = 'https://example.test/octo';
+  for (const contributionUpdates of [{}, { socialUrl: 'https://example.test/impostor' }]) {
+    await seedAdmin();
+    await seedCurrent('under_review', Timestamp.fromMillis(Date.now() + 60_000), { socialUrl });
+    await assertFails(mergeBatch(firestoreFor(admin), { contributionUpdates }));
+    await environment.clearFirestore();
+  }
 });
 
 test('Community #001 after Founder #000 advances version to 1 and total contributions to 2', async () => {

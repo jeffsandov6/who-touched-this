@@ -104,7 +104,7 @@ test('invitation template has the expected subject, UTC deadline, duration, and 
   assert.match(email.text, /6:30:00 PM UTC/);
   assert.match(email.text, /7 days/);
   assert.match(email.text, /https:\/\/whotouchedthis\.website\/join/);
-  assert.match(email.html, /Accept your turn/);
+  assert.match(email.html, /accept your turn/);
 });
 
 test('HTML escapes contributor-controlled presentation values', () => {

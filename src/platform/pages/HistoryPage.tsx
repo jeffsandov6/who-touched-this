@@ -71,12 +71,15 @@ export default function HistoryPage() {
                     <a href={`https://github.com/${event.githubUsername}`} rel="noreferrer">
                       @{event.githubUsername}
                     </a>
+                    {event.socialUrl && (
+                      <>{' · '}<a href={event.socialUrl} rel="noreferrer">social</a></>
+                    )}
                   </p>
                   {event.contributorMessage && (
                     <blockquote>{event.contributorMessage}</blockquote>
                   )}
                   <p>
-                    <a href={event.prUrl} rel="noreferrer">GitHub PR #{event.prNumber}</a>
+                    <a href={event.prUrl} rel="noreferrer">GitHub pr #{event.prNumber}</a>
                     {' · '}merged {formatDate(event.occurredAt)}
                   </p>
                   {event.snapshot && <HistorySnapshots snapshot={event.snapshot} />}

@@ -37,9 +37,9 @@ test('invitation expiration becomes available exactly at the deadline', () => {
 });
 
 test('join presentation distinguishes invited and invitation-expired participation', () => {
-  assert.equal(participationStatusMessage('invited'), 'You have a pending invitation.');
+  assert.equal(participationStatusMessage('invited'), 'you have a pending invitation.');
   assert.equal(
     participationStatusMessage('invitation_expired'),
-    'Your invitation expired this season.',
+    'your invitation expired before it was accepted.',
   );
 });

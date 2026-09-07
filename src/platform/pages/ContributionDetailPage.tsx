@@ -9,7 +9,7 @@ export default function ContributionDetailPage({
 }: ContributionDetailPageProps) {
   return (
     <section className="page-content">
-      <h1>{contributionNumber ? `Contribution #${contributionNumber}` : 'Contribution history'}</h1>
+      <h1>{contributionNumber ? `contribution #${contributionNumber}` : 'contribution history'}</h1>
     </section>
   );
 }

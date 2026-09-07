@@ -32,7 +32,7 @@ export const DEFAULT_PUBLIC_SITE_STATE: PublicSiteViewState = {
 
 export function calculateTargetContributionNumber(currentVersion: number): number {
   if (!Number.isSafeInteger(currentVersion) || currentVersion < 0) {
-    throw new Error('Current version must be a non-negative safe integer.');
+    throw new Error('current version must be a non-negative safe integer.');
   }
   return currentVersion + 1;
 }
@@ -153,7 +153,7 @@ export function getCountdownState(dueAtMillis: number, nowMillis: number): Count
 }
 
 export function formatCountdown(state: CountdownState): string {
-  if (state.expired) return 'Deadline passed';
+  if (state.expired) return 'deadline passed';
   const padded = (value: number) => String(value).padStart(2, '0');
   return `${state.days}d ${padded(state.hours)}h ${padded(state.minutes)}m ${padded(state.seconds)}s`;
 }

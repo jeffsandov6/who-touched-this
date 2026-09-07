@@ -35,29 +35,29 @@ export async function retryInvitationDelivery(
   input: unknown,
   dependencies: RetryInvitationDependencies,
 ): Promise<{ status: string }> {
-  if (!authToken) throw new RetryInvitationError('unauthenticated', 'Authentication is required.');
+  if (!authToken) throw new RetryInvitationError('unauthenticated', 'authentication is required.');
   const githubUserId = githubIdFromAuthToken(authToken);
-  if (!githubUserId) throw new RetryInvitationError('permission-denied', 'Access denied.');
+  if (!githubUserId) throw new RetryInvitationError('permission-denied', 'access denied.');
   const admin = await dependencies.loadAdmin(githubUserId);
   if (!admin || admin.githubUserId !== githubUserId || admin.active !== true
     || !['owner', 'admin'].includes(String(admin.role))) {
-    throw new RetryInvitationError('permission-denied', 'Access denied.');
+    throw new RetryInvitationError('permission-denied', 'access denied.');
   }
   if (!input || typeof input !== 'object' || Array.isArray(input)
     || Object.keys(input).length !== 1 || !('invitationId' in input)
     || typeof input.invitationId !== 'string' || !input.invitationId
     || input.invitationId.includes('/')) {
-    throw new RetryInvitationError('invalid-argument', 'Invitation identifier is invalid.');
+    throw new RetryInvitationError('invalid-argument', 'invitation identifier is invalid.');
   }
   const invitationId = input.invitationId;
   const invitation = await dependencies.loadInvitation(invitationId);
   if (!invitation || invitation.status !== 'pending') {
-    throw new RetryInvitationError('failed-precondition', 'This invitation is no longer pending.');
+    throw new RetryInvitationError('failed-precondition', 'this invitation is no longer pending.');
   }
   const delivery = await dependencies.loadDelivery(invitationId);
   if (delivery?.status === 'sent') return { status: 'already-sent' };
   if (delivery?.status !== 'failed') {
-    throw new RetryInvitationError('failed-precondition', 'This email is not currently retryable.');
+    throw new RetryInvitationError('failed-precondition', 'this email is not currently retryable.');
   }
   const result = await dependencies.retry(invitationId, invitation);
   return { status: result.kind };

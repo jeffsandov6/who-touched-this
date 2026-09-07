@@ -74,7 +74,7 @@ export async function resolveGitHubIdentity(
 
   if (githubIds.length !== 1 || !providerProfile || providerProfile.uid !== githubIds[0]) {
     throw new AuthenticationError(
-      'A verified GitHub identity is unavailable. Please sign out and authenticate with GitHub again.',
+      'a verified GitHub identity is unavailable. please sign out & authenticate with GitHub again.',
     );
   }
 
@@ -105,17 +105,17 @@ export async function signInWithGitHub(): Promise<GitHubIdentity> {
       const messages: Record<string, string> = {
         'auth/popup-closed-by-user': 'GitHub sign-in was cancelled.',
         'auth/cancelled-popup-request': 'GitHub sign-in was cancelled.',
-        'auth/popup-blocked': 'The GitHub sign-in popup was blocked. Allow popups and try again.',
-        'auth/network-request-failed': 'GitHub sign-in could not reach Firebase. Check your connection.',
-        'auth/unauthorized-domain': 'This domain is not authorized for Firebase Authentication.',
-        'auth/operation-not-allowed': 'GitHub Authentication is not enabled for this Firebase project.',
+        'auth/popup-blocked': 'the GitHub sign-in popup was blocked. allow popups & try again.',
+        'auth/network-request-failed': 'GitHub sign-in could not reach Firebase. check your connection.',
+        'auth/unauthorized-domain': 'this domain is not authorized for Firebase authentication.',
+        'auth/operation-not-allowed': 'GitHub authentication is not enabled for this Firebase project.',
       };
       throw new AuthenticationError(
-        messages[error.code] ?? 'GitHub sign-in could not be completed. Please try again.',
+        messages[error.code] ?? 'GitHub sign-in could not be completed. please try again.',
       );
     }
 
-    throw new AuthenticationError('GitHub sign-in could not be completed. Please try again.');
+    throw new AuthenticationError('GitHub sign-in could not be completed. please try again.');
   }
 }
 

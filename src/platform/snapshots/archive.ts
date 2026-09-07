@@ -19,11 +19,11 @@ export interface ValidatedSnapshotBundle {
 function selectedPath(file: File): string {
   const candidate = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
   if (candidate.startsWith('/') || candidate.startsWith('\\') || candidate.includes('\\')) {
-    throw new Error('Selected bundle contains an unsafe file path.');
+    throw new Error('selected bundle contains an unsafe file path.');
   }
   const parts = candidate.split('/');
   if (parts.some((part) => !part || part === '.' || part === '..')) {
-    throw new Error('Selected bundle contains an unsafe file path.');
+    throw new Error('selected bundle contains an unsafe file path.');
   }
   return candidate;
 }
@@ -39,35 +39,35 @@ function isPng(bytes: Uint8Array): boolean {
 }
 
 export async function validateSelectedSnapshotBundle(files: File[]): Promise<ValidatedSnapshotBundle> {
-  if (files.length === 0) throw new Error('Choose a complete snapshot bundle directory.');
+  if (files.length === 0) throw new Error('choose a complete snapshot bundle directory.');
   const selected = files.map((file) => ({ file, path: selectedPath(file) }));
   const manifests = selected.filter(({ path }) => path === 'manifest.json' || path.endsWith('/manifest.json'));
-  if (manifests.length !== 1) throw new Error('The selected directory must contain exactly one manifest.json.');
+  if (manifests.length !== 1) throw new Error('the selected directory must contain exactly one manifest.json.');
   const manifestSelection = manifests[0];
   if (manifestSelection.file.size <= 0 || manifestSelection.file.size > SNAPSHOT_MANIFEST_MAX_BYTES) {
-    throw new Error('Snapshot manifest size is invalid.');
+    throw new Error('snapshot manifest size is invalid.');
   }
   const root = manifestSelection.path.slice(0, -'manifest.json'.length);
   const relativeFiles = new Map<string, File>();
   for (const entry of selected) {
     if (!entry.path.startsWith(root)) continue;
     const relative = assertSafeArchiveRelativePath(entry.path.slice(root.length));
-    if (relativeFiles.has(relative)) throw new Error(`Duplicate bundle file: ${relative}`);
+    if (relativeFiles.has(relative)) throw new Error(`duplicate bundle file: ${relative}`);
     relativeFiles.set(relative, entry.file);
   }
   let parsed: unknown;
   try { parsed = JSON.parse(await manifestSelection.file.text()); }
-  catch { throw new Error('Snapshot manifest is not valid JSON.'); }
+  catch { throw new Error('snapshot manifest is not valid json.'); }
   const manifest = validateSnapshotManifest(parsed);
   const rootParts = root.replace(/\/$/, '').split('/');
   const selectedCaptureId = rootParts.at(-1);
   if (selectedCaptureId && selectedCaptureId !== manifest.captureId) {
-    throw new Error('Selected directory capture ID does not match the manifest.');
+    throw new Error('selected directory capture id does not match the manifest.');
   }
   const contributionDirectory = rootParts.at(-2);
   if (contributionDirectory?.startsWith('contribution-')
     && contributionDirectory !== `contribution-${manifest.contributionLabel}`) {
-    throw new Error('Selected contribution directory does not match the manifest.');
+    throw new Error('selected contribution directory does not match the manifest.');
   }
   const screenshots = new Map<string, File>();
   let validChecksums = 0;
@@ -75,12 +75,12 @@ export async function validateSelectedSnapshotBundle(files: File[]): Promise<Val
     for (const side of ['before', 'after'] as const) {
       const expected = record[side];
       const file = relativeFiles.get(expected.path);
-      if (!file) throw new Error(`Expected screenshot is missing: ${expected.path}`);
+      if (!file) throw new Error(`expected screenshot is missing: ${expected.path}`);
       if (file.type !== 'image/png' || file.size <= 0 || file.size > SNAPSHOT_SCREENSHOT_MAX_BYTES
         || !isPng(new Uint8Array(await file.slice(0, 8).arrayBuffer()))) {
-        throw new Error(`Expected screenshot is not an allowed PNG: ${expected.path}`);
+        throw new Error(`expected screenshot is not an allowed png: ${expected.path}`);
       }
-      if (await sha256(file) !== expected.sha256) throw new Error(`Screenshot checksum mismatch: ${expected.path}`);
+      if (await sha256(file) !== expected.sha256) throw new Error(`screenshot checksum mismatch: ${expected.path}`);
       screenshots.set(expected.path, file);
       validChecksums += 1;
     }
@@ -90,7 +90,7 @@ export async function validateSelectedSnapshotBundle(files: File[]): Promise<Val
 
 export function snapshotArchivePrefix(contributionNumber: number, captureId: string): string {
   const label = formatSnapshotContributionNumber(contributionNumber);
-  if (!/^[A-Za-z0-9-]{1,100}$/.test(captureId)) throw new Error('Snapshot capture ID is invalid.');
+  if (!/^[A-Za-z0-9-]{1,100}$/.test(captureId)) throw new Error('snapshot capture id is invalid.');
   return `${SNAPSHOT_ARCHIVE_PREFIX}/${label}/${captureId}`;
 }
 

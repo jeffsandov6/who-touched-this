@@ -759,13 +759,14 @@ service cloud.firestore {
       return contributionDocument == string(data.number)
         && !exists(contributionPath(data.number))
         && data.keys().hasAll(['number','season','displayName','githubUsername','summary','prNumber','prUrl','mergedAt','createdAt'])
-        && data.keys().hasOnly(['number','season','displayName','githubUsername','summary','contributorMessage','prNumber','prUrl','mergedAt','createdAt'])
+        && data.keys().hasOnly(['number','season','displayName','githubUsername','summary','contributorMessage','socialUrl','prNumber','prUrl','mergedAt','createdAt'])
         && data.number is int && data.number > 0
         && data.number == turn.targetContributionNumber
         && data.season == 1 && data.season == turn.season
         && validPublicPresentation(data) && validContributionSummary(data)
         && data.displayName == contributor.displayName
         && data.githubUsername == contributor.githubUsername
+        && data.get('socialUrl', null) == contributor.get('socialUrl', null)
         && data.prNumber == turn.prNumber && data.prUrl == turn.prUrl
         && validPullRequest(data)
         && data.mergedAt is timestamp && data.mergedAt == request.time

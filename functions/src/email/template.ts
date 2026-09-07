@@ -1,6 +1,6 @@
 import type { SendEmailInput } from './types.js';
 
-export const INVITATION_EMAIL_SUBJECT = 'Your turn on Who Touched This';
+export const INVITATION_EMAIL_SUBJECT = 'your turn on who touched this';
 
 export interface InvitationEmailTemplateInput {
   to: string;
@@ -65,14 +65,14 @@ export function buildInvitationEmail(input: InvitationEmailTemplateInput): SendE
   if (!displayName || displayName.length > 50) throw new Error('Contributor display name is invalid.');
 
   const text = [
-    `Hello ${displayName},`,
+    `hello ${displayName},`,
     '',
-    "You've been selected for the next turn on Who Touched This.",
-    `Accept your invitation by ${deadline}.`,
-    `Your contribution timer has not started yet. After accepting, you'll have ${duration}.`,
-    'Sign in with the same GitHub account you used to join.',
+    "you've been selected for the next turn on who touched this.",
+    `accept your invitation by ${deadline}.`,
+    `your contribution timer has not started yet. after accepting, you'll have ${duration}.`,
+    'sign in with the same GitHub account you used to join.',
     '',
-    `Accept your turn: ${joinUrl}`,
+    `accept your turn: ${joinUrl}`,
   ].join('\n');
 
   const htmlName = escapeHtml(displayName);
@@ -83,13 +83,13 @@ export function buildInvitationEmail(input: InvitationEmailTemplateInput): SendE
 <html lang="en">
   <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#202124">
     <main style="max-width:600px;margin:0 auto;padding:24px">
-      <h1 style="font-size:22px">Who Touched This</h1>
-      <p>Hello ${htmlName},</p>
-      <p>You&rsquo;ve been selected for the next turn on Who Touched This.</p>
-      <p>Accept your invitation by <strong>${htmlDeadline}</strong>.</p>
-      <p>Your contribution timer has not started yet. After accepting, you&rsquo;ll have ${htmlDuration}.</p>
-      <p>Sign in with the same GitHub account you used to join.</p>
-      <p><a href="${htmlJoinUrl}">Accept your turn</a></p>
+      <h1 style="font-size:22px">who touched this</h1>
+      <p>hello ${htmlName},</p>
+      <p>you&rsquo;ve been selected for the next turn on who touched this.</p>
+      <p>accept your invitation by <strong>${htmlDeadline}</strong>.</p>
+      <p>your contribution timer has not started yet. after accepting, you&rsquo;ll have ${htmlDuration}.</p>
+      <p>sign in with the same GitHub account you used to join.</p>
+      <p><a href="${htmlJoinUrl}">accept your turn</a></p>
     </main>
   </body>
 </html>`;

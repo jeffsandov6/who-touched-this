@@ -22,7 +22,7 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
 
   return Promise.all(snapshot.docs.map(async (eventDocument) => {
     const event = parseHistoryEvent(eventDocument.id, eventDocument.data());
-    if (!event) throw new Error('Public history contains an unsupported event.');
+    if (!event) throw new Error('public history contains an unsupported event.');
     if (event.type !== 'contribution') return event;
 
     const contributionSnapshot = await getDoc(
@@ -38,7 +38,7 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
       contribution.githubUsername !== event.githubUsername ||
       contribution.contributionKind !== event.contributionKind ||
       contribution.mergedAt.getTime() !== event.occurredAt.getTime()
-    ) throw new Error('A public contribution is missing or inconsistent.');
+    ) throw new Error('a public contribution is missing or inconsistent.');
 
     return {
       ...event,
@@ -46,6 +46,7 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
       ...(contribution.contributorMessage
         ? { contributorMessage: contribution.contributorMessage }
         : {}),
+      ...(contribution.socialUrl ? { socialUrl: contribution.socialUrl } : {}),
       prNumber: contribution.prNumber,
       prUrl: contribution.prUrl,
       ...(contribution.beforeGitSha && contribution.afterGitSha

@@ -65,19 +65,19 @@ export async function getOwnParticipationState(
 
     const status = snapshot.data().status;
     if (!isParticipationStatus(status)) {
-      throw new JoinError('Your participation record has an unsupported status.');
+      throw new JoinError('your participation record has an unsupported status.');
     }
 
     const invitationId = snapshot.data().invitationId;
     if (
       (status === 'invited' && (typeof invitationId !== 'string' || !invitationId)) ||
       (invitationId !== undefined && (typeof invitationId !== 'string' || !invitationId))
-    ) throw new JoinError('Your participation record has unsupported invitation data.');
+    ) throw new JoinError('your participation record has unsupported invitation data.');
 
     return { status, invitationId: typeof invitationId === 'string' ? invitationId : null };
   } catch (error) {
     if (error instanceof JoinError) throw error;
-    throw toJoinError(error, 'Your participation status could not be loaded.');
+    throw toJoinError(error, 'your participation status could not be loaded.');
   }
 }
 
@@ -86,7 +86,7 @@ export async function joinCurrentSeason(
   values: JoinFormValues,
 ): Promise<JoinResult> {
   if (!identity.githubUsername) {
-    throw new JoinError('Your verified GitHub username is unavailable. Authenticate again to join.');
+    throw new JoinError('your verified GitHub username is unavailable. authenticate again to join.');
   }
 
   const githubUsername = identity.githubUsername;
@@ -106,7 +106,7 @@ export async function joinCurrentSeason(
       if (participationSnapshot.exists()) {
         const existingStatus = participationSnapshot.data().status;
         if (!isParticipationStatus(existingStatus)) {
-          throw new JoinError('Your participation record has an unsupported status.');
+          throw new JoinError('your participation record has an unsupported status.');
         }
         return { kind: 'existing', status: existingStatus };
       }
@@ -147,7 +147,7 @@ export async function joinCurrentSeason(
     });
   } catch (error) {
     if (error instanceof JoinError) throw error;
-    throw toJoinError(error, 'The queue could not be joined. Please try again.');
+    throw toJoinError(error, 'the queue could not be joined. please try again.');
   }
 }
 
@@ -155,10 +155,10 @@ function toJoinError(error: unknown, fallback: string): JoinError {
   if (error instanceof FirebaseError) {
     const messages: Record<string, string> = {
       'firestore/permission-denied':
-        'Firebase rejected this join request. Sign out, authenticate with GitHub, and try again.',
-      'firestore/unavailable': 'Firebase is temporarily unavailable. Please try again shortly.',
-      'firestore/aborted': 'The join request conflicted with another update. Please try again.',
-      'firestore/deadline-exceeded': 'The join request timed out. Please try again.',
+        'Firebase rejected this join request. sign out, authenticate with GitHub, & try again.',
+      'firestore/unavailable': 'Firebase is temporarily unavailable. please try again shortly.',
+      'firestore/aborted': 'the join request conflicted with another update. please try again.',
+      'firestore/deadline-exceeded': 'the join request timed out. please try again.',
     };
     return new JoinError(messages[error.code] ?? fallback);
   }

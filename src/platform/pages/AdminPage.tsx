@@ -109,7 +109,7 @@ export default function AdminPage() {
         setQueue([]);
         setCurrentTurn(null);
         setPendingInvitation(null);
-        setErrorMessage(safeErrorMessage(error, 'Admin turn data could not be loaded.'));
+        setErrorMessage(safeErrorMessage(error, 'admin turn data could not be loaded.'));
       }
     } finally {
       if (sequence === requestSequence.current) setQueueLoading(false);
@@ -143,7 +143,7 @@ export default function AdminPage() {
       if (sequence !== requestSequence.current) return;
       setAccessState('denied');
       setQueue([]);
-      setErrorMessage(safeErrorMessage(error, 'Admin authorization could not be verified.'));
+      setErrorMessage(safeErrorMessage(error, 'admin authorization could not be verified.'));
     }
   }
 
@@ -187,7 +187,7 @@ export default function AdminPage() {
       });
     } catch {
       setAccessState('denied');
-      setErrorMessage('Firebase configuration is unavailable. Check the local environment setup.');
+      setErrorMessage('Firebase configuration is unavailable. check the local environment setup.');
     }
 
     return () => {
@@ -244,7 +244,7 @@ export default function AdminPage() {
     try {
       await signOutOfPlatform();
     } catch {
-      setErrorMessage('Sign out could not be completed. Please try again.');
+      setErrorMessage('sign out could not be completed. please try again.');
     } finally {
       setAuthBusy(false);
     }
@@ -261,7 +261,7 @@ export default function AdminPage() {
       }
       await refreshAdminData();
     } catch (error) {
-      setErrorMessage(safeErrorMessage(error, 'The queue priority could not be changed.'));
+      setErrorMessage(safeErrorMessage(error, 'the queue priority could not be changed.'));
     } finally {
       setBusyEntryId(null);
     }
@@ -277,10 +277,10 @@ export default function AdminPage() {
       validateInvitationDeadline(acceptBy);
       validateTurnDurationHours(duration);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Invitation settings are invalid.');
+      setErrorMessage(error instanceof Error ? error.message : 'invitation settings are invalid.');
       return;
     }
-    if (!window.confirm(`Invite ${selected.displayName}? Their turn starts only after acceptance.`)) return;
+    if (!window.confirm(`invite ${selected.displayName}? their turn starts only after acceptance.`)) return;
 
     setTurnBusy(true);
     setErrorMessage(null);
@@ -293,7 +293,7 @@ export default function AdminPage() {
       });
       await refreshAdminData();
     } catch (error) {
-      setErrorMessage(safeErrorMessage(error, 'The contributor could not be invited.'));
+      setErrorMessage(safeErrorMessage(error, 'the contributor could not be invited.'));
     } finally {
       setTurnBusy(false);
     }
@@ -314,7 +314,7 @@ export default function AdminPage() {
 
   return (
     <section className="page-content admin-page" aria-labelledby="admin-heading">
-      <h1 id="admin-heading">Admin</h1>
+      <h1 id="admin-heading">admin</h1>
 
       {errorMessage && (
         <p className="notice notice-error" role="alert">
@@ -323,19 +323,19 @@ export default function AdminPage() {
       )}
 
       {accessState === 'checking' ? (
-        <p role="status">Verifying admin access…</p>
+        <p role="status">verifying admin access…</p>
       ) : accessState === 'signed-out' ? (
         <div className="admin-auth-panel">
-          <p>Authenticate with GitHub to access protected project administration.</p>
+          <p>authenticate with GitHub to access protected project administration.</p>
           <button className="button" type="button" onClick={handleSignIn} disabled={authBusy}>
-            {authBusy ? 'Opening GitHub…' : 'Continue with GitHub'}
+            {authBusy ? 'opening GitHub…' : 'continue with GitHub'}
           </button>
         </div>
       ) : accessState === 'denied' ? (
         <div className="admin-auth-panel">
-          <p className="notice" role="status">Access denied.</p>
+          <p className="notice" role="status">access denied.</p>
           <button className="button-link" type="button" onClick={handleSignOut} disabled={authBusy}>
-            Sign out
+            sign out
           </button>
         </div>
       ) : (
@@ -343,13 +343,13 @@ export default function AdminPage() {
           <div className="admin-toolbar">
             <div>
               <p className="admin-authenticated-as">
-                Authorized as{' '}
+                authorized as{' '}
                 {identity?.githubUsername
                   ? `@${identity.githubUsername}`
                   : 'GitHub administrator'}
                 {adminRole ? ` (${adminRole})` : ''}.
               </p>
-              <p className="admin-private-note">Queue positions and contact details are private.</p>
+              <p className="admin-private-note">queue positions & contact details are private.</p>
             </div>
             <div className="admin-toolbar-actions">
               <button
@@ -358,7 +358,7 @@ export default function AdminPage() {
                 onClick={() => void refreshAdminData()}
                 disabled={queueLoading || busyEntryId !== null || turnBusy}
               >
-                {queueLoading ? 'Refreshing…' : 'Refresh'}
+                {queueLoading ? 'refreshing…' : 'refresh'}
               </button>
               <button
                 className="button-link"
@@ -366,24 +366,24 @@ export default function AdminPage() {
                 onClick={handleSignOut}
                 disabled={authBusy}
               >
-                Sign out
+                sign out
               </button>
             </div>
           </div>
 
           <section className="admin-current-turn" aria-labelledby="current-turn-heading">
-            <h2 id="current-turn-heading">Current turn</h2>
+            <h2 id="current-turn-heading">current turn</h2>
             {currentTurn ? (
               <AdminCurrentTurnPanel
                 turn={currentTurn}
                 busy={turnBusy}
                 onRecordSubmission={(prUrl, prNumber) => runCurrentTurnAction(
                   () => recordPullRequestSubmission({ adminGithubUserId: identity!.githubUserId, prUrl, prNumber }),
-                  'The pull request submission could not be recorded.',
+                  'the pull request submission could not be recorded.',
                 )}
                 onMarkUnderReview={() => runCurrentTurnAction(
                   () => markCurrentTurnUnderReview(identity!.githubUserId),
-                  'The turn could not be marked under review.',
+                  'the turn could not be marked under review.',
                 )}
                 onRecordMerged={(summary, contributorMessage) => runCurrentTurnAction(
                   () => recordMergedContribution({
@@ -391,15 +391,15 @@ export default function AdminPage() {
                     summary,
                     contributorMessage,
                   }),
-                  'The merged contribution could not be recorded.',
+                  'the merged contribution could not be recorded.',
                 )}
                 onExpire={() => runCurrentTurnAction(
                   () => expireCurrentTurn(identity!.githubUserId),
-                  'The turn could not be expired.',
+                  'the turn could not be expired.',
                 )}
                 onSkip={() => runCurrentTurnAction(
                   () => skipCurrentTurn(identity!.githubUserId),
-                  'The turn could not be skipped.',
+                  'the turn could not be skipped.',
                 )}
               />
             ) : pendingInvitation ? (
@@ -408,28 +408,28 @@ export default function AdminPage() {
                 busy={turnBusy}
                 onExpire={() => runCurrentTurnAction(
                   () => expirePendingInvitation(identity!.githubUserId),
-                  'The invitation could not be expired.',
+                  'the invitation could not be expired.',
                 )}
                 onRetryEmail={() => runCurrentTurnAction(
                   () => retryFailedInvitationEmail(pendingInvitation.invitationId),
-                  'The invitation email could not be retried.',
+                  'the invitation email could not be retried.',
                 )}
               />
             ) : waitingQueue[0] ? (
               <div className="admin-start-turn">
                 <p>
-                  Next waiting contributor: <strong>{waitingQueue[0].displayName}</strong>{' '}
+                  next waiting contributor: <strong>{waitingQueue[0].displayName}</strong>{' '}
                   (<a href={waitingQueue[0].githubProfileUrl} rel="noreferrer">
                     @{waitingQueue[0].githubUsername}
                   </a>)
                 </p>
                 <p>
-                  Private contact: <a href={`mailto:${waitingQueue[0].email}`}>
+                  private contact: <a href={`mailto:${waitingQueue[0].email}`}>
                     {waitingQueue[0].email}
                   </a>
                 </p>
                 <div className="form-field">
-                  <label htmlFor="invitation-deadline">Accept invitation by</label>
+                  <label htmlFor="invitation-deadline">accept invitation by</label>
                   <input
                     id="invitation-deadline"
                     type="datetime-local"
@@ -438,10 +438,10 @@ export default function AdminPage() {
                     disabled={turnBusy}
                     required
                   />
-                  <small>This private deadline does not start the contribution clock.</small>
+                  <small>this private deadline does not start the contribution clock.</small>
                 </div>
                 <div className="form-field">
-                  <label htmlFor="turn-duration">Contribution duration (hours)</label>
+                  <label htmlFor="turn-duration">contribution duration (hours)</label>
                   <input
                     id="turn-duration"
                     type="number"
@@ -453,7 +453,7 @@ export default function AdminPage() {
                     disabled={turnBusy}
                     required
                   />
-                  <small>The contributor receives this duration only after accepting.</small>
+                  <small>the contributor receives this duration only after accepting.</small>
                 </div>
                 <button
                   className="button"
@@ -461,11 +461,11 @@ export default function AdminPage() {
                   onClick={() => void handleInviteContributor()}
                   disabled={turnBusy || queueLoading}
                 >
-                  {turnBusy ? 'Inviting…' : 'Invite next contributor'}
+                  {turnBusy ? 'inviting…' : 'invite next contributor'}
                 </button>
               </div>
             ) : (
-              <p className="empty-state">No active turn, pending invitation, or waiting contributors.</p>
+              <p className="empty-state">no active turn, pending invitation, or waiting contributors.</p>
             )}
           </section>
 
@@ -475,25 +475,25 @@ export default function AdminPage() {
 
           <AdminSnapshotArchive />
 
-          <div className="admin-filters" aria-label="Queue filters">
+          <div className="admin-filters" aria-label="queue filters">
             <div className="form-field">
-              <label htmlFor="queue-search">Search queue</label>
+              <label htmlFor="queue-search">search queue</label>
               <input
                 id="queue-search"
                 type="search"
-                placeholder="Name, GitHub username, or email"
+                placeholder="name, GitHub username, or email"
                 value={searchTerm}
                 onChange={(event) => setSearchTerm(event.target.value)}
               />
             </div>
             <div className="form-field">
-              <label htmlFor="queue-status">Status</label>
+              <label htmlFor="queue-status">status</label>
               <select
                 id="queue-status"
                 value={statusFilter ?? ''}
                 onChange={(event) => setStatusFilter(event.target.value || null)}
               >
-                <option value="">All statuses</option>
+                <option value="">all statuses</option>
                 {QUEUE_STATUSES.map((status) => (
                   <option value={status} key={status}>
                     {status}
@@ -504,25 +504,25 @@ export default function AdminPage() {
           </div>
 
           {queueLoading && queue.length === 0 ? (
-            <p role="status">Loading private queue…</p>
+            <p role="status">loading private queue…</p>
           ) : queue.length === 0 ? (
-            <p className="empty-state">No Season 1 queue entries.</p>
+            <p className="empty-state">no season 1 queue entries.</p>
           ) : visibleQueue.length === 0 ? (
-            <p className="empty-state">No queue entries match these filters.</p>
+            <p className="empty-state">no queue entries match these filters.</p>
           ) : (
             <div className="admin-table-wrapper">
               <table className="admin-queue-table">
-                <caption className="visually-hidden">Private Season 1 contribution queue</caption>
+                <caption className="visually-hidden">private season 1 contribution queue</caption>
                 <thead>
                   <tr>
-                    <th scope="col">Position</th>
-                    <th scope="col">Contributor</th>
+                    <th scope="col">position</th>
+                    <th scope="col">contributor</th>
                     <th scope="col">GitHub</th>
-                    <th scope="col">Contact</th>
-                    <th scope="col">Joined</th>
-                    <th scope="col">Priority</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Actions</th>
+                    <th scope="col">contact</th>
+                    <th scope="col">joined</th>
+                    <th scope="col">priority</th>
+                    <th scope="col">status</th>
+                    <th scope="col">actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -535,7 +535,7 @@ export default function AdminPage() {
                           <>
                             <br />
                             <a href={entry.socialUrl} rel="noreferrer">
-                              Social link
+                              social link
                             </a>
                           </>
                         )}
@@ -549,7 +549,7 @@ export default function AdminPage() {
                       <td>{formatJoinedAt(entry.joinedAt)}</td>
                       <td>
                         {entry.priority}
-                        {entry.priority > 0 && <span className="promoted-label"> Promoted</span>}
+                        {entry.priority > 0 && <span className="promoted-label"> promoted</span>}
                       </td>
                       <td>{entry.status}</td>
                       <td>
@@ -561,10 +561,10 @@ export default function AdminPage() {
                             disabled={busyEntryId !== null}
                           >
                             {busyEntryId === entry.githubUserId
-                              ? 'Updating…'
+                              ? 'updating…'
                               : entry.priority > 0
-                                ? 'Restore natural order'
-                                : 'Move to top'}
+                                ? 'restore natural order'
+                                : 'move to top'}
                           </button>
                         ) : (
                           <span>—</span>

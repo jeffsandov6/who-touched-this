@@ -111,11 +111,11 @@ test('templates have correct subjects, CTAs, readable lines, UTC times, and esca
   const seventy = buildTurnReminderEmail({ ...base, targetContributionNumber: 1, dueAt: now, idempotencyKey: 'c' }, 72);
   const twenty = buildTurnReminderEmail({ ...base, targetContributionNumber: 1, dueAt: now, idempotencyKey: 'd' }, 24);
   const deadline = buildDeadlinePassedEmail({ ...base, targetContributionNumber: 1, dueAt: now, idempotencyKey: 'e' });
-  assert.equal(invitation.subject, 'Your Who Touched This invitation expires soon');
-  assert.equal(started.subject, 'Your Who Touched This turn has started');
-  assert.equal(seventy.subject, '3 days left on your Who Touched This turn');
-  assert.equal(twenty.subject, '24 hours left on your Who Touched This turn');
-  assert.equal(deadline.subject, 'Your Who Touched This deadline has passed');
+  assert.equal(invitation.subject, 'your who touched this invitation expires soon');
+  assert.equal(started.subject, 'your who touched this turn has started');
+  assert.equal(seventy.subject, '3 days left on your who touched this turn');
+  assert.equal(twenty.subject, '24 hours left on your who touched this turn');
+  assert.equal(deadline.subject, 'your who touched this deadline has passed');
   for (const email of [invitation, started, seventy, twenty, deadline]) {
     assert.match(email.text, /\n\n/); assert.match(email.text, /\/join/);
     assert.doesNotMatch(email.html, /<script>/); assert.match(email.html, /&lt;script&gt;/);
@@ -130,7 +130,7 @@ test('completion template includes public contribution data and history link', (
     summary: 'Added a button.', prUrl: 'https://github.com/example/repo/pull/27',
     appOrigin: 'https://whotouchedthis.website', idempotencyKey: 'complete_1',
   });
-  assert.equal(email.subject, 'Contribution #001 is now part of Who Touched This');
+  assert.equal(email.subject, 'contribution #001 is now part of who touched this');
   assert.match(email.text, /Added a button\./); assert.match(email.text, /\/history/);
   assert.throws(() => buildContributionCompletedEmail({
     to: 'x@y.test', displayName: 'Alice', contributionNumber: 1, summary: 'x',

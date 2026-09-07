@@ -1,7 +1,7 @@
 import { Resend } from 'resend';
 import type { EmailProvider, SendEmailInput, SendEmailResult } from './types.js';
 
-const FROM = 'Who Touched This <hello@whotouchedthis.website>';
+const FROM = 'who touched this <hello@whotouchedthis.website>';
 const REPLY_TO = 'hello@whotouchedthis.website';
 
 export class ResendEmailProvider implements EmailProvider {
