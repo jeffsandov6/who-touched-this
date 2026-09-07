@@ -41,7 +41,7 @@ const boringQuestions = [
   },
   {
     question: 'is the contribution queue public?',
-    answer: 'no. the queue is private. the public site may show the current contributor & who is next, but the queue itself is not visible to the public.',
+    answer: 'no. the queue is private. the public site shows the current contributor during an active turn, but the queue itself is not visible to the public.',
   },
   {
     question: 'how do i contribute?',
