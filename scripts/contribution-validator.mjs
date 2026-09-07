@@ -204,17 +204,29 @@ export async function collectLocalContribution(base, cwd = process.cwd()) {
   return { changes, totals };
 }
 
-async function githubRequest(apiUrl, token, pathname, request) {
-  const response = await request(`${apiUrl}${pathname}`, {
-    headers: {
-      accept: 'application/vnd.github+json',
-      authorization: `Bearer ${token}`,
-      'x-github-api-version': '2022-11-28',
-      'user-agent': 'who-touched-this-contribution-validator',
-    },
-  });
-  if (!response.ok) throw new Error(`GitHub metadata request failed with HTTP ${response.status}.`);
-  return response.json();
+async function githubRequest(apiUrl, token, pathname, operation, request) {
+  let response;
+  try {
+    response = await request(`${apiUrl}${pathname}`, {
+      headers: {
+        accept: 'application/vnd.github+json',
+        authorization: `Bearer ${token}`,
+        'x-github-api-version': '2022-11-28',
+        'user-agent': 'who-touched-this-contribution-validator',
+      },
+    });
+  } catch {
+    throw new Error(`${operation} request failed.`);
+  }
+  if (!response?.ok) {
+    const status = Number.isInteger(response?.status) ? ` with HTTP ${response.status}` : '';
+    throw new Error(`${operation} request failed${status}.`);
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(`${operation} returned malformed JSON.`);
+  }
 }
 
 export async function collectGitHubContribution(eventPath, environment = process.env, request = fetch) {
@@ -222,36 +234,98 @@ export async function collectGitHubContribution(eventPath, environment = process
   const repository = event.repository?.full_name;
   const number = event.pull_request?.number ?? event.number;
   const headSha = event.pull_request?.head?.sha;
-  const headRepository = event.pull_request?.head?.repo?.full_name;
   const token = environment.GITHUB_TOKEN;
   const apiUrl = environment.GITHUB_API_URL ?? 'https://api.github.com';
-  if (typeof repository !== 'string' || typeof headRepository !== 'string'
-    || !Number.isSafeInteger(number) || typeof headSha !== 'string' || !token) {
+  if (typeof repository !== 'string' || repository.split('/').length !== 2
+    || !Number.isSafeInteger(number) || number < 1
+    || typeof headSha !== 'string' || !/^[0-9a-f]{40}$/.test(headSha) || !token) {
     throw new Error('Trusted GitHub pull-request metadata is incomplete.');
   }
 
   const encodedRepository = repository.split('/').map(encodeURIComponent).join('/');
-  const encodedHeadRepository = headRepository.split('/').map(encodeURIComponent).join('/');
   const files = [];
   for (let page = 1; ; page += 1) {
-    const batch = await githubRequest(apiUrl, token, `/repos/${encodedRepository}/pulls/${number}/files?per_page=100&page=${page}`, request);
+    const batch = await githubRequest(
+      apiUrl,
+      token,
+      `/repos/${encodedRepository}/pulls/${number}/files?per_page=100&page=${page}`,
+      'Pull request file metadata',
+      request,
+    );
+    if (!Array.isArray(batch)) throw new Error('Pull request file metadata was malformed.');
+    if (batch.length > 100) throw new Error('Pull request file metadata exceeded its page size.');
     files.push(...batch);
     if (batch.length < 100) break;
     if (page >= 30) throw new Error('Pull request exceeds GitHub metadata validation limits.');
   }
 
-  const commit = await githubRequest(apiUrl, token, `/repos/${encodedHeadRepository}/git/commits/${encodeURIComponent(headSha)}`, request);
-  const tree = await githubRequest(apiUrl, token, `/repos/${encodedHeadRepository}/git/trees/${encodeURIComponent(commit.tree.sha)}?recursive=1`, request);
-  if (tree.truncated) throw new Error('GitHub tree metadata was truncated; contribution cannot be validated safely.');
-  const treeByPath = new Map(tree.tree.map((entry) => [entry.path, entry]));
+  // pull_request_target tokens belong to the base repository. The base PR endpoint exposes the
+  // fork's commits without requiring direct access to the contributor's separate repository.
+  let headCommit = null;
+  for (let page = 1; page <= 3 && !headCommit; page += 1) {
+    const commits = await githubRequest(
+      apiUrl,
+      token,
+      `/repos/${encodedRepository}/pulls/${number}/commits?per_page=100&page=${page}`,
+      'Pull request commit metadata',
+      request,
+    );
+    if (!Array.isArray(commits)) throw new Error('Pull request commit metadata was malformed.');
+    if (commits.length > 100) throw new Error('Pull request commit metadata exceeded its page size.');
+    if (page === 3 && commits.length > 50) {
+      throw new Error('Pull request exceeds GitHub commit metadata validation limits.');
+    }
+    headCommit = commits.find((commit) => commit?.sha === headSha) ?? null;
+    if (headCommit || commits.length < 100) break;
+    if (page === 3) throw new Error('Pull request exceeds GitHub commit metadata validation limits.');
+  }
+  const treeSha = headCommit?.commit?.tree?.sha;
+  if (!headCommit) throw new Error('Exact pull request head SHA was not present in pull request commit metadata.');
+  if (typeof treeSha !== 'string' || !/^[0-9a-f]{40}$/.test(treeSha)) {
+    throw new Error('Pull request head commit tree metadata was malformed.');
+  }
+
+  const tree = await githubRequest(
+    apiUrl,
+    token,
+    `/repos/${encodedRepository}/git/trees/${treeSha}?recursive=1`,
+    'Pull request tree metadata',
+    request,
+  );
+  if (!tree || typeof tree !== 'object' || !Array.isArray(tree.tree)) {
+    throw new Error('Pull request tree metadata was malformed.');
+  }
+  if (tree.truncated !== false) {
+    throw new Error('Pull request tree metadata was truncated; contribution cannot be validated safely.');
+  }
+  const treeByPath = new Map();
+  for (const entry of tree.tree) {
+    if (!entry || typeof entry.path !== 'string' || typeof entry.mode !== 'string'
+      || treeByPath.has(entry.path)) {
+      throw new Error('Pull request tree metadata was malformed.');
+    }
+    treeByPath.set(entry.path, entry);
+  }
 
   const changes = files.map((file) => {
+    if (!file || typeof file !== 'object' || typeof file.filename !== 'string'
+      || !['added', 'modified', 'removed', 'renamed', 'copied', 'changed'].includes(file.status)
+      || !Number.isSafeInteger(file.additions) || file.additions < 0
+      || !Number.isSafeInteger(file.deletions) || file.deletions < 0
+      || (['renamed', 'copied'].includes(file.status) && typeof file.previous_filename !== 'string')) {
+      throw new Error('Pull request file metadata was malformed.');
+    }
     const status = file.status === 'renamed' ? 'R' : file.status === 'copied' ? 'C' : file.status === 'removed' ? 'D' : file.status === 'added' ? 'A' : 'M';
     const paths = status === 'R' || status === 'C'
       ? [file.previous_filename, file.filename]
       : [file.filename];
     const targetPath = status === 'D' ? null : file.filename;
     const object = targetPath ? treeByPath.get(targetPath) : null;
+    if (targetPath && (!object
+      || !['100644', '100755', '120000', '160000'].includes(object.mode)
+      || (object.mode !== '160000' && (!Number.isSafeInteger(object.size) || object.size < 0)))) {
+      throw new Error(`Pull request tree metadata could not verify changed path: ${targetPath}`);
+    }
     return {
       status,
       paths,

@@ -167,7 +167,10 @@ test('temporary Git repository catches an untracked canvas symlink without follo
   assert.match(result.failures.join('\n'), /Symbolic links/);
 });
 
-test('trusted GitHub metadata collection evaluates fork tree modes without fetching PR code', async (t) => {
+const githubHeadSha = 'a'.repeat(40);
+const githubTreeSha = 'b'.repeat(40);
+
+async function writeGitHubEvent(t, pullRequest = {}) {
   const cwd = await mkdtemp(path.join(tmpdir(), 'wtt-github-metadata-'));
   t.after(() => rm(cwd, { recursive: true, force: true }));
   const eventPath = path.join(cwd, 'event.json');
@@ -175,9 +178,34 @@ test('trusted GitHub metadata collection evaluates fork tree modes without fetch
     number: 17,
     repository: { full_name: 'JeffSandov6/who-touched-this' },
     pull_request: {
-      head: { sha: 'head-sha', repo: { full_name: 'contributor/who-touched-this' } },
+      head: { sha: githubHeadSha, repo: { full_name: 'private-contributor/private-fork' } },
+      ...pullRequest,
     },
   }));
+  return eventPath;
+}
+
+function githubFile(overrides = {}) {
+  return {
+    status: 'modified', filename: 'src/canvas/page.tsx', additions: 5, deletions: 2,
+    patch: '@@ safe metadata only', ...overrides,
+  };
+}
+
+function githubTreeEntry(overrides = {}) {
+  return { path: 'src/canvas/page.tsx', mode: '100644', type: 'blob', size: 120, ...overrides };
+}
+
+function githubEnvironment() {
+  return { GITHUB_TOKEN: 'synthetic-read-token', GITHUB_API_URL: 'https://api.github.test' };
+}
+
+function githubPage(url) {
+  return new URL(url).searchParams.get('page');
+}
+
+test('trusted GitHub metadata collection uses only base-repository PR and tree endpoints for a fork', async (t) => {
+  const eventPath = await writeGitHubEvent(t);
   const requested = [];
   const request = async (url) => {
     requested.push(url);
@@ -185,15 +213,161 @@ test('trusted GitHub metadata collection evaluates fork tree modes without fetch
       status: 'renamed', previous_filename: 'src/canvas/old.tsx', filename: 'src/canvas/new.tsx',
       additions: 5, deletions: 2, patch: '@@ safe metadata only',
     }]));
-    if (url.includes('/git/commits/')) return new Response(JSON.stringify({ tree: { sha: 'tree-sha' } }));
+    if (url.includes('/pulls/17/commits')) return new Response(JSON.stringify([
+      { sha: githubHeadSha, commit: { tree: { sha: githubTreeSha } } },
+      { sha: 'c'.repeat(40), commit: { tree: { sha: 'd'.repeat(40) } } },
+    ]));
     return new Response(JSON.stringify({ truncated: false, tree: [
       { path: 'src/canvas/new.tsx', mode: '100644', type: 'blob', size: 120 },
     ] }));
   };
-  const collected = await collectGitHubContribution(eventPath, {
-    GITHUB_TOKEN: 'synthetic-read-token', GITHUB_API_URL: 'https://api.github.test',
-  }, request);
+  const collected = await collectGitHubContribution(eventPath, githubEnvironment(), request);
   assert.equal(evaluate(collected.changes).passed, true);
   assert.equal(requested.length, 3);
-  assert.equal(requested.some((url) => url.includes('/contributor/who-touched-this/git/')), true);
+  assert.equal(requested.every((url) => url.includes('/repos/JeffSandov6/who-touched-this/')), true);
+  assert.equal(requested.some((url) => url.includes('/private-contributor/private-fork/')), false);
+  assert.equal(requested.some((url) => url.includes('/pulls/17/commits')), true);
+  assert.equal(requested.some((url) => url.includes(`/git/trees/${githubTreeSha}`)), true);
+  assert.equal(requested.some((url) => url.includes('/git/commits/')), false);
+});
+
+test('trusted metadata requires the exact event head SHA in paginated base PR commits', async (t) => {
+  const eventPath = await writeGitHubEvent(t);
+  const requested = [];
+  const request = async (url) => {
+    requested.push(url);
+    if (url.includes('/files')) return new Response(JSON.stringify([githubFile()]));
+    if (url.includes('/commits') && githubPage(url) === '1') {
+      return new Response(JSON.stringify(Array.from({ length: 100 }, (_, index) => ({
+        sha: index.toString(16).padStart(40, '0'), commit: { tree: { sha: githubTreeSha } },
+      }))));
+    }
+    if (url.includes('/commits')) {
+      return new Response(JSON.stringify([{ sha: githubHeadSha, commit: { tree: { sha: githubTreeSha } } }]));
+    }
+    return new Response(JSON.stringify({ truncated: false, tree: [githubTreeEntry()] }));
+  };
+  const collected = await collectGitHubContribution(eventPath, githubEnvironment(), request);
+  assert.equal(collected.changes.length, 1);
+  assert.equal(requested.filter((url) => url.includes('/commits')).length, 2);
+
+  await assert.rejects(collectGitHubContribution(eventPath, githubEnvironment(), async (url) => {
+    if (url.includes('/files')) return new Response(JSON.stringify([githubFile()]));
+    return new Response(JSON.stringify([]));
+  }), /Exact pull request head SHA was not present/);
+
+  let commitRequests = 0;
+  await assert.rejects(collectGitHubContribution(eventPath, githubEnvironment(), async (url) => {
+    if (url.includes('/files')) return new Response(JSON.stringify([githubFile()]));
+    if (url.includes('/commits')) {
+      commitRequests += 1;
+      return new Response(JSON.stringify(Array.from({ length: 100 }, (_, index) => ({
+        sha: `${commitRequests}${index}`.padStart(40, '0'),
+        commit: { tree: { sha: githubTreeSha } },
+      }))));
+    }
+    throw new Error('Tree metadata must not be requested after the commit-page limit is exceeded.');
+  }), /exceeds GitHub commit metadata validation limits/);
+  assert.equal(commitRequests, 3);
+});
+
+test('trusted metadata preserves file pagination and its hard request limit', async (t) => {
+  const eventPath = await writeGitHubEvent(t);
+  const firstPage = Array.from({ length: 100 }, (_, index) => githubFile({
+    filename: `src/canvas/page-${index}.tsx`,
+  }));
+  const finalFile = githubFile({ filename: 'src/canvas/final.tsx' });
+  const tree = [...firstPage, finalFile].map((file) => githubTreeEntry({ path: file.filename }));
+  const requested = [];
+  const collected = await collectGitHubContribution(eventPath, githubEnvironment(), async (url) => {
+    requested.push(url);
+    if (url.includes('/files') && githubPage(url) === '1') return new Response(JSON.stringify(firstPage));
+    if (url.includes('/files')) return new Response(JSON.stringify([finalFile]));
+    if (url.includes('/commits')) return new Response(JSON.stringify([{ sha: githubHeadSha, commit: { tree: { sha: githubTreeSha } } }]));
+    return new Response(JSON.stringify({ truncated: false, tree }));
+  });
+  assert.equal(collected.changes.length, 101);
+  assert.equal(requested.filter((url) => url.includes('/files')).length, 2);
+
+  let fileRequests = 0;
+  await assert.rejects(collectGitHubContribution(eventPath, githubEnvironment(), async (url) => {
+    if (url.includes('/files')) {
+      fileRequests += 1;
+      return new Response(JSON.stringify(firstPage));
+    }
+    throw new Error('Commit metadata must not be requested after the file-page limit is exceeded.');
+  }), /exceeds GitHub metadata validation limits/);
+  assert.equal(fileRequests, 30);
+});
+
+test('trusted metadata retains symlink detection and file-size enforcement', async (t) => {
+  const eventPath = await writeGitHubEvent(t);
+  async function collectWithTree(entry) {
+    return collectGitHubContribution(eventPath, githubEnvironment(), async (url) => {
+      if (url.includes('/files')) return new Response(JSON.stringify([githubFile()]));
+      if (url.includes('/commits')) return new Response(JSON.stringify([{ sha: githubHeadSha, commit: { tree: { sha: githubTreeSha } } }]));
+      return new Response(JSON.stringify({ truncated: false, tree: [entry] }));
+    });
+  }
+  const symlink = await collectWithTree(githubTreeEntry({ mode: '120000', size: 18 }));
+  assert.match(evaluate(symlink.changes).failures.join('\n'), /Symbolic links/);
+  const gitlink = await collectWithTree(githubTreeEntry({ mode: '160000', type: 'commit', size: undefined }));
+  assert.match(evaluate(gitlink.changes).failures.join('\n'), /submodules\/gitlinks/);
+  const oversized = await collectWithTree(githubTreeEntry({ size: CONTRIBUTION_LIMITS.maxFileBytes + 1 }));
+  assert.match(evaluate(oversized.changes).failures.join('\n'), /File exceeds 25 MiB/);
+});
+
+test('trusted metadata fails closed for malformed, truncated, or unverifiable API data', async (t) => {
+  const eventPath = await writeGitHubEvent(t);
+  const scenarios = [
+    {
+      pattern: /file metadata was malformed/,
+      request: async (url) => new Response(JSON.stringify(url.includes('/files') ? {} : [])),
+    },
+    {
+      pattern: /commit metadata was malformed/,
+      request: async (url) => new Response(JSON.stringify(url.includes('/files') ? [githubFile()] : {})),
+    },
+    {
+      pattern: /tree metadata was truncated/,
+      request: async (url) => {
+        if (url.includes('/files')) return new Response(JSON.stringify([githubFile()]));
+        if (url.includes('/commits')) return new Response(JSON.stringify([{ sha: githubHeadSha, commit: { tree: { sha: githubTreeSha } } }]));
+        return new Response(JSON.stringify({ truncated: true, tree: [githubTreeEntry()] }));
+      },
+    },
+    {
+      pattern: /could not verify changed path/,
+      request: async (url) => {
+        if (url.includes('/files')) return new Response(JSON.stringify([githubFile()]));
+        if (url.includes('/commits')) return new Response(JSON.stringify([{ sha: githubHeadSha, commit: { tree: { sha: githubTreeSha } } }]));
+        return new Response(JSON.stringify({ truncated: false, tree: [githubTreeEntry({ size: undefined })] }));
+      },
+    },
+  ];
+  for (const scenario of scenarios) {
+    await assert.rejects(collectGitHubContribution(eventPath, githubEnvironment(), scenario.request), scenario.pattern);
+  }
+});
+
+test('GitHub request failures identify the safe metadata operation without exposing the token', async (t) => {
+  const eventPath = await writeGitHubEvent(t);
+  const operations = [
+    { failAt: 'files', pattern: /Pull request file metadata request failed with HTTP 404/ },
+    { failAt: 'commits', pattern: /Pull request commit metadata request failed with HTTP 404/ },
+    { failAt: 'trees', pattern: /Pull request tree metadata request failed with HTTP 404/ },
+  ];
+  for (const { failAt, pattern } of operations) {
+    let message = '';
+    await assert.rejects(collectGitHubContribution(eventPath, githubEnvironment(), async (url) => {
+      if (url.includes(`/${failAt}`)) return new Response('{}', { status: 404 });
+      if (url.includes('/files')) return new Response(JSON.stringify([githubFile()]));
+      if (url.includes('/commits')) return new Response(JSON.stringify([{ sha: githubHeadSha, commit: { tree: { sha: githubTreeSha } } }]));
+      return new Response(JSON.stringify({ truncated: false, tree: [githubTreeEntry()] }));
+    }), (error) => {
+      message = error.message;
+      return pattern.test(error.message);
+    });
+    assert.doesNotMatch(message, /synthetic-read-token/);
+  }
 });
