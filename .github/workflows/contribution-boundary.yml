@@ -15,12 +15,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # pull_request_target is privileged. Check out only the trusted base SHA;
+      # pull_request_target is privileged. Check out only the trusted base-repository code
       # never check out or execute the pull request head in this workflow.
       - name: Check out trusted base policy
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
       - name: Validate pull request metadata
