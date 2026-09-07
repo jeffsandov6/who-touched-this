@@ -73,6 +73,24 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .faq-list dt { font-weight: 700; }
 .faq-list dd { margin: 0.25rem 0 0; }
 
+.faq-accordion {
+  margin-top: 1.25rem;
+}
+
+.faq-item summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.faq-item summary:hover {
+  text-decoration: underline;
+}
+
+.faq-item p {
+  margin: 0.6rem 0 1rem 1.1rem;
+  line-height: 1.6;
+}
+
 .join-page { max-width: 42rem; }
 .join-auth-panel, .join-form { margin-top: 2rem; }
 .invitation-acceptance {

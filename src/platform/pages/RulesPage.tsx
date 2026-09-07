@@ -1,29 +1,55 @@
 /** @jsxImportSource react */
 
 const rules = [
-  'One community contributor has a turn at a time.',
-  'Each GitHub account may make one contribution per season.',
-  'Each contribution must be one small, coherent change.',
-  'Every pull request is reviewed before acceptance.',
-  'Contributors do not receive direct write access to the canonical repository.',
-  'Protected platform infrastructure may not be changed.',
-  'Malicious or unsafe contributions are rejected.',
+  'one community contributor has an active turn at a time.',
+  'each GitHub account may make one ordinary contribution per season.',
+  'each contribution should contain one small, coherent main idea & affect a limited part of the editable site.',
+  'ordinary contributions may change only the editable canvas & must pass the project contribution checks.',
+  'adding an entirely new page is not part of an ordinary contribution. if your idea requires a new page, reach out to the maintainer first.',
+  'protected platform code, infrastructure, authentication, contributor data, queue systems, deployment configuration, & other protected files may not be changed.',
+  'contributors work from forks & do not receive direct write access to the canonical repository.',
+  'submit your contribution as a non-draft pull request from your fork during your active turn.',
+  'every pull request is reviewed before it is accepted or merged.',
+  'you get one submission pull request per turn. fixes & requested revisions should be pushed to that same pull request.',
+  'do not include secrets, credentials, private contributor information, malicious code, destructive behavior, or intentionally unsafe content.',
+  'weird, political, dark, or mildly controversial humor is not automatically off limits, but hate speech, targeted harassment, racist or dehumanizing content, threats, doxing, sexual exploitation or any sexual content involving minors, & content primarily intended to intimidate or alienate others will be rejected.',
+  'work introduced by another contributor may not be intentionally removed, hidden, or substantially replaced until 5 later community contributions have been merged, except when a safety, security, compatibility, or platform fix requires it.',
+  'large media or unusual external dependencies must be discussed with the maintainer before submission.',
+  'only include code, media, & other material that you created or have the right to use.',
+  'if you cannot complete your turn, contact the maintainer rather than attempting to transfer the turn or access to another person.',
+  'the maintainer has final say on whether a contribution fits the rules, scope, & spirit of the project.',
 ] as const;
 
 export default function RulesPage() {
   return (
     <section className="page-content" aria-labelledby="rules-heading">
-      <h1 id="rules-heading">Temporary rules</h1>
-      <p>Detailed scope rules will be finalized before public contributions begin.</p>
+      <h1 id="rules-heading">rules</h1>
+
+      <p>
+        who touched this works because each contributor gets a limited turn while the platform
+        around the editable site remains protected.
+      </p>
+
       <ul>
         {rules.map((rule) => (
           <li key={rule}>{rule}</li>
         ))}
       </ul>
+
       <p>
-        Platform maintenance by the project owner is separate from community contributions. Rare
-        creative founder interventions may occur later; they will be clearly labeled and will not
-        consume ordinary community turns.
+        platform maintenance is separate from community contributions & may happen whenever it is
+        needed. rare creative founder interventions may also occur, but they will be clearly
+        labeled, will not interrupt an active community contributor, & do not count as additional
+        community contributions.
+      </p>
+
+      <p>
+        questions about the rules or an active contribution can be sent to
+        {' '}
+        <a href="mailto:hello@whotouchedthis.website">
+          hello@whotouchedthis.website
+        </a>
+        .
       </p>
     </section>
   );
