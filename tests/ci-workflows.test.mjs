@@ -3,37 +3,93 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const boundary = await readFile(new URL('../.github/workflows/contribution-boundary.yml', import.meta.url), 'utf8');
-const build = await readFile(new URL('../.github/workflows/contributor-build.yml', import.meta.url), 'utf8');
+const review = await readFile(new URL('../.github/workflows/contributor-build.yml', import.meta.url), 'utf8');
+const sandboxRunner = await readFile(new URL('../scripts/run-review-sandbox.mjs', import.meta.url), 'utf8');
+const workflows = `${boundary}\n${review}`;
 
-test('trusted boundary workflow is base-controlled metadata-only execution', () => {
+test('privileged boundary remains base-controlled metadata-only execution', () => {
   assert.match(boundary, /pull_request_target:/);
-  assert.match(boundary, /uses: actions\/checkout@v4/);
-  assert.doesNotMatch(boundary, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
-  assert.doesNotMatch(boundary, /github\.event\.pull_request\.head/);
-  assert.doesNotMatch(boundary, /npm (?:ci|install|run)/);
+  assert.match(boundary, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
+  assert.doesNotMatch(boundary, /head-canvas|pull_request\.head\.repo|npm (?:ci|install|run)|docker|playwright/i);
   assert.doesNotMatch(boundary, /\$\{\{\s*secrets\./);
   assert.match(boundary, /contents: read/);
   assert.match(boundary, /pull-requests: read/);
   assert.match(boundary, /persist-credentials: false/);
+  assert.ok(boundary.indexOf('Validate pull request metadata') < boundary.indexOf('Create trusted review handoff'));
+  assert.ok(boundary.indexOf('Create trusted review handoff') < boundary.indexOf('Upload trusted review handoff'));
 });
 
-test('untrusted fork workflow is read-only, secretless, hosted, and bounded', () => {
-  assert.match(build, /\n  pull_request:/);
-  assert.doesNotMatch(build, /pull_request_target/);
-  assert.match(build, /permissions:\n  contents: read/);
-  assert.match(build, /runs-on: ubuntu-latest/);
-  assert.match(build, /timeout-minutes: 10/);
-  assert.match(build, /persist-credentials: false/);
-  assert.doesNotMatch(build, /self-hosted/);
-  assert.doesNotMatch(build, /\$\{\{\s*secrets\./);
+test('hostile orchestration comes only from trusted default-branch workflow_run code', () => {
+  assert.match(review, /workflow_run:/);
+  assert.match(review, /workflows: \[Contribution boundary\]/);
+  assert.match(review, /types: \[completed\]/);
+  assert.doesNotMatch(review, /\bpull_request:/);
+  assert.doesNotMatch(review, /pull_request_target:/);
+  assert.match(review, /workflow_run\.conclusion == 'success'/);
+  assert.match(review, /workflow_run\.event == 'pull_request_target'/);
+  assert.match(review, /needs: validate-handoff/);
+  assert.match(review, /needs: \[validate-handoff, build-hostile-canvas\]/);
 });
 
-test('untrusted fork workflow runs only validation, checks, build, and fast tests', () => {
-  for (const expected of ['npm ci', 'contribution:validate', 'npm run check', 'npm run build', 'npm run test:contributor']) {
-    assert.match(build, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+test('handoff is retrieved only from triggering run and cross-checked before outputs are used', () => {
+  assert.match(review, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
+  assert.match(review, /name: trusted-contribution-handoff/);
+  assert.match(review, /verify-review-handoff\.mjs/);
+  assert.match(review, /actions: read/);
+  assert.match(review, /contents: read/);
+  assert.match(review, /pull-requests: read/);
+  assert.doesNotMatch(review, /(?:write|admin):/);
+});
+
+test('only sparse PR canvas is materialized and protected files come from exact base', () => {
+  assert.match(review, /ref: \$\{\{ needs\.validate-handoff\.outputs\.base_sha \}\}/);
+  assert.match(review, /ref: refs\/pull\/\$\{\{ needs\.validate-handoff\.outputs\.pull_request_number \}\}\/head/);
+  assert.match(review, /sparse-checkout: \/src\/canvas\//);
+  assert.match(review, /sparse-checkout-cone-mode: false/);
+  assert.match(review, /Overlay only validated PR-head canvas blobs/);
+  assert.match(review, /prepare-pr-review-workspace\.mjs overlay/);
+  assert.doesNotMatch(review, /repository: \$\{\{ needs\.validate-handoff\.outputs\.head_repository \}\}/);
+});
+
+test('dependency installation uses trusted manifests before hostile overlay', () => {
+  const create = review.indexOf('Create workspace from trusted base');
+  const install = review.indexOf('Install dependencies from trusted manifests before canvas overlay');
+  const overlay = review.indexOf('Overlay only validated PR-head canvas blobs');
+  const execute = review.indexOf('Run contributor code in a networkless resource-bounded container');
+  assert.ok(create < install && install < overlay && overlay < execute);
+  assert.match(review, /cache-dependency-path: \.wtt-ci\/trusted\/package-lock\.json/);
+});
+
+test('hostile execution is hosted, secretless, containerized, and never deploys', () => {
+  assert.equal((review.match(/runs-on: ubuntu-latest/g) ?? []).length, 3);
+  assert.equal((review.match(/persist-credentials: false/g) ?? []).length, 4);
+  assert.doesNotMatch(workflows, /\$\{\{\s*secrets\./);
+  assert.doesNotMatch(workflows, /self-hosted/);
+  assert.doesNotMatch(review, /firebase\s+(?:deploy|emulators)|RESEND|GITHUB_WEBHOOK_SECRET|service.account/i);
+  assert.doesNotMatch(review, /\bdeploy\b/i);
+  assert.match(review, /run-review-sandbox\.mjs build/);
+  assert.match(review, /run-review-sandbox\.mjs preview/);
+  assert.match(sandboxRunner, /env: \{ PATH: process\.env\.PATH/);
+  assert.doesNotMatch(sandboxRunner, /env:\s*\{\s*\.\.\.process\.env/);
+  assert.doesNotMatch(sandboxRunner, /docker\.sock/);
+});
+
+test('hostile artifacts are sanitized before upload and after download', () => {
+  const hostile = review.indexOf('Run contributor code in a networkless resource-bounded container');
+  const sanitizeBefore = review.indexOf('Sanitize hostile static output before upload');
+  const upload = review.indexOf('Upload sanitized proposed site');
+  const download = review.indexOf('Download sanitized proposed static output');
+  const sanitizeAfter = review.indexOf('Revalidate downloaded artifact into fresh staging');
+  const capture = review.indexOf('Capture BEFORE and PROPOSED AFTER');
+  assert.ok(hostile < sanitizeBefore && sanitizeBefore < upload);
+  assert.ok(download < sanitizeAfter && sanitizeAfter < capture);
+});
+
+test('all security-sensitive actions are immutable SHA pins with maintainable version comments', () => {
+  for (const match of workflows.matchAll(/uses:\s+([^\s]+)/g)) {
+    assert.match(match[1], /^actions\/(?:checkout|setup-node|upload-artifact|download-artifact)@[0-9a-f]{40}$/);
   }
-  assert.doesNotMatch(build, /firebase\s+(?:deploy|emulators)/);
-  assert.doesNotMatch(build, /functions:(?:test|build|check)/);
-  assert.doesNotMatch(build, /Resend|RESEND|GITHUB_WEBHOOK_SECRET|service.account/i);
-  assert.doesNotMatch(build, /deploy/i);
+  for (const version of ['actions/checkout v6.0.3', 'actions/setup-node v7.0.0', 'actions/upload-artifact v7.0.1', 'actions/download-artifact v8.0.0']) {
+    assert.match(workflows, new RegExp(version.replace(/[./]/g, '\\$&')));
+  }
 });

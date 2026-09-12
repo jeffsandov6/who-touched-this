@@ -11,6 +11,8 @@ export const SNAPSHOT_CONFIG = Object.freeze({
   defaultWaitMs: 1500,
   maximumWaitMs: 10_000,
   navigationTimeoutMs: 30_000,
+  screenshotTimeoutMs: 30_000,
+  maximumDocumentHeight: 20_000,
+  maximumScreenshotPixels: 32_000_000,
   serverStartupTimeoutMs: 15_000,
 });
-

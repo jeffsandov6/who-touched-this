@@ -16,6 +16,12 @@ Production preparation and eventual release procedures are documented in
 [`docs/PRODUCTION.md`](docs/PRODUCTION.md). Production remains a deliberate maintainer operation;
 contributor CI has no deployment step or production credentials.
 
+Pre-merge contributor review uses a privileged metadata-only boundary check followed by a trusted
+default-branch `workflow_run` orchestrator. Only the proposed canvas is overlaid onto the exact base;
+hostile Node/browser execution is secretless, networkless, containerized, and resource bounded.
+Maintainer workflow, rule classifications, artifact review, repository settings, and limitations are in
+[`docs/PR_REVIEW.md`](docs/PR_REVIEW.md).
+
 ## Technology
 
 - Astro file-based routing and static generation with strict TypeScript
@@ -25,7 +31,7 @@ contributor CI has no deployment step or production credentials.
 - Firebase Cloud Functions on Node.js 22 for trusted server-side email delivery
 - Resend as the single planned production transactional-email provider
 - Classic Firebase Hosting for the generated static site
-- GitHub Actions with separate trusted-metadata and untrusted-fork checks
+- GitHub Actions with trusted metadata validation and default-branch-orchestrated sandbox review
 - Plain CSS
 - npm
 
@@ -840,11 +846,14 @@ Fork checks use two deliberately separate trust contexts:
    Consequently a PR cannot bypass the gate by changing `.github/**`, validator source, manifests,
    tests, or boundary configuration: those changes are themselves rejected, while the executing
    policy comes from the base repository.
-2. `Contributor build` uses ordinary `pull_request`, a GitHub-hosted runner, a read-only token with
-   checkout credentials disabled, and a ten-minute timeout. It checks out and executes untrusted PR
-   code only after receiving no Firebase, Resend, webhook, Storage-write, deployment, or service-account
-   credentials. It runs `npm ci`, contribution validation, Astro/TypeScript checking, the static build,
-   and fast unit tests. It has no deployment step and no self-hosted runner.
+2. After success, `Contributor review` is loaded from the trusted default branch through
+   `workflow_run`. It retrieves a tiny artifact from the triggering boundary run, checks the exact PR,
+   base, and head identity against GitHub, sparsely retrieves only the PR's canvas, and overlays it on
+   the exact trusted base. Dependencies install from trusted manifests before that overlay. Any phase
+   that can execute contributor TSX runs in a non-root, network-disabled, capability-dropped,
+   CPU/memory/PID/time-bounded container without tokens, secrets, production configuration, a Docker
+   socket, deployment steps, or a self-hosted runner. Trusted code sanitizes artifacts before upload
+   and after download, then creates the base-versus-proposed visual review.
 
 CI is independent of contributor lifecycle. A valid non-draft PR or draft marked Ready for review can
 move an active turn to submitted through the existing signed webhook. Later pushes and CI outcomes do
@@ -857,9 +866,13 @@ Before live contribution launch, configure GitHub manually to:
 - Make the canonical repository public.
 - Require pull requests for `main`.
 - Require maintainer/code-owner review.
-- Require the `Contribution boundary` and `Contributor build` checks.
+- Require the genuine base-owned `Contribution boundary` check. Treat the `workflow_run` Contributor
+  review as mandatory evidence; it is not necessarily a PR-head status context. If available, use an
+  organization ruleset/required-workflow identity for the review check rather than a spoofable
+  lookalike status name.
 - Block force pushes to `main` and prevent accidental protected-branch deletion where appropriate.
-- Keep workflow tokens read-only/minimal and never expose Actions secrets to fork pull requests.
+- Keep workflow tokens read-only/minimal; disable sending write tokens and secrets to fork pull
+  requests in repository Actions settings.
 - Retain first-time-contributor workflow approval unless deliberately changing that policy.
 - Review repository-wide Actions permissions and allowed actions.
 - Verify the GitHub App is installed only on the canonical repository with its intended permissions.
