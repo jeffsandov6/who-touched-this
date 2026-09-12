@@ -187,6 +187,10 @@ jobs:
           cache: npm
           cache-dependency-path: .wtt-ci/trusted/package-lock.json
 
+      - name: Install trusted preview runtime dependencies
+        working-directory: .wtt-ci/trusted
+        run: npm ci --ignore-scripts
+
       - name: Create isolated BEFORE workspace
         run: >-
           node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs create

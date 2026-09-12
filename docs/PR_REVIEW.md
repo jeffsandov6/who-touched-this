@@ -72,7 +72,10 @@ the hostile build never owns the final manifest, viewer, or BEFORE screenshots.
 
 The exact base is copied to a disposable workspace, installs from the same trusted manifests, and its
 canvas build also runs in the networkless build container; accepted historical canvas code is not
-executed directly on the runner host. BEFORE and PROPOSED AFTER render inside a separate official
+executed directly on the runner host. The host separately installs the preview runtime with
+`npm ci --ignore-scripts` in the exact trusted base checkout. That checkout, including its lockfile-
+pinned `playwright` package, is mounted read-only so the preview script can resolve its Node dependency;
+the Playwright image itself is used only for its browser/runtime environment. BEFORE and PROPOSED AFTER render inside a separate official Playwright container with container networking disabled, a read-only trusted checkout, read-only base and proposed builds, no credentials, the same privilege/resource restrictions, and a seven-minute inner timeout.
 Playwright container with container networking disabled, a read-only trusted checkout, read-only base
 and proposed builds, no credentials, the same privilege/resource restrictions, and a seven-minute
 inner timeout. Playwright additionally blocks service workers, WebSockets, and non-preview HTTP(S).
