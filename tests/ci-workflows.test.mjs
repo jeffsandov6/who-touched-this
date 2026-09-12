@@ -5,6 +5,9 @@ import test from 'node:test';
 const boundary = await readFile(new URL('../.github/workflows/contribution-boundary.yml', import.meta.url), 'utf8');
 const review = await readFile(new URL('../.github/workflows/contributor-build.yml', import.meta.url), 'utf8');
 const sandboxRunner = await readFile(new URL('../scripts/run-review-sandbox.mjs', import.meta.url), 'utf8');
+const preview = await readFile(new URL('../scripts/pr-review/preview.mjs', import.meta.url), 'utf8');
+const packageManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const packageLock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
 const handoff = await readFile(new URL('../scripts/pr-review/handoff.mjs', import.meta.url), 'utf8');
 const handoffWriter = await readFile(new URL('../scripts/create-review-handoff.mjs', import.meta.url), 'utf8');
 const handoffVerifier = await readFile(new URL('../scripts/verify-review-handoff.mjs', import.meta.url), 'utf8');
@@ -111,6 +114,35 @@ test('dependency installation uses trusted manifests before hostile overlay', ()
   const execute = review.indexOf('Run contributor code in a networkless resource-bounded container');
   assert.ok(create < install && install < overlay && overlay < execute);
   assert.match(review, /cache-dependency-path: \.wtt-ci\/trusted\/package-lock\.json/);
+});
+
+test('preview resolves Playwright from lockfile-pinned trusted dependencies mounted read-only', () => {
+  const install = namedStep(review, 'Install trusted preview runtime dependencies');
+  const capture = namedStep(review, 'Capture BEFORE and PROPOSED AFTER in a networkless browser container');
+  const visualJob = review.indexOf('  visual-preview:');
+  const trustedCheckout = review.indexOf('Check out exact trusted base', visualJob);
+  const trustedInstall = review.indexOf('Install trusted preview runtime dependencies', visualJob);
+  const previewCapture = review.indexOf('Capture BEFORE and PROPOSED AFTER', visualJob);
+  assert.ok(visualJob >= 0 && trustedCheckout < trustedInstall && trustedInstall < previewCapture);
+  assert.match(install, /working-directory: \.wtt-ci\/trusted/);
+  assert.match(install, /run: npm ci --ignore-scripts/);
+  assert.equal(packageManifest.devDependencies.playwright, '1.55.0');
+  assert.equal(packageLock.packages[''].devDependencies.playwright, packageManifest.devDependencies.playwright);
+  assert.match(preview, /from 'playwright'/);
+  assert.match(capture, /--trusted \.wtt-ci\/trusted/);
+  assert.match(sandboxRunner, /workspaceReadonly: true/);
+  assert.match(sandboxRunner, /workspace: trusted/);
+});
+
+test('contributor output cannot replace trusted preview code, manifests, dependencies, or mounts', () => {
+  const previewPhase = sandboxRunner.slice(sandboxRunner.indexOf("phase === 'preview'"));
+  assert.match(review, /ref: \$\{\{ needs\.validate-handoff\.outputs\.base_sha \}\}/);
+  assert.doesNotMatch(review, /repository: \$\{\{ needs\.validate-handoff\.outputs\.head_repository \}\}/);
+  assert.match(previewPhase, /workspace: trusted/);
+  assert.match(previewPhase, /workspaceReadonly: true/);
+  assert.match(previewPhase, /source: proposedDist, target: '\/review\/proposed-dist', readonly: true/);
+  assert.doesNotMatch(previewPhase, /workspace:\s*proposedDist/);
+  assert.doesNotMatch(previewPhase, /node_modules.*(?:proposed|head-canvas)/);
 });
 
 test('hostile execution is hosted, secretless, containerized, and never deploys', () => {
