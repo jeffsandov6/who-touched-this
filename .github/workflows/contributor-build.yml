@@ -1,44 +1,252 @@
-name: Contributor build
+name: Contributor review
 
+# workflow_run loads this workflow from the trusted default branch. It never uses a workflow file
+# from the pull request. The triggering Contribution boundary workflow is metadata-only.
 on:
-  pull_request:
+  workflow_run:
+    workflows: [Contribution boundary]
+    types: [completed]
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
+  actions: read
   contents: read
+  pull-requests: read
 
 jobs:
-  build-untrusted-fork:
-    name: Untrusted fork build
+  validate-handoff:
+    name: Trusted review handoff
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request_target'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
+    outputs:
+      pull_request_number: ${{ steps.handoff.outputs.pull_request_number }}
+      base_repository: ${{ steps.handoff.outputs.base_repository }}
+      base_sha: ${{ steps.handoff.outputs.base_sha }}
+      head_repository: ${{ steps.handoff.outputs.head_repository }}
+      head_sha: ${{ steps.handoff.outputs.head_sha }}
     steps:
-      - name: Check out pull request
-        uses: actions/checkout@v4
+      - name: Check out trusted default-branch orchestrator
+        # actions/checkout v6.0.3
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
         with:
+          persist-credentials: false
+
+      - name: Download handoff from the triggering trusted run
+        # actions/download-artifact v8.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3
+        with:
+          name: trusted-contribution-handoff
+          path: .wtt-ci/handoff
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Validate handoff and current pull request identity
+        id: handoff
+        env:
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          node --experimental-strip-types scripts/verify-review-handoff.mjs
+          --handoff .wtt-ci/handoff/trusted-review-handoff.json
+          --workflow-event "$GITHUB_EVENT_PATH"
+
+  build-hostile-canvas:
+    name: Security review and sandboxed contributor build
+    needs: validate-handoff
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Check out exact trusted base
+        # actions/checkout v6.0.3
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          repository: ${{ needs.validate-handoff.outputs.base_repository }}
+          ref: ${{ needs.validate-handoff.outputs.base_sha }}
+          path: .wtt-ci/trusted
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Fetch only the exact PR canvas tree
+        # This sparse checkout materializes only src/canvas. Trusted code checks HEAD and Git modes.
+        # actions/checkout v6.0.3
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          repository: ${{ needs.validate-handoff.outputs.base_repository }}
+          ref: refs/pull/${{ needs.validate-handoff.outputs.pull_request_number }}/head
+          path: .wtt-ci/head-canvas
           fetch-depth: 0
+          sparse-checkout: /src/canvas/
+          sparse-checkout-cone-mode: false
           persist-credentials: false
 
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        # actions/setup-node v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: .wtt-ci/trusted/package-lock.json
 
-      - name: Install dependencies
+      - name: Scan contributor canvas using trusted policy
+        working-directory: .wtt-ci/head-canvas
+        env:
+          BASE_SHA: ${{ needs.validate-handoff.outputs.base_sha }}
+        run: >-
+          node --experimental-strip-types
+          ../trusted/scripts/scan-contribution-security.mjs
+          --base "$BASE_SHA"
+          --report ../artifacts/security-review.json
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Create workspace from trusted base
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs create
+          --trusted .wtt-ci/trusted
+          --output .wtt-ci/proposed-workspace
+
+      - name: Install dependencies from trusted manifests before canvas overlay
+        working-directory: .wtt-ci/proposed-workspace
         run: npm ci
 
-      - name: Validate contribution
+      - name: Overlay only validated PR-head canvas blobs
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: npm run contribution:validate -- --base "$BASE_SHA"
+          HEAD_SHA: ${{ needs.validate-handoff.outputs.head_sha }}
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs overlay
+          --trusted .wtt-ci/trusted
+          --workspace .wtt-ci/proposed-workspace
+          --head-checkout .wtt-ci/head-canvas
+          --head-sha "$HEAD_SHA"
 
-      - name: Check Astro and TypeScript
-        run: npm run check
+      - name: Run contributor code in a networkless resource-bounded container
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/run-review-sandbox.mjs build
+          --workspace .wtt-ci/proposed-workspace
 
-      - name: Build static site
-        run: npm run build
+      - name: Sanitize hostile static output before upload
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs sanitize-artifact
+          --source .wtt-ci/proposed-workspace/dist
+          --output .wtt-ci/artifacts/proposed-site
 
-      - name: Run fast platform unit tests
-        run: npm run test:contributor
+      - name: Upload security review report
+        if: always()
+        # actions/upload-artifact v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pr-${{ needs.validate-handoff.outputs.pull_request_number }}-security-review
+          path: .wtt-ci/artifacts/security-review.json
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Upload sanitized proposed site
+        # actions/upload-artifact v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pr-${{ needs.validate-handoff.outputs.pull_request_number }}-proposed-site
+          path: .wtt-ci/artifacts/proposed-site
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1
+
+  visual-preview:
+    name: Sandboxed visual preview
+    needs: [validate-handoff, build-hostile-canvas]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact trusted base
+        # actions/checkout v6.0.3
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          repository: ${{ needs.validate-handoff.outputs.base_repository }}
+          ref: ${{ needs.validate-handoff.outputs.base_sha }}
+          path: .wtt-ci/trusted
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download sanitized proposed static output
+        # actions/download-artifact v8.0.0
+        uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3
+        with:
+          name: pr-${{ needs.validate-handoff.outputs.pull_request_number }}-proposed-site
+          path: .wtt-ci/downloaded-proposed
+
+      - name: Use Node.js 22
+        # actions/setup-node v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: .wtt-ci/trusted/package-lock.json
+
+      - name: Create isolated BEFORE workspace
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs create
+          --trusted .wtt-ci/trusted
+          --output .wtt-ci/base-workspace
+
+      - name: Install BEFORE dependencies from trusted manifests
+        working-directory: .wtt-ci/base-workspace
+        run: npm ci
+
+      - name: Build BEFORE canvas in a networkless resource-bounded container
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/run-review-sandbox.mjs base-build
+          --workspace .wtt-ci/base-workspace
+
+      - name: Sanitize BEFORE static output
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs sanitize-artifact
+          --source .wtt-ci/base-workspace/dist
+          --output .wtt-ci/base-dist
+
+      - name: Revalidate downloaded artifact into fresh staging
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs sanitize-artifact
+          --source .wtt-ci/downloaded-proposed
+          --output .wtt-ci/validated-proposed
+
+      - name: Prepare trusted review output directory
+        run: mkdir -p .wtt-ci/artifacts/pr-review
+
+      - name: Capture BEFORE and PROPOSED AFTER in a networkless browser container
+        env:
+          BASE_SHA: ${{ needs.validate-handoff.outputs.base_sha }}
+          HEAD_SHA: ${{ needs.validate-handoff.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.validate-handoff.outputs.pull_request_number }}
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/run-review-sandbox.mjs preview
+          --trusted .wtt-ci/trusted
+          --base-dist .wtt-ci/base-dist
+          --proposed-dist .wtt-ci/validated-proposed
+          --output .wtt-ci/artifacts/pr-review
+          --pull-request "$PR_NUMBER"
+          --base-sha "$BASE_SHA"
+          --head-sha "$HEAD_SHA"
+
+      - name: Verify trusted final review bundle
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/verify-pr-preview.mjs
+          .wtt-ci/artifacts/pr-review/bundle
+
+      - name: Bound final review artifact before upload
+        run: >-
+          node --experimental-strip-types .wtt-ci/trusted/scripts/prepare-pr-review-workspace.mjs sanitize-artifact
+          --source .wtt-ci/artifacts/pr-review/bundle
+          --output .wtt-ci/artifacts/pr-review-upload
+
+      - name: Upload visual review artifact
+        # actions/upload-artifact v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pr-${{ needs.validate-handoff.outputs.pull_request_number }}-visual-review
+          path: .wtt-ci/artifacts/pr-review-upload
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14

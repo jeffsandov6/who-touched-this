@@ -72,7 +72,7 @@ async function removeWorktree(repoRoot, worktreePath) {
   }
 }
 
-async function buildHistoricalRevision(worktreePath, signal) {
+export async function buildHistoricalRevision(worktreePath, signal) {
   const options = { cwd: worktreePath, env: { ...process.env }, signal, maxBuffer: 20 * 1024 * 1024 };
   try {
     await execFileAsync('npm', ['ci'], options);
@@ -87,18 +87,40 @@ async function buildHistoricalRevision(worktreePath, signal) {
   return output;
 }
 
-async function captureRevision({ browser, side, sha, routes, routeKeys, distPath, outputPath, waitMs, signal }) {
+export function validateScreenshotDimensions(dimensions, config = SNAPSHOT_CONFIG) {
+  const width = Math.ceil(Number(dimensions?.width));
+  const height = Math.ceil(Number(dimensions?.height));
+  if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
+    throw new Error('Page reported invalid screenshot dimensions.');
+  }
+  if (height > config.maximumDocumentHeight || width * height > config.maximumScreenshotPixels) {
+    throw new Error(`Page exceeds preview screenshot bounds (${width} × ${height}).`);
+  }
+  return { width, height, pixels: width * height };
+}
+
+export async function captureRevision({ browser, side, sha, routes, routeKeys, distPath, outputPath, waitMs, signal, blockExternalRequests = false }) {
   const server = await startStaticServer(distPath);
   const context = await browser.newContext({
     viewport: SNAPSHOT_CONFIG.viewport,
     deviceScaleFactor: SNAPSHOT_CONFIG.deviceScaleFactor,
     locale: SNAPSHOT_CONFIG.locale,
     timezoneId: SNAPSHOT_CONFIG.timezoneId,
+    serviceWorkers: blockExternalRequests ? 'block' : 'allow',
   });
   const checksums = {};
   try {
+    if (blockExternalRequests) {
+      await context.route('**/*', async (route) => {
+        const requestOrigin = new URL(route.request().url()).origin;
+        if (requestOrigin === server.origin) await route.continue();
+        else await route.abort('blockedbyclient');
+      });
+      await context.routeWebSocket(/.*/, (webSocket) => webSocket.close({ code: 1008, reason: 'External network disabled in PR preview.' }));
+    }
     const page = await context.newPage();
     page.setDefaultNavigationTimeout(SNAPSHOT_CONFIG.navigationTimeoutMs);
+    page.setDefaultTimeout(SNAPSHOT_CONFIG.screenshotTimeoutMs);
     for (const route of routes) {
       signal?.throwIfAborted();
       const url = new URL(route, `${server.origin}/`).href;
@@ -113,8 +135,14 @@ async function captureRevision({ browser, side, sha, routes, routeKeys, distPath
           }
         });
         await page.waitForTimeout(waitMs);
+        if (blockExternalRequests) {
+          validateScreenshotDimensions(await page.evaluate(() => ({
+            width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0, window.innerWidth),
+            height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0, window.innerHeight),
+          })));
+        }
         const filePath = join(outputPath, side, `${routeKeys[route]}.png`);
-        await page.screenshot({ path: filePath, fullPage: SNAPSHOT_CONFIG.fullPage, type: 'png' });
+        await page.screenshot({ path: filePath, fullPage: SNAPSHOT_CONFIG.fullPage, type: 'png', timeout: SNAPSHOT_CONFIG.screenshotTimeoutMs });
         checksums[route] = await sha256File(filePath);
       } catch (error) {
         throw new Error(`${side.toUpperCase()} ${sha.slice(0, 12)} route ${route} failed: ${error.message}`);
