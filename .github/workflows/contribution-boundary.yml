@@ -17,11 +17,12 @@ jobs:
     steps:
       # pull_request_target is privileged. Check out only the trusted base-repository code
       # never check out or execute the pull request head in this workflow.
+      # Do not pin this checkout to pull_request.base.sha.
+      # Security-policy code should come from the current trusted default branch.
       - name: Check out trusted base policy
         # actions/checkout v6.0.3
         uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
       - name: Validate pull request metadata

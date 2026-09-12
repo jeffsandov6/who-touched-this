@@ -35,6 +35,7 @@ test('workflow handoff requires exact successful run and current PR identity', a
   const workflowRunEvent = { workflow_run: { id: 99, name: 'Contribution boundary', event: 'pull_request_target', conclusion: 'success', repository: { full_name: handoff.baseRepository }, pull_requests: [{ number: 27 }] } };
   const request = async () => ({ ok: true, json: async () => event.pull_request });
   assert.deepEqual(await verifyReviewHandoff({ handoff, workflowRunEvent, token: 'read-token', request }), handoff);
+  await assert.rejects(verifyReviewHandoff({ handoff: { ...handoff, baseSha: 'c'.repeat(40) }, workflowRunEvent, token: 'read-token', request }), /stale or disagrees/);
   await assert.rejects(verifyReviewHandoff({ handoff: { ...handoff, headSha: 'c'.repeat(40) }, workflowRunEvent, token: 'read-token', request }), /stale or disagrees/);
   await assert.rejects(verifyReviewHandoff({ handoff, workflowRunEvent: { workflow_run: { ...workflowRunEvent.workflow_run, conclusion: 'failure' } }, token: 'read-token', request }), /successful trusted/);
   await assert.rejects(verifyReviewHandoff({ handoff, workflowRunEvent, token: 'read-token', request: async () => ({ ok: true, json: async () => ({ ...event.pull_request, state: 'closed' }) }) }), /no longer open/);

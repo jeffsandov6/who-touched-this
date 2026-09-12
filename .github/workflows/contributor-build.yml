@@ -2,11 +2,13 @@ name: Contributor review
 
 # workflow_run loads this workflow from the trusted default branch. It never uses a workflow file
 # from the pull request. The triggering Contribution boundary workflow is metadata-only.
+# Do not add a workflow_run branch filter here.
+# pull_request_target runs are associated with the contributor branch;
+# the upstream boundary already restricts PR base to main.
 on:
   workflow_run:
     workflows: [Contribution boundary]
     types: [completed]
-    branches: [main]
 
 permissions:
   actions: read
