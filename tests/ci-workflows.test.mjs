@@ -5,24 +5,65 @@ import test from 'node:test';
 const boundary = await readFile(new URL('../.github/workflows/contribution-boundary.yml', import.meta.url), 'utf8');
 const review = await readFile(new URL('../.github/workflows/contributor-build.yml', import.meta.url), 'utf8');
 const sandboxRunner = await readFile(new URL('../scripts/run-review-sandbox.mjs', import.meta.url), 'utf8');
+const handoff = await readFile(new URL('../scripts/pr-review/handoff.mjs', import.meta.url), 'utf8');
+const handoffWriter = await readFile(new URL('../scripts/create-review-handoff.mjs', import.meta.url), 'utf8');
+const handoffVerifier = await readFile(new URL('../scripts/verify-review-handoff.mjs', import.meta.url), 'utf8');
 const workflows = `${boundary}\n${review}`;
 
+function workflowTrigger(workflow) {
+  const match = workflow.match(/^on:\n([\s\S]*?)\npermissions:/m);
+  assert.ok(match, 'workflow trigger block should be present before permissions');
+  return match[1];
+}
+
+function namedStep(workflow, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = workflow.match(new RegExp(`      - name: ${escaped}\\n([\\s\\S]*?)(?=\\n      - name:|$)`));
+  assert.ok(match, `workflow step ${name} should exist`);
+  return match[1];
+}
+
+test('main targeting is enforced by pull_request_target, not a workflow_run branch filter', () => {
+  // A pull_request_target run is associated with the contributor branch for workflow_run filtering.
+  // Re-filtering it as `main` can suppress review of a valid PR; the trusted boundary already limits
+  // the pull request base to main.
+  assert.match(workflowTrigger(boundary), /pull_request_target:\n    branches: \[main\]/);
+  assert.doesNotMatch(workflowTrigger(review), /branches:/);
+});
+
+test('trusted boundary policy comes from the default branch while PR SHAs remain metadata', () => {
+  // Pinning the privileged checkout to pull_request.base.sha could execute stale validation policy.
+  // The exact base/head identities belong in the validated handoff and later isolated workspaces.
+  const checkout = namedStep(boundary, 'Check out trusted base policy');
+  assert.doesNotMatch(checkout, /^\s*ref:/m);
+  assert.doesNotMatch(checkout, /github\.event\.pull_request\.(?:base\.sha|head)/);
+  assert.match(handoff, /baseSha: event\?\.pull_request\?\.base\?\.sha/);
+  assert.match(handoff, /headSha: event\?\.pull_request\?\.head\?\.sha/);
+});
+
 test('privileged boundary remains base-controlled metadata-only execution', () => {
-  assert.match(boundary, /pull_request_target:/);
-  assert.match(boundary, /ref: \$\{\{ github\.event\.pull_request\.base\.sha \}\}/);
+  const trigger = workflowTrigger(boundary);
+  const checkout = namedStep(boundary, 'Check out trusted base policy');
+  assert.match(trigger, /pull_request_target:\n    branches: \[main\]/);
+  assert.match(checkout, /uses: actions\/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0/);
+  assert.match(checkout, /persist-credentials: false/);
+  assert.doesNotMatch(checkout, /github\.event\.pull_request\.head/);
+  assert.doesNotMatch(checkout, /github\.event\.pull_request\.base\.sha/);
+  assert.doesNotMatch(checkout, /^\s*ref:/m);
   assert.doesNotMatch(boundary, /head-canvas|pull_request\.head\.repo|npm (?:ci|install|run)|docker|playwright/i);
   assert.doesNotMatch(boundary, /\$\{\{\s*secrets\./);
   assert.match(boundary, /contents: read/);
   assert.match(boundary, /pull-requests: read/);
-  assert.match(boundary, /persist-credentials: false/);
   assert.ok(boundary.indexOf('Validate pull request metadata') < boundary.indexOf('Create trusted review handoff'));
   assert.ok(boundary.indexOf('Create trusted review handoff') < boundary.indexOf('Upload trusted review handoff'));
 });
 
 test('hostile orchestration comes only from trusted default-branch workflow_run code', () => {
-  assert.match(review, /workflow_run:/);
-  assert.match(review, /workflows: \[Contribution boundary\]/);
-  assert.match(review, /types: \[completed\]/);
+  const trigger = workflowTrigger(review);
+  assert.match(trigger, /workflow_run:/);
+  assert.match(trigger, /workflows: \[Contribution boundary\]/);
+  assert.match(trigger, /types: \[completed\]/);
+  assert.doesNotMatch(trigger, /branches:/);
   assert.doesNotMatch(review, /\bpull_request:/);
   assert.doesNotMatch(review, /pull_request_target:/);
   assert.match(review, /workflow_run\.conclusion == 'success'/);
@@ -39,6 +80,18 @@ test('handoff is retrieved only from triggering run and cross-checked before out
   assert.match(review, /contents: read/);
   assert.match(review, /pull-requests: read/);
   assert.doesNotMatch(review, /(?:write|admin):/);
+});
+
+test('exact event base and head SHAs survive the trusted handoff and are revalidated', () => {
+  assert.match(handoffWriter, /writeReviewHandoffFromEvent/);
+  assert.match(handoff, /baseSha: event\?\.pull_request\?\.base\?\.sha/);
+  assert.match(handoff, /headSha: event\?\.pull_request\?\.head\?\.sha/);
+  assert.match(handoff, /const current = createReviewHandoffFromPullRequestEvent/);
+  assert.match(handoff, /JSON\.stringify\(current\) !== JSON\.stringify\(validated\)/);
+  assert.match(handoffVerifier, /base_sha=\$\{handoff\.baseSha\}/);
+  assert.match(handoffVerifier, /head_sha=\$\{handoff\.headSha\}/);
+  assert.match(review, /ref: \$\{\{ needs\.validate-handoff\.outputs\.base_sha \}\}/);
+  assert.match(review, /HEAD_SHA: \$\{\{ needs\.validate-handoff\.outputs\.head_sha \}\}/);
 });
 
 test('only sparse PR canvas is materialized and protected files come from exact base', () => {
