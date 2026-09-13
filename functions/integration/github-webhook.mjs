@@ -71,6 +71,10 @@ async function seedTurn(status = 'active', options = {}) {
     ...(status === 'expired' || status === 'skipped' ? { endedAt: now } : {}),
   };
   await Promise.all([
+    firestore.doc(`contributors/${githubUserId}`).set({
+      githubUserId, displayName: 'Alice', githubUsername: 'alice',
+      email: 'alice@example.test', createdAt: now, updatedAt: now,
+    }),
     firestore.doc('site/admin').set({ activeTurnId: turnId, pendingInvitationId: null, updatedAt: now }),
     firestore.doc('site/public').set({
       currentVersion: 0, totalContributions: 0,
@@ -86,6 +90,19 @@ async function seedTurn(status = 'active', options = {}) {
     firestore.doc(`participation/1_${githubUserId}`).set({ githubUserId, season: 1, status: 'active', createdAt: now, updatedAt: now }),
   ]);
   return { turnId, githubUserId, dueAt };
+}
+
+async function waitForAdminNotification(turnId) {
+  const deliveryId = `pr_submitted_${turnId}`;
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const [delivery, mailbox] = await Promise.all([
+      firestore.doc(`emailDeliveries/${deliveryId}`).get(),
+      firestore.doc(`devEmailSink/${deliveryId}`).get(),
+    ]);
+    if (delivery.data()?.status === 'sent' && mailbox.exists) return { delivery, mailbox };
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(`Timed out waiting for ${deliveryId}.`);
 }
 
 async function assertStillActive(turnId) {
@@ -127,6 +144,11 @@ await clearFirestore();
   assert.equal((await firestore.doc('site/public').get()).data()?.currentVersion, 0);
   assert.equal((await firestore.collection('contributions').get()).empty, true);
   assert.equal((await firestore.collection('historyEvents').get()).empty, true);
+  const notification = await waitForAdminNotification(turnId);
+  assert.equal(notification.mailbox.data()?.to, 'hello@whotouchedthis.website');
+  assert.match(notification.mailbox.data()?.subject, /PR submitted — #001/);
+  assert.match(notification.mailbox.data()?.text, /GitHub: @alice/);
+  assert.equal(notification.delivery.data()?.attemptCount, 1);
   const duplicate = await postWebhook(webhookPayload(), { deliveryId });
   assert.equal(duplicate.body.result, 'duplicate_delivery');
   const samePr = await postWebhook(webhookPayload({ action: 'ready_for_review' }));
@@ -134,12 +156,17 @@ await clearFirestore();
   const secondPr = await postWebhook(webhookPayload({ number: 42 }));
   assert.equal(secondPr.body.result, 'submission_conflict');
   assert.equal((await firestore.doc(`turns/${turnId}`).get()).data()?.prNumber, 41);
+  assert.equal((await firestore.doc(`emailDeliveries/pr_submitted_${turnId}`).get()).data()?.attemptCount, 1);
 }
 
 for (const scenario of [
   { payload: webhookPayload({ draft: true }), expected: 'draft_opened' },
+  { payload: webhookPayload({ action: 'synchronize' }), expected: 'unsupported_action' },
+  { payload: webhookPayload({ action: 'edited' }), expected: 'unsupported_action' },
+  { payload: webhookPayload({ action: 'reopened' }), expected: 'unsupported_action' },
   { payload: webhookPayload({ authorId: 99999 }), expected: 'wrong_contributor' },
   { payload: webhookPayload({ ownerRepo: 'another-owner/another-repository' }), expected: 'wrong_repository' },
+  { payload: webhookPayload({ baseRepo: 'another-owner/another-repository' }), expected: 'wrong_base_repository' },
   { payload: webhookPayload({ branch: 'develop' }), expected: 'wrong_base_branch' },
 ]) {
   await clearFirestore();
@@ -147,6 +174,7 @@ for (const scenario of [
   const result = await postWebhook(scenario.payload);
   assert.equal(result.body.result, scenario.expected);
   await assertStillActive(turnId);
+  assert.equal((await firestore.doc(`emailDeliveries/pr_submitted_${turnId}`).get()).exists, false);
 }
 
 await clearFirestore();
@@ -155,6 +183,7 @@ await clearFirestore();
   const result = await postWebhook(webhookPayload({ action: 'ready_for_review', draft: false }));
   assert.equal(result.body.result, 'submitted');
   assert.equal((await firestore.doc(`turns/${turnId}`).get()).data()?.status, 'submitted');
+  assert.equal((await waitForAdminNotification(turnId)).mailbox.data()?.to, 'hello@whotouchedthis.website');
 }
 
 await clearFirestore();

@@ -23,6 +23,7 @@ export type EmailDeliveryType =
   | 'turn_72h_reminder'
   | 'turn_24h_reminder'
   | 'turn_deadline_passed'
+  | 'pr_submitted'
   | 'contribution_completed';
 
 export interface DeliveryClaim {

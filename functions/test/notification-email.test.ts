@@ -80,6 +80,7 @@ test('notification IDs are deterministic and scoped to their logical notificatio
   assert.equal(deliveryIds.turn72HourReminder('turn-a'), 'turn_72h_reminder_turn-a');
   assert.equal(deliveryIds.turn24HourReminder('turn-a'), 'turn_24h_reminder_turn-a');
   assert.equal(deliveryIds.turnDeadlinePassed('turn-a'), 'turn_deadline_passed_turn-a');
+  assert.equal(deliveryIds.prSubmitted('turn-a'), 'pr_submitted_turn-a');
   assert.equal(deliveryIds.contributionCompleted(1), 'contribution_completed_1');
 });
 

@@ -93,8 +93,10 @@ test('numeric identity is returned independently of mutable username presentatio
   }
 });
 
-test('unsupported pull request actions are acknowledged as irrelevant', () => {
-  const result = qualifyPullRequestPayload(payload({ action: 'synchronize' }), config);
-  assert.equal(result.kind, 'ignored');
-  if (result.kind === 'ignored') assert.equal(result.code, 'unsupported_action');
+test('synchronize, edited, and reopened pull request actions are acknowledged as irrelevant', () => {
+  for (const action of ['synchronize', 'edited', 'reopened']) {
+    const result = qualifyPullRequestPayload(payload({ action }), config);
+    assert.equal(result.kind, 'ignored');
+    if (result.kind === 'ignored') assert.equal(result.code, 'unsupported_action');
+  }
 });

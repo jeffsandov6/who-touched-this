@@ -59,6 +59,7 @@ export const deliveryIds = {
   turn72HourReminder: (id: string) => `turn_72h_reminder_${safeId(id, 'Turn ID')}`,
   turn24HourReminder: (id: string) => `turn_24h_reminder_${safeId(id, 'Turn ID')}`,
   turnDeadlinePassed: (id: string) => `turn_deadline_passed_${safeId(id, 'Turn ID')}`,
+  prSubmitted: (id: string) => `pr_submitted_${safeId(id, 'Turn ID')}`,
   contributionCompleted: (number: number) => {
     if (!Number.isSafeInteger(number) || number < 1) throw new Error('Contribution number is invalid.');
     return `contribution_completed_${number}`;

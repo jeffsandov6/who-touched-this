@@ -521,6 +521,8 @@ The notification set is intentionally transactional and small:
 - an hourly dispatcher may send one invitation reminder at about six hours remaining;
 - active turns may receive one about-72-hour and one about-24-hour reminder;
 - an active overdue turn may receive one deadline-passed notice, which **does not expire the turn**;
+- the first `active → submitted` turn transition sends one operational PR-submission notice to the
+  maintainer mailbox;
 - the first transition to merged sends one contribution-completed confirmation.
 
 The 6-hour invitation reminder requires an original invitation window longer than six hours. The
@@ -590,6 +592,12 @@ Provider failure never changes authoritative lifecycle state. A failed initial i
 pending and can still be accepted while the owner contacts the contributor manually. Final creative
 email styling is deliberately deferred.
 
+The admin submission notice uses `pr_submitted_{turnId}` and is delivered to the public project
+mailbox `hello@whotouchedthis.website`. The recipient is server-controlled and cannot come from a
+webhook or browser payload. It contains the contribution number, public display name, saved GitHub
+username when valid, canonical PR number/link, submission time, and Admin link. It intentionally does
+not include the contributor's private contact email or persist mutable PR title/body data.
+
 The production dispatcher uses one `onSchedule` job every 60 minutes and bounded status queries for
 pending invitations and active turns; no per-contributor Scheduler jobs are created. Deploying Cloud
 Functions and Cloud Scheduler requires production billing/API setup. This repository does not enable
@@ -628,6 +636,12 @@ deterministic identity. They retain only event, action, repository, timestamps, 
 result code—not headers, payload bodies, email, tokens, or secrets. Repeated delivery IDs no-op. Once
 a turn is submitted, a distinct event for the same PR no-ops and a different PR is recorded as a
 private conflict without replacing the first submission. Every browser role is denied access.
+
+The durable turn transition separately triggers the admin PR-submission email. Resend availability is
+therefore outside the signed webhook transaction: a provider failure cannot roll back submission.
+Duplicate webhook deliveries, later pushes, edits, reopen events, and later turn updates cannot create
+another successful notification. The manual Admin submission fallback uses the same state transition
+and consequently produces the same one-time operational notice.
 
 The existing manual GitHub PR form remains available while a turn is active, providing recovery when
 the App is absent or delivery fails. `under_review` and merged contribution recording remain manual.
