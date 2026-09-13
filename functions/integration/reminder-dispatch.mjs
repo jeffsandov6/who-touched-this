@@ -44,6 +44,12 @@ async function sweep(id, data, now, emailProvider) {
   return errors;
 }
 
+async function sweepInvitation(id, data, now) {
+  await dispatchEligibleNotifications({
+    now, invitations: [{ id, data }], turns: [], claimToken: randomUUID,
+  }, dependencies());
+}
+
 async function delivery(id) {
   return (await firestore.doc(`emailDeliveries/${id}`).get()).data();
 }
@@ -100,6 +106,30 @@ await Promise.all([
   }),
 ]);
 const beforeReminders = await operationalState(progressingId);
+
+// Preserve invitation-reminder integration coverage alongside the turn scenarios.
+const invitationId = `reminder-invitation-${suffix}`;
+const invitation = {
+  githubUserId, status: 'pending', turnDurationHours: 168,
+  invitedAt: timestamp(baseTime.getTime() - 20 * hour),
+  acceptBy: timestamp(baseTime.getTime() + 4 * hour),
+};
+await firestore.doc(`invitations/${invitationId}`).set(invitation);
+const beforeInvitationSweep = {
+  operational: await operationalState(progressingId),
+  invitation: (await firestore.doc(`invitations/${invitationId}`).get()).data(),
+};
+await sweepInvitation(invitationId, invitation, baseTime);
+await sweepInvitation(invitationId, invitation, baseTime);
+const invitationDeliveryId = `invitation_reminder_${invitationId}`;
+assert.equal((await delivery(invitationDeliveryId))?.status, 'sent');
+assert.equal((await delivery(invitationDeliveryId))?.attemptCount, 1);
+assert.ok(await mailbox(invitationDeliveryId));
+assert.deepEqual({
+  operational: await operationalState(progressingId),
+  invitation: (await firestore.doc(`invitations/${invitationId}`).get()).data(),
+}, beforeInvitationSweep);
+
 for (const at of [baseTime, baseTime]) await sweep(progressingId, progressing, at);
 assert.equal((await delivery(`turn_72h_reminder_${progressingId}`))?.attemptCount, 1);
 assert.ok(await mailbox(`turn_72h_reminder_${progressingId}`));
@@ -182,4 +212,4 @@ assert.equal(await delivery(`turn_72h_reminder_${short12Id}`), undefined);
 assert.equal(await delivery(`turn_24h_reminder_${short12Id}`), undefined);
 assert.equal((await delivery(`turn_deadline_passed_${short12Id}`))?.status, 'sent');
 
-console.log('Reminder dispatcher lifecycle, timing, retry, and idempotency scenarios passed locally.');
+console.log('Invitation and turn reminder lifecycle, timing, retry, and idempotency scenarios passed locally.');
