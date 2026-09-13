@@ -22,7 +22,7 @@ export class ResendEmailProvider implements EmailProvider {
       text: input.text,
     }, { idempotencyKey: input.idempotencyKey });
     if (error || !data?.id) {
-      const failure = new Error('The email provider rejected the invitation email.');
+      const failure = new Error('The email provider rejected the notification email.');
       failure.name = 'ResendDeliveryError';
       throw failure;
     }

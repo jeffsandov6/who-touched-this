@@ -96,6 +96,9 @@ Never document or commit the OAuth client secret.
   matching current server configuration.
 - Put only the API key in Firebase Secret Manager under `RESEND_API_KEY`.
 - Keep `EMAIL_PROVIDER_MODE=resend` and `APP_ORIGIN=https://whotouchedthis.website`.
+- Confirm `hello@whotouchedthis.website` receives the one-time admin notice when a controlled test PR
+  first changes its active turn to submitted. The recipient is the server-controlled public project
+  mailbox, not a configurable webhook field.
 - Perform controlled email testing only after deployment; this milestone sends nothing.
 
 Creative email redesign remains separate.
@@ -177,8 +180,8 @@ npm run deploy:hosting
 ```
 
 `deploy:rules` deploys Firestore Rules/indexes and Storage Rules. `deploy:functions` deploys the
-existing triggers, hourly scheduler, callable retry, snapshot finalizer, owner-only founder recorder,
-and webhook endpoint. `deploy:hosting` first
+existing contributor/admin email triggers, hourly scheduler, callable retry, snapshot finalizer,
+owner-only founder recorder, and webhook endpoint. `deploy:hosting` first
 runs the complete release preflight, which creates a fresh production—not contributor—`dist/`, then
 deploys Hosting. Firebase Hosting's configured predeploy build runs production build again, so stale
 output is not used. There is intentionally no all-in-one or automatic deployment command.

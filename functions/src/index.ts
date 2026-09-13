@@ -15,6 +15,7 @@ import {
   resendApiKey,
 } from './config.js';
 import { FirestoreDeliveryStore } from './email/firestore-delivery-store.js';
+import { processAdminPrSubmission } from './email/admin-submission-delivery.js';
 import { processInvitationCreated } from './email/invitation-delivery.js';
 import {
   sendContributionCompleted,
@@ -127,6 +128,33 @@ export const sendContributionCompletedEmail = onDocumentUpdated({
     );
   } catch (error) {
     safeLogFailure('Completion email delivery failed and may be retried.', event.params.turnId, error);
+    throw error;
+  }
+});
+
+export const sendAdminPrSubmittedEmail = onDocumentUpdated({
+  document: 'turns/{turnId}', region: 'us-central1', retry: true, secrets: [resendApiKey],
+}, async (event) => {
+  const before = event.data?.before.data();
+  const after = event.data?.after.data();
+  if (!before || !after || before.status !== 'active' || after.status !== 'submitted') return;
+  try {
+    await processAdminPrSubmission(
+      event.params.turnId, before as never, after as never, randomUUID(), {
+        appOrigin: configuredAppOrigin(),
+        expectedRepository: githubRepository.value(),
+        deliveryStore: new FirestoreDeliveryStore(getFirestore()),
+        emailProvider: selectEmailProvider(),
+        async loadContributor(githubUserId) {
+          const snapshot = await getFirestore().doc(`contributors/${githubUserId}`).get();
+          return snapshot.exists ? snapshot.data() as {
+            displayName: unknown; githubUsername?: unknown;
+          } : null;
+        },
+      },
+    );
+  } catch (error) {
+    safeLogFailure('Admin PR-submission email failed and may be retried.', event.params.turnId, error);
     throw error;
   }
 });
