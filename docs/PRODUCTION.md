@@ -96,6 +96,10 @@ Never document or commit the OAuth client secret.
   matching current server configuration.
 - Put only the API key in Firebase Secret Manager under `RESEND_API_KEY`.
 - Keep `EMAIL_PROVIDER_MODE=resend` and `APP_ORIGIN=https://whotouchedthis.website`.
+- Verify the hourly dispatcher remains approximate: active turns longer than 72 hours use the
+  `(24h, 72h]` reminder window, active turns longer than 24 hours use `(0h, 24h]`, and the
+  deadline-passed notice begins at `dueAt`. A missed earlier window is not sent late. These notices
+  have independent stable IDs and never expire or otherwise mutate the turn.
 - Confirm `hello@whotouchedthis.website` receives the one-time admin notice when a controlled test PR
   first changes its active turn to submitted. The recipient is the server-controlled public project
   mailbox, not a configurable webhook field.

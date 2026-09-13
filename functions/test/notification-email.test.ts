@@ -34,9 +34,11 @@ class FakeTimestamp { constructor(private readonly value: Date) {} toDate() { re
 class MemoryStore implements DeliveryStore {
   statuses = new Map<string, 'sending' | 'sent' | 'failed'>();
   failures = new Map<string, string>();
+  attempts = new Map<string, number>();
   async claim(identity: DeliveryIdentity): Promise<DeliveryClaim> {
     if (this.statuses.get(identity.deliveryId) === 'sent') return { kind: 'already-sent' };
     if (this.statuses.get(identity.deliveryId) === 'sending') return { kind: 'busy' };
+    this.attempts.set(identity.deliveryId, (this.attempts.get(identity.deliveryId) ?? 0) + 1);
     this.statuses.set(identity.deliveryId, 'sending');
     return { kind: 'claimed' };
   }
@@ -74,6 +76,11 @@ function turn(status = 'active', remainingHours = 24, durationHours = 168) {
   };
 }
 
+function timing(originalDurationMs: number, remainingMs: number, status = 'active') {
+  const dueAt = new Date(now.getTime() + remainingMs);
+  return { status, startedAt: new Date(dueAt.getTime() - originalDurationMs), dueAt };
+}
+
 test('notification IDs are deterministic and scoped to their logical notification', () => {
   assert.equal(deliveryIds.invitationReminder('abc'), 'invitation_reminder_abc');
   assert.equal(deliveryIds.turnStarted('turn-a'), 'turn_started_turn-a');
@@ -103,6 +110,39 @@ test('turn reminder and deadline eligibility enforce active status and original-
   assert.equal(isTurn24HourReminderEligible({ ...twenty, startedAt: new Date(now.getTime()) }, now), false);
   assert.equal(isTurnDeadlinePassedEmailEligible({ ...twenty, dueAt: now }, now), true);
   assert.equal(isTurnDeadlinePassedEmailEligible({ ...twenty, status: 'under_review', dueAt: now }, now), false);
+});
+
+test('72-hour reminder uses the exact (24h, 72h] window and skips short turns', () => {
+  const longTurn = 168 * HOUR;
+  assert.equal(isTurn72HourReminderEligible(timing(longTurn, 72 * HOUR + 1), now), false);
+  assert.equal(isTurn72HourReminderEligible(timing(longTurn, 72 * HOUR), now), true);
+  assert.equal(isTurn72HourReminderEligible(timing(longTurn, 24 * HOUR + 1), now), true);
+  assert.equal(isTurn72HourReminderEligible(timing(longTurn, 24 * HOUR), now), false);
+  assert.equal(isTurn72HourReminderEligible(timing(72 * HOUR, 48 * HOUR), now), false);
+  assert.equal(isTurn72HourReminderEligible(timing(48 * HOUR, 40 * HOUR), now), false);
+});
+
+test('24-hour reminder uses the exact (0h, 24h] window and skips short turns', () => {
+  const longTurn = 168 * HOUR;
+  assert.equal(isTurn24HourReminderEligible(timing(longTurn, 24 * HOUR + 1), now), false);
+  assert.equal(isTurn24HourReminderEligible(timing(longTurn, 24 * HOUR), now), true);
+  assert.equal(isTurn24HourReminderEligible(timing(longTurn, 1), now), true);
+  assert.equal(isTurn24HourReminderEligible(timing(longTurn, 0), now), false);
+  assert.equal(isTurn24HourReminderEligible(timing(24 * HOUR, 12 * HOUR), now), false);
+  assert.equal(isTurn24HourReminderEligible(timing(12 * HOUR, 10 * HOUR), now), false);
+});
+
+test('deadline notice begins exactly at dueAt and every reminder rejects non-active turns', () => {
+  const longTurn = 168 * HOUR;
+  assert.equal(isTurnDeadlinePassedEmailEligible(timing(longTurn, 1), now), false);
+  assert.equal(isTurnDeadlinePassedEmailEligible(timing(longTurn, 0), now), true);
+  assert.equal(isTurnDeadlinePassedEmailEligible(timing(longTurn, -1), now), true);
+  for (const status of ['submitted', 'under_review', 'merged', 'expired', 'skipped']) {
+    assert.equal(isTurn72HourReminderEligible(timing(longTurn, 70 * HOUR, status), now), false);
+    assert.equal(isTurn24HourReminderEligible(timing(longTurn, 20 * HOUR, status), now), false);
+    assert.equal(isTurnDeadlinePassedEmailEligible(timing(longTurn, -HOUR, status), now), false);
+  }
+  assert.equal(isTurnDeadlinePassedEmailEligible(timing(12 * HOUR, -1), now), true);
 });
 
 test('templates have correct subjects, CTAs, readable lines, UTC times, and escaped HTML', () => {
@@ -176,6 +216,60 @@ test('hourly dispatcher sends eligible reminder types once and skips non-active 
     'invitation_reminder_i1', 'turn_24h_reminder_t24',
     'turn_72h_reminder_t72', 'turn_deadline_passed_late',
   ]);
+});
+
+test('one active turn can receive each independent reminder once across later sweeps', async () => {
+  const { store, provider, dependencies } = setup();
+  const dueAt = new Date(now.getTime() + 72 * HOUR);
+  const data = {
+    githubUserId: '12345', status: 'active', targetContributionNumber: 1,
+    startedAt: new FakeTimestamp(new Date(dueAt.getTime() - 168 * HOUR)),
+    dueAt: new FakeTimestamp(dueAt),
+  };
+  const snapshot = { status: data.status, dueAt: data.dueAt.toDate().getTime() };
+  for (const sweepNow of [now, now, new Date(now.getTime() + 48 * HOUR),
+    new Date(now.getTime() + 48 * HOUR), dueAt, dueAt]) {
+    await dispatchEligibleNotifications({
+      now: sweepNow, invitations: [], turns: [{ id: 'progressing', data }],
+      claimToken: () => crypto.randomUUID(),
+    }, dependencies);
+  }
+  assert.deepEqual(provider.sends.map((email) => email.idempotencyKey), [
+    'turn_72h_reminder_progressing',
+    'turn_24h_reminder_progressing',
+    'turn_deadline_passed_progressing',
+  ]);
+  assert.deepEqual([...store.attempts.entries()].sort(), [
+    ['turn_24h_reminder_progressing', 1],
+    ['turn_72h_reminder_progressing', 1],
+    ['turn_deadline_passed_progressing', 1],
+  ]);
+  assert.deepEqual({ status: data.status, dueAt: data.dueAt.toDate().getTime() }, snapshot);
+});
+
+test('failed reminder retries the same identity without suppressing later reminder types', async () => {
+  const { store, provider, dependencies } = setup();
+  const data = turn('active', 70, 168);
+  provider.fail = true;
+  await dispatchEligibleNotifications({
+    now, invitations: [], turns: [{ id: 'retry', data }], claimToken: () => 'claim-1',
+  }, dependencies);
+  assert.equal(store.statuses.get('turn_72h_reminder_retry'), 'failed');
+  provider.fail = false;
+  await dispatchEligibleNotifications({
+    now, invitations: [], turns: [{ id: 'retry', data }], claimToken: () => 'claim-2',
+  }, dependencies);
+  await dispatchEligibleNotifications({
+    now: new Date(now.getTime() + 46 * HOUR), invitations: [],
+    turns: [{ id: 'retry', data }], claimToken: () => 'claim-3',
+  }, dependencies);
+  assert.deepEqual(provider.sends.map((email) => email.idempotencyKey), [
+    'turn_72h_reminder_retry',
+    'turn_72h_reminder_retry',
+    'turn_24h_reminder_retry',
+  ]);
+  assert.equal(store.attempts.get('turn_72h_reminder_retry'), 2);
+  assert.equal(store.attempts.get('turn_24h_reminder_retry'), 1);
 });
 
 test('provider failure records failure and never mutates source lifecycle data', async () => {
