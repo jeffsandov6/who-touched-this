@@ -54,50 +54,12 @@ npm run build
 npm run preview
 ```
 
-### Contributor-local preview
+## contributing
 
-Future contributors do not need production Firebase configuration or any server secret. After
-installing root dependencies, they can run:
-
-```sh
-npm run dev:contributor
-```
-
-This explicit contributor mode replaces the Firebase-backed status island with a clearly marked
-local contributor-preview status. It previews the protected shell and `src/canvas/**` without a
-`.env`, emulators, Functions, Firebase credentials, Storage access, Resend configuration, webhook
-secret, or service account. `npm run dev:contributor` enables it only for the local development
-server; `npm run build:contributor` enables the same deterministic fixture for maintainer snapshot
-builds. Normal `npm run build` and production behavior remain Firebase-backed.
-
-Normal `npm run check` and `npm run build` also require no private secrets. Operational pages are not
-part of the contributor preview and may show unavailable configuration when opened without `.env`.
-
-## Future public contribution model
-
-The canonical repository remains private during platform construction. Before Founder Contribution
-#000/community launch, the owner intends to make it public. Contributors will not receive collaborator
-or write access: an invited contributor accepts a turn, forks the public repository, works in a branch
-of that fork, and opens a pull request against `JeffSandov6/who-touched-this:main`.
-
-Only `src/canvas/**` is contributor-editable. The protected validator checks complete diff metadata,
-including both sides of renames and copies, sensitive filenames, Git object modes, and file/media
-sizes. Objective violations fail; more than 12 changed files or 800 changed text lines produces an
-advisory warning. The ordinary contributor command is:
-
-```sh
-npm run contribution:validate -- --base upstream/main
-```
-
-The full fork, upstream, installation, preview, validation, push, and pull-request procedure is in
-`CONTRIBUTING.md`.
-
-Small media can remain in `src/canvas/assets/**`. Individual changed/added Git files are limited to
-25 MiB, and aggregate changed/added binary media is limited to 50 MiB. Larger media requires prior
-maintainer coordination; the maintainer can use protected Firebase Storage management and give the
-contributor the resulting public download URL. That URL can be used directly from `src/canvas/**`
-without Firebase credentials or Firebase initialization. Contributors receive neither Storage write
-access nor an internal Storage path as their integration artifact.
+Public contributions are not open yet. Once invited, contributors work in their own fork, edit only
+`src/canvas/**`, preview without production credentials, & open a non-draft PR into canonical `main`.
+Start with the copy/paste fork setup, zero-secret local commands, scope rules, PR direction, & review
+expectations in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Founder Contribution #000 bootstrap
 
