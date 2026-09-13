@@ -526,10 +526,15 @@ The notification set is intentionally transactional and small:
 - the first transition to merged sends one contribution-completed confirmation.
 
 The 6-hour invitation reminder requires an original invitation window longer than six hours. The
-72-hour turn reminder requires an original duration longer than 72 hours and is sent only while more
-than 24 hours remain. The 24-hour reminder requires an original duration longer than 24 hours. The
-hourly sweep makes these approximate thresholds, not exact appointment times. Submitted,
-under-review, merged, expired, and skipped turns receive no active-turn reminders.
+72-hour turn reminder requires an original duration longer than 72 hours and is eligible while
+remaining time is `(24h, 72h]`; if that window is missed, it is not sent late. The 24-hour reminder
+requires an original duration longer than 24 hours and is eligible while remaining time is `(0h,
+24h]`. At exactly the deadline, the deadline-passed notice owns the boundary. A short active turn can
+still receive that overdue notice. The hourly sweep makes these approximate thresholds, not exact
+appointment times. Submitted, under-review, merged, expired, and skipped turns receive no active-turn
+reminders. A sufficiently long active turn may receive all three notices under separate idempotent
+delivery IDs; none of them changes lifecycle state, and only an explicit lifecycle operation ends the
+turn.
 
 The intended production sender and reply-to address is:
 
@@ -576,8 +581,9 @@ npm run functions:build
 npm exec -- firebase emulators:exec --only firestore "npm --prefix functions run test:emulator:reminders"
 ```
 
-The harness seeds emulator-only timestamps for the invitation, 72-hour, 24-hour, and overdue cases,
-invokes the same dispatcher directly, and verifies deterministic local mailbox records. It exposes
+The harness seeds emulator-only timestamps for exact 72-hour, 24-hour, and overdue boundaries,
+invokes the same dispatcher directly, and verifies sequential delivery, repeat sweeps, provider
+failure/retry, short-turn exclusions, unchanged lifecycle records, and late PR submission. It exposes
 no production HTTP testing endpoint.
 
 Each logical notification uses deterministic `emailDeliveries/{deliveryId}` state plus the same
