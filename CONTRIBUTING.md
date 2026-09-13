@@ -1,160 +1,172 @@
-# Contributing to Who Touched This
+# contribute to Who Touched This
 
-> Public contributions are **not open yet**. Follow this guide only after the repository becomes
-> public and Who Touched This has invited you to contribute.
+> Public contributions are not open yet. Use this guide after the repository is public & your turn is active.
 
-Who Touched This accepts one small, coherent canvas contribution at a time. Contributors work in
-their own forks. They never receive collaborator or direct write access to the canonical repository.
+Who Touched This is one website changed by one community contributor at a time. You work in your own
+fork, submit one small coherent idea, & never need write access to the canonical repository.
 
-## 1. Accept your turn first
+## start here
 
-Do not open a contribution pull request merely because the repository is public. First:
+Before touching Git, join through the website, wait for an invitation, sign in with the same GitHub
+account, accept on `/join`, & confirm your turn is active. Each GitHub account gets one ordinary
+contribution per season.
 
-1. Join Who Touched This through the website.
-2. Wait for an invitation.
-3. Sign in with the same GitHub account used to join.
-4. Accept the invitation on `/join`.
-5. Confirm that your turn is active.
+Then follow this path:
 
-Only one community contributor has an active turn. Accepting starts your contribution clock and
-assigns your target contribution number.
+1. Fork <https://github.com/JeffSandov6/who-touched-this> into your GitHub account.
+2. Clone **your fork**, not Jeff's repository.
+3. Run the safe setup helper. It verifies your fork, adds the canonical `upstream`, checks Node.js/npm,
+   & installs dependencies.
+4. Sync your fork's `main` with canonical `main`.
+5. Create a contribution branch. Do not work directly on `main`.
+6. Start the zero-secret contributor preview.
+7. Edit only `src/canvas/**`.
+8. Validate, test, check, & build your work.
+9. Commit only the canvas files & push the branch to your fork.
+10. Open a **non-draft** PR from your fork branch into `JeffSandov6/who-touched-this:main`.
+11. Push requested revisions to that same branch & PR.
+12. Wait for automated checks & maintainer review. Passing checks do not guarantee acceptance.
 
-## 2. Fork the repository
+The exact commands are below.
 
-In GitHub, open <https://github.com/JeffSandov6/who-touched-this>. Choose **Fork** and create the fork
-in your own GitHub account. Do not request collaborator access.
+## 1. fork, clone & set up
 
-## 3. Clone your fork
-
-Replace `YOUR_GITHUB_USERNAME` with your GitHub username:
+On GitHub, choose **Fork**. Replace `YOUR_GITHUB_USERNAME` in this command:
 
 ```sh
 git clone https://github.com/YOUR_GITHUB_USERNAME/who-touched-this.git
 cd who-touched-this
+npm run contributor:setup
 ```
 
-The remote named `origin` now refers to your personal fork—not the canonical repository.
+The setup command is safe to rerun. It:
 
-## 4. Add the canonical upstream remote
+- refuses an `origin` that points to `JeffSandov6/who-touched-this` instead of your fork
+- adds `upstream` when it is missing, using HTTPS or SSH to match your `origin`
+- verifies an existing `upstream` instead of silently replacing an unexpected remote
+- checks the requirements in `package.json` & `.nvmrc`
+- runs `npm ci` from the committed lockfile
+- creates no environment file & asks for no production credentials
+
+It never authenticates to GitHub, pushes, commits, switches branches, resets work, opens a PR, or
+contacts Firebase. Use `npm run contributor:setup -- --skip-install` to rerun only its verification &
+remote setup.
+
+Node.js 22.12 or newer & npm 9.6.5 or newer are required. `.nvmrc` selects Node.js 22 when you use
+`nvm`. If setup reports a version problem, run `nvm use` or install a supported Node.js release, then
+rerun setup.
+
+Confirm the remotes:
 
 ```sh
-git remote add upstream https://github.com/JeffSandov6/who-touched-this.git
 git remote -v
 ```
 
-Verify that `origin` points to your fork and `upstream` points to
-`JeffSandov6/who-touched-this`. If `upstream` already exists, inspect it rather than adding a duplicate.
+You should see:
 
-## 5. Synchronize before beginning
+```text
+origin    YOUR_GITHUB_USERNAME/who-touched-this
+upstream  JeffSandov6/who-touched-this
+```
+
+If the helper finds an unexpected existing remote, it stops without replacing it. Inspect the output
+or ask the maintainer before changing anything.
+
+## 2. sync main & create your branch
+
+Start from the current canonical site:
 
 ```sh
 git fetch upstream
 git checkout main
 git merge --ff-only upstream/main
 git push origin main
+git checkout -b contribution/SHORT-DESCRIPTION
 ```
 
-`--ff-only` stops instead of creating an unexpected merge commit. If it cannot fast-forward, do not
-use a destructive reset; inspect your fork or ask the maintainer for help.
+For example: `contribution/animated-garden`. `--ff-only` stops rather than creating an unexpected
+merge commit. If it cannot fast-forward, do not reset or force-push. Ask the maintainer for help.
 
-## 6. Create a contribution branch
-
-Do not work directly on `main`:
-
-```sh
-git checkout -b contribution/my-weird-change
-```
-
-Choose a short branch name describing your idea.
-
-## 7. Install dependencies
-
-Node.js 22.12 or newer is required; `.nvmrc` selects Node 22. If you use `nvm`:
-
-```sh
-nvm use
-npm ci
-```
-
-If `nvm` is unavailable, install a supported Node.js 22 release using your normal Node version
-manager or the official Node.js installer, verify with `node --version`, then run `npm ci`.
-Contributors do not need to install the Functions package separately.
-
-## 8. Run the safe contributor preview
+## 3. run the safe local site
 
 ```sh
 npm run dev:contributor
 ```
 
-The terminal prints the local address, normally <http://localhost:4321>. Open it in a browser. You
-should see the protected site shell, a clearly marked local/contributor-preview status, and the
-current canvas. Edits under `src/canvas/**` hot reload where supported.
+Open the local address printed by Astro, normally <http://localhost:4321>. You should see the protected
+shell, a clearly marked contributor-preview status, & the current canvas.
 
-This mode requires no `.env`, Firebase project configuration, production credentials, Storage write
-access, Resend key, webhook secret, service account, Functions emulator, or private backend. It does
-not connect shell status to production Firebase. Operational pages such as Join and Admin are outside
-the contributor preview workflow and may show unavailable configuration if opened.
+Contributor preview requires no `.env`, Firebase configuration, emulator, Functions process, Storage
+credential, Resend key, webhook secret, or service account. It does not initialize the production
+Firebase-backed shell. Do not copy the owner's production configuration into your fork. Join, Admin,
+& other operational pages are not part of contributor preview.
 
-## 9. Edit only the canvas
+## 4. make one coherent contribution
 
-The only contributor-editable path is:
+The contributor-editable area is exactly:
 
 ```text
 src/canvas/**
 ```
 
-Examples include:
+Good contribution-sized ideas include:
 
-```text
-src/canvas/pages/Home.tsx
-src/canvas/components/react/**
-src/canvas/components/vue/**
-src/canvas/components/svelte/**
-src/canvas/components/solid/**
-src/canvas/components/astro/**
-src/canvas/assets/**
-```
+- improving one component or focused section
+- adding one visual interaction or animation
+- adding a small canvas feature
+- thoughtfully changing one part of an editable page
 
-Everything else is protected, including platform UI, routes, global styles, Functions, tests,
-workflows, public files, Firebase rules/configuration, package manifests, validation scripts,
-documentation, and environment examples. Although your fork technically lets you edit them, the
-trusted contribution-boundary check rejects a pull request that adds, changes, deletes, renames, or
-copies any protected path. Put canvas-specific styles and components inside `src/canvas/**`; do not
-change `src/styles/**` or create routes under `src/pages/**`.
+Probably too large:
 
-## 10. Handle media deliberately
+- redesigning every canvas page
+- rebuilding the whole site
+- changing authentication, Admin, CI, Firebase, or platform infrastructure
+- adding an entirely new page as a normal contribution
 
-Normal images, GIFs, audio, and small video may be committed under `src/canvas/assets/**`. A changed
-or added Git file may be at most 25 MiB, and changed/added binary media may total at most 50 MiB.
+Scope is about one coherent main idea, not a strict line-count contest. Large generated diffs can
+still be difficult to review, so keep the implementation focused.
 
-If your idea needs larger media, contact the maintainer **before submitting the pull request**. Large
-media is hosted separately to keep Git manageable. The maintainer may upload it through the protected
-Media manager and give you the resulting public download URL. You may use that public URL directly
-from `src/canvas/**`; it requires no Firebase credentials or Firebase initialization. Storage paths
-remain an internal maintainer/admin detail. Contributors do not receive Firebase Storage upload
-credentials. Do not commit enormous files or choose arbitrary third-party hosting without approval.
+Everything outside `src/canvas/**` is protected. This includes the routing shell, platform UI,
+authentication, global styles, Firebase configuration, Functions, workflows, tests, package files,
+validation tooling, contributor rules, docs, & public route definitions. The authoritative policy is
+versioned in `src/platform/config/contribution-boundaries.ts`; the trusted boundary validates the full
+Git diff, including renames, copies, deletions, file modes, & sizes.
 
-## 11. Validate and build
+Work introduced by another contributor generally may not be intentionally removed, hidden, or
+substantially replaced until 5 later community contributions have merged. Safety, security,
+compatibility, & platform fixes are exceptions. You can build around earlier work without erasing it.
+The maintainer has final moderation authority.
 
-Run these from the repository root:
+## 5. media
+
+Normal images, GIFs, audio, & small video can live under `src/canvas/assets/**`. Each changed Git file
+may be at most 25 MiB; changed binary media may total at most 50 MiB.
+
+For larger media, contact the maintainer before submitting. The maintainer can upload it through the
+protected Media manager & give you a public download URL. Use that URL directly from `src/canvas/**`.
+It requires no Firebase credentials or initialization. Contributors do not receive Storage upload
+access, & internal Storage paths are not the contributor-facing artifact.
+
+## 6. validate & test
+
+Stop the development server when you are ready, then run:
 
 ```sh
 npm run contribution:validate -- --base upstream/main
+npm run test:contributor
 npm run check
-npm run build
+npm run build:contributor
 ```
 
-The validator compares the complete working tree with canonical `upstream/main`, including added,
-modified, deleted, renamed, copied, and untracked files. `PASS` means the objective structural rules
-passed. `FAIL` identifies a hard violation and exits non-zero. `WARNING` reports advisory scope—more
-than 12 files or more than 800 added plus deleted text lines—and still exits zero. A warning should
-prompt simplification; the maintainer makes the final scope judgment.
+- `contribution:validate` checks the complete diff & untracked files against the allowed boundary.
+- `test:contributor` runs the fast application tests used for contributor confidence.
+- `check` runs Astro/TypeScript diagnostics.
+- `build:contributor` proves the static site builds with the same safe local fixture.
 
-The validator also rejects symbolic links, submodules/gitlinks, credential-like filenames, files
-over 25 MiB, and aggregate changed binary media over 50 MiB. It is intentionally not a complete
-secret scanner, so inspect your work manually too.
+`PASS` means the structural rules passed. `FAIL` names a hard violation. A scope `WARNING` does not
+fail automatically; simplify when practical & expect the maintainer to make the final scope judgment.
 
-## 12. Inspect your own diff
+Inspect your work too:
 
 ```sh
 git status
@@ -162,74 +174,59 @@ git diff upstream/main...HEAD
 git diff upstream/main
 ```
 
-The three-dot command shows committed branch changes; the final command also shows current tracked
-working-tree changes. Confirm there are no unrelated or private files. Untracked files appear in
-`git status` and are also inspected by the contribution validator.
+The three-dot diff shows committed branch changes. The final command also shows tracked working-tree
+changes. Confirm that no private or unrelated files are present.
 
-## 13. Commit only canvas work
+## 7. commit & push to your fork
 
 ```sh
 git add src/canvas
 git status
-git commit -m "Add [short contribution description]"
+git commit -m "Add SHORT DESCRIPTION"
+git push -u origin contribution/SHORT-DESCRIPTION
 ```
 
-Review `git status` before committing. Avoid `git add .`, which can accidentally stage unrelated files.
+Review `git status` before committing. Avoid `git add .`, which can stage unrelated files. The push
+goes to your fork because the destination is `origin`.
 
-## 14. Push your branch
+## 8. open the PR in the correct direction
 
-```sh
-git push -u origin contribution/my-weird-change
+On GitHub, choose **Compare & pull request**. Confirm this exact direction:
+
+```text
+FROM:
+YOUR_GITHUB_USERNAME/who-touched-this : contribution/SHORT-DESCRIPTION
+
+INTO:
+JeffSandov6/who-touched-this : main
 ```
 
-This pushes only to your fork.
+In GitHub terminology, **head/compare** is your fork branch; **base** is the canonical `main` branch.
+Do not reverse them.
 
-## 15. Open the pull request
+Complete the PR template. **What did you change?** should be a concise, plain-language description;
+if accepted, the maintainer uses it as the public History summary. The optional **Message/signature**
+may also appear publicly. Successful History entries may show the public GitHub identity, avatar, &
+social information already associated with participation. Missed or skipped turns do not publish that
+GitHub/social identity.
 
-GitHub should offer **Compare & pull request**. Verify:
+A draft does not submit your turn. Open a non-draft PR, or choose **Ready for review**, only when you
+are submitting. The first valid non-draft PR counts as your turn's submission. The system associates
+it with you when it comes from the same GitHub account used to join Who Touched This.
 
-- Base repository: `JeffSandov6/who-touched-this`
-- Base branch: `main`
-- Head repository: your fork
-- Compare branch: your `contribution/...` branch
+## 9. checks & review
 
-Complete the contribution pull-request template. A draft pull request does **not** count as turn
-submission, so your clock remains active. You may use a draft while working, but submit by either
-opening a non-draft pull request or choosing **Ready for review**. 
-Who Touched This automatically detects and associates the PR with you as long as it is opened from the same GitHub account you used to join.
+After submission:
 
-## 16. Respond to CI
+- the trusted boundary verifies that only allowed canvas work changed
+- isolated security/build checks examine & build the contribution
+- an automated BEFORE versus PROPOSED AFTER visual review is generated for every editable route
+- the maintainer reviews the source, scope, automated results, & visual result
 
-Fork pull requests run:
+Passing automation does not guarantee acceptance. If changes are requested, edit locally, commit, &
+push to the **same branch**. GitHub updates the same PR; this does not create another contribution or
+restart your turn. GitHub may require maintainer approval before a first-time contributor's checks run.
 
-- A trusted protected-path and Git-object metadata check
-- Contributor validation
-- Astro/TypeScript checking
-- Static production build
-- Fast platform unit tests
-
-CI receives no production secrets and performs no deployment. A CI failure does not expire, skip,
-extend, or restart your turn, and it does not revert a submitted turn to active. Fix the issue locally,
-commit it, and push to the same branch; GitHub updates the same pull request. Pushing fixes to that
-branch does not create another contribution or restart your turn.
-GitHub may require maintainer approval before workflows run for a first-time contributor. If so, no action is required from you unless the maintainer asks for changes.
-
-## 17. Maintainer review
-
-Passing automation does not guarantee acceptance. The maintainer reviews scope, safety, project
-rules, and whether the result is one coherent contribution. Changes may be requested, and a
-contribution may be rejected. The owner performs any merge manually.
-
-## 18. After an accepted merge
-
-After the PR is manually merged and recorded by the owner, the contribution becomes permanent,
-public History records it, the site version advances, and your Season participation completes.
-Deployment timing is separate and is not promised by this workflow.
-
-## Protected infrastructure summary
-
-The machine-readable boundary source is `src/platform/config/contribution-boundaries.ts`. Firebase
-Auth, Firestore, Storage, Functions, emails, GitHub webhooks, admin/queue/turn code, validation tooling,
-CI, documentation, and project configuration remain owner-maintained platform infrastructure.
-Deadline and CI outcomes never mutate lifecycle automatically; explicit lifecycle operations remain
-authoritative.
+The owner merges manually if the contribution is accepted. After it is merged & recorded, it becomes
+permanent History, the site version advances, & your participation for the season is complete.
+Deployment timing is separate.

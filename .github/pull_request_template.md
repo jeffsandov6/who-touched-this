@@ -1,10 +1,12 @@
 ## What did you change?
 
-Describe this one coherent contribution.
+<!-- In a concise sentence or two, describe your one coherent contribution in plain language.
+If accepted, the maintainer uses this as the public History summary. -->
 
 ## Message/signature
 
-Optional: include a short message that may later appear in public History.
+<!-- Optional. Anything written here may be displayed publicly with your contribution.
+Leave this section empty if you do not want to add a message. -->
 
 ## Checklist
 
@@ -13,4 +15,6 @@ Optional: include a short message that may later appear in public History.
 - [ ] I did not include secrets or private information.
 - [ ] I tested the site locally and ran the documented validation commands.
 - [ ] I coordinated any large media with the maintainer before submitting.
+- [ ] I understand this is my one ordinary contribution for this season.
+- [ ] This PR is non-draft because I am ready to submit my turn for review.
 - [ ] I understand that passing automated checks does not guarantee acceptance.
