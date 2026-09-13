@@ -75,10 +75,11 @@ canvas build also runs in the networkless build container; accepted historical c
 executed directly on the runner host. The host separately installs the preview runtime with
 `npm ci --ignore-scripts` in the exact trusted base checkout. That checkout, including its lockfile-
 pinned `playwright` package, is mounted read-only so the preview script can resolve its Node dependency;
-the Playwright image itself is used only for its browser/runtime environment. BEFORE and PROPOSED AFTER render inside a separate official Playwright container with container networking disabled, a read-only trusted checkout, read-only base and proposed builds, no credentials, the same privilege/resource restrictions, and a seven-minute inner timeout.
-Playwright container with container networking disabled, a read-only trusted checkout, read-only base
-and proposed builds, no credentials, the same privilege/resource restrictions, and a seven-minute
-inner timeout. Playwright additionally blocks service workers, WebSockets, and non-preview HTTP(S).
+the Playwright image itself is used only for its browser/runtime environment. BEFORE and PROPOSED
+AFTER render inside a separate official Playwright container with container networking disabled, a
+read-only trusted checkout, read-only base and proposed builds, no credentials, the same
+privilege/resource restrictions, and a seven-minute inner timeout. Playwright additionally blocks
+service workers, WebSockets, and non-preview HTTP(S).
 
 Every canonical route uses a 30-second navigation timeout, 30-second action/screenshot timeout,
 maximum 20,000-pixel document height, and maximum 32 million screenshot pixels. The outer visual job
@@ -92,6 +93,32 @@ from ordinary unit tests so local contributors are not required to run Docker.
 Download `pr-<number>-visual-review` and open `index.html`. It shows every canonical route as BEFORE
 versus PROPOSED AFTER. Trusted code records the validated PR/base/head identity, routes, settings,
 capture time, and screenshot checksums in `manifest.json`.
+
+## Pull request status reporting
+
+The `workflow_run` itself belongs to the default branch, so its ordinary job checks do not naturally
+attach to the pull request head. A final trusted job creates a GitHub Check named exactly **Trusted
+contributor review** on the validated PR head SHA. The check links to the real Contributor review run.
+
+Only that reporter job receives `checks: write`; it also has `contents: read` and
+`pull-requests: read`, while every unspecified permission is `none`. It checks out current trusted
+default-branch code, never checks out or executes the PR head, and re-reads the open pull request
+through the base repository API immediately before reporting. It uses the handoff identity already
+validated by the earlier job and never obtains a target SHA from contributor output.
+
+Status semantics are fail closed:
+
+- Boundary failure: no reporter runs because there is no validated handoff. The boundary is red and
+  the required Trusted contributor review check remains absent/expected, never successful.
+- Validated handoff plus successful sandboxed build and visual preview: `success` on that exact head.
+- Build/preview failure or skip: `failure`.
+- Build/preview cancellation: `cancelled`. If workflow cancellation prevents the reporter itself from
+  starting, the required check remains absent rather than becoming successful.
+- Changed PR identity, closed PR, or failed API revalidation: `failure` on the reviewed historical
+  head. A newer head receives no success; its push starts a fresh boundary/review cycle.
+
+Do not use `neutral` or `skipped` conclusions for negative outcomes because GitHub treats them as
+successful for required-check purposes.
 
 ## Action pins
 
@@ -124,15 +151,18 @@ The hostile workflow is `workflow_run`, not a fork-provided workflow, so approva
 tested with a real outside fork before launch. Never add an environment or secrets to Contributor
 review.
 
-In branch rules/rulesets, require the actual base-owned `Contribution boundary / Trusted contribution
-boundary` check. A plain `workflow_run` check is associated with its default-branch run rather than a
-PR-head check, so do not claim it is a branch-protection status unless a real fork test proves that for
-the selected GitHub ruleset. Treat the Contributor review artifact/run as a mandatory maintainer review
-step. If GitHub organization rulesets offer a required workflow whose identity is controlled outside
-the PR, use that for a required review status; otherwise a future minimal trusted status reporter would
-need narrowly scoped write permission and a separate security design. Never accept an arbitrary status
-context merely because it has a lookalike name. Require code-owner review for `.github/**`, keep those
-paths contributor-protected, and test the final rule with a fork attempting a duplicate check name.
+In the **Protect main** branch ruleset, require both exact checks:
+
+- `Trusted contribution boundary`
+- `Trusted contributor review`
+
+For each required check, select **GitHub Actions** as the expected source; never select “any source.”
+GitHub required status checks match the check name and expected GitHub App, not the workflow file or
+event type. Therefore the repository must keep contributor workflows protected, keep fork workflows
+without base-repository write tokens, and keep `checks: write` exclusive to this trusted reporter job.
+Review the first reported check in the PR UI and confirm its source is GitHub Actions and its details
+link opens the genuine base-repository Contributor review run. Require code-owner review for
+`.github/**`, and test the final rule with a disposable fork attempting a lookalike check name.
 
 ## Remaining limitations
 

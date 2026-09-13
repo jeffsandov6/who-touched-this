@@ -256,3 +256,33 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 14
+
+  report-review-status:
+    name: Publish trusted contributor review status
+    needs: [validate-handoff, build-hostile-canvas, visual-preview]
+    if: ${{ always() && needs.validate-handoff.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      checks: write
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Check out trusted status reporter
+        # actions/checkout v6.0.3
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          persist-credentials: false
+
+      - name: Report exact reviewed head result
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ needs.validate-handoff.outputs.pull_request_number }}
+          BASE_REPOSITORY: ${{ needs.validate-handoff.outputs.base_repository }}
+          BASE_SHA: ${{ needs.validate-handoff.outputs.base_sha }}
+          HEAD_REPOSITORY: ${{ needs.validate-handoff.outputs.head_repository }}
+          HEAD_SHA: ${{ needs.validate-handoff.outputs.head_sha }}
+          HANDOFF_RESULT: ${{ needs.validate-handoff.result }}
+          BUILD_RESULT: ${{ needs.build-hostile-canvas.result }}
+          PREVIEW_RESULT: ${{ needs.visual-preview.result }}
+        run: node --experimental-strip-types scripts/report-review-status.mjs

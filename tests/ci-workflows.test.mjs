@@ -8,6 +8,8 @@ const sandboxRunner = await readFile(new URL('../scripts/run-review-sandbox.mjs'
 const preview = await readFile(new URL('../scripts/pr-review/preview.mjs', import.meta.url), 'utf8');
 const packageManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const packageLock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
+const statusReporter = await readFile(new URL('../scripts/report-review-status.mjs', import.meta.url), 'utf8');
+const reviewDocumentation = await readFile(new URL('../docs/PR_REVIEW.md', import.meta.url), 'utf8');
 const handoff = await readFile(new URL('../scripts/pr-review/handoff.mjs', import.meta.url), 'utf8');
 const handoffWriter = await readFile(new URL('../scripts/create-review-handoff.mjs', import.meta.url), 'utf8');
 const handoffVerifier = await readFile(new URL('../scripts/verify-review-handoff.mjs', import.meta.url), 'utf8');
@@ -146,8 +148,8 @@ test('contributor output cannot replace trusted preview code, manifests, depende
 });
 
 test('hostile execution is hosted, secretless, containerized, and never deploys', () => {
-  assert.equal((review.match(/runs-on: ubuntu-latest/g) ?? []).length, 3);
-  assert.equal((review.match(/persist-credentials: false/g) ?? []).length, 4);
+  assert.equal((review.match(/runs-on: ubuntu-latest/g) ?? []).length, 4);
+  assert.equal((review.match(/persist-credentials: false/g) ?? []).length, 5);
   assert.doesNotMatch(workflows, /\$\{\{\s*secrets\./);
   assert.doesNotMatch(workflows, /self-hosted/);
   assert.doesNotMatch(review, /firebase\s+(?:deploy|emulators)|RESEND|GITHUB_WEBHOOK_SECRET|service.account/i);
@@ -157,6 +159,41 @@ test('hostile execution is hosted, secretless, containerized, and never deploys'
   assert.match(sandboxRunner, /env: \{ PATH: process\.env\.PATH/);
   assert.doesNotMatch(sandboxRunner, /env:\s*\{\s*\.\.\.process\.env/);
   assert.doesNotMatch(sandboxRunner, /docker\.sock/);
+});
+
+test('trusted reporter alone receives narrow check-write permission and never executes contributor code', () => {
+  const reporter = review.slice(review.indexOf('  report-review-status:'));
+  assert.match(reporter, /name: Publish trusted contributor review status/);
+  assert.match(reporter, /needs: \[validate-handoff, build-hostile-canvas, visual-preview\]/);
+  assert.match(reporter, /if: \$\{\{ always\(\) && needs\.validate-handoff\.result == 'success' \}\}/);
+  assert.match(reporter, /permissions:\n      checks: write\n      contents: read\n      pull-requests: read/);
+  assert.equal((review.match(/checks: write/g) ?? []).length, 1);
+  assert.doesNotMatch(reporter, /head-canvas|proposed-workspace|npm (?:ci|install|run)|docker|playwright/i);
+  assert.match(reporter, /Check out trusted status reporter/);
+  assert.match(reporter, /persist-credentials: false/);
+  assert.doesNotMatch(namedStep(reporter, 'Check out trusted status reporter'), /^\s*ref:/m);
+  assert.match(reporter, /scripts\/report-review-status\.mjs/);
+});
+
+test('reporter targets validated outputs and aggregates every required trusted job result', () => {
+  const reporter = review.slice(review.indexOf('  report-review-status:'));
+  for (const [name, expression] of [
+    ['PR_NUMBER', 'needs.validate-handoff.outputs.pull_request_number'],
+    ['BASE_SHA', 'needs.validate-handoff.outputs.base_sha'],
+    ['HEAD_SHA', 'needs.validate-handoff.outputs.head_sha'],
+    ['HANDOFF_RESULT', 'needs.validate-handoff.result'],
+    ['BUILD_RESULT', 'needs.build-hostile-canvas.result'],
+    ['PREVIEW_RESULT', 'needs.visual-preview.result'],
+  ]) assert.ok(reporter.includes(`${name}: \${{ ${expression} }}`));
+  assert.match(statusReporter, /headSha: process\.env\.HEAD_SHA/);
+  assert.match(statusReporter, /reportTrustedContributorReview/);
+});
+
+test('trusted review check name and expected GitHub Actions source are stable and documented', () => {
+  assert.match(reviewDocumentation, /`Trusted contributor review`/);
+  assert.match(reviewDocumentation, /select \*\*GitHub Actions\*\* as the expected source/);
+  assert.match(reviewDocumentation, /never select “any source\.”/);
+  assert.match(reviewDocumentation, /checks: write.*exclusive to this trusted reporter job/s);
 });
 
 test('hostile artifacts are sanitized before upload and after download', () => {
