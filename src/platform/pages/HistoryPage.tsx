@@ -1,15 +1,66 @@
 /** @jsxImportSource react */
 
 import { useEffect, useState } from 'react';
+import {
+  formatHistoryDate,
+  HistoryContributionRecord,
+} from '../components/HistoryContributionRecord';
 import { loadPublicHistory } from '../firebase/public-history';
-import { formatContributionNumber, type PublicHistoryItem } from '../history';
-import HistorySnapshots from '../components/HistorySnapshots';
+import {
+  formatContributionNumber,
+  type PublicHistoryItem,
+} from '../history';
 
-function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
+function ContributionEntry({ event }: {
+  event: Extract<PublicHistoryItem, { type: 'contribution' }>;
+}) {
+  const number = formatContributionNumber(event.contributionNumber);
+  const headingId = `history-contribution-${event.contributionNumber}`;
+  const detailUrl = `/history/${event.contributionNumber}`;
+  return (
+    <li className="history-event history-contribution">
+      <span className="history-rail-marker" aria-hidden="true">{number}</span>
+      <article className="history-entry-card" aria-labelledby={headingId}>
+        <HistoryContributionRecord event={event} headingId={headingId} />
+        <a className={`history-detail-link${event.snapshot ? ' history-detail-link-visual' : ''}`} href={detailUrl}>
+          {event.snapshot ? `see before & after · ${event.snapshot.routes.length} ${event.snapshot.routes.length === 1 ? 'page' : 'pages'}` : 'view contribution'}
+        </a>
+      </article>
+    </li>
+  );
+}
+
+function TurnOutcomeEntry({ event }: {
+  event: Extract<PublicHistoryItem, { type: 'turn_expired' | 'turn_skipped' }>;
+}) {
+  const number = formatContributionNumber(event.targetContributionNumber);
+  const headingId = `history-outcome-${event.targetContributionNumber}-${event.type}`;
+  return (
+    <li className="history-event history-turn-outcome">
+      <span className="history-rail-marker history-rail-marker-muted" aria-hidden="true">missed turn</span>
+      <article className="history-entry-card" aria-labelledby={headingId}>
+        <p className="history-event-kind">unwritten version {number}</p>
+        <h2 id={headingId}>{event.displayName}</h2>
+        <p className="history-outcome-status">
+          {event.type === 'turn_expired' ? 'their contribution window expired' : 'their turn was skipped'}
+        </p>
+        <p className="history-outcome-note">no shame. life happens.</p>
+        <time dateTime={event.occurredAt.toISOString()}>{formatHistoryDate(event.occurredAt)}</time>
+      </article>
+    </li>
+  );
+}
+
+export function HistoryTimeline({ events }: {
+  events: PublicHistoryItem[];
+}) {
+  return (
+    <ol className="history-timeline" aria-label="website versions & turn outcomes">
+      {events.map((event) => event.type === 'contribution'
+        ? <ContributionEntry event={event} key={event.id} />
+        : <TurnOutcomeEntry event={event} key={event.id} />)}
+    </ol>
+  );
 }
 
 export default function HistoryPage() {
@@ -35,9 +86,12 @@ export default function HistoryPage() {
   }, []);
 
   return (
-    <section className="page-content" aria-labelledby="history-heading">
-      <h1 id="history-heading">history</h1>
-      <p>every accepted contribution lives here. this is basically the site's permanent record of who touched what.</p>
+    <section className="page-content history-page" aria-labelledby="history-heading">
+      <header className="history-intro">
+        <p className="history-eyebrow">the site's lineage</p>
+        <h1 id="history-heading">history</h1>
+        <p>one website, passed from person to person. every accepted touch leaves a version behind.</p>
+      </header>
       {error ? (
         <div className="notice notice-error" role="alert">
           <p>history could not be loaded.</p>
@@ -46,60 +100,15 @@ export default function HistoryPage() {
           </button>
         </div>
       ) : loading ? (
-        <p role="status">loading history…</p>
+        <p className="history-loading" role="status">opening the archive…</p>
       ) : events.length === 0 ? (
-        <p className="empty-state">no history yet.</p>
+        <div className="history-empty">
+          <p className="history-event-kind">the archive is ready</p>
+          <h2>the first accepted touch will begin the timeline.</h2>
+          <p>nothing has been added yet. this space is waiting for a real contribution.</p>
+        </div>
       ) : (
-        <ol className="history-timeline">
-          {events.map((event) => (
-            <li
-              className={event.type === 'contribution'
-                ? 'history-event history-contribution'
-                : 'history-event history-turn-outcome'}
-              key={event.id}
-            >
-              {event.type === 'contribution' ? (
-                <article>
-                  <p className="history-event-kind">
-                    {event.contributionKind === 'founder_seed' ? 'founder contribution' : 'contribution'}{' '}
-                    {formatContributionNumber(event.contributionNumber)}
-                    {event.contributionKind === 'founder_seed' && <span className="history-founder-badge">founder</span>}
-                  </p>
-                  <h2>{event.summary}</h2>
-                  <p>
-                    <strong>{event.displayName}</strong>{' '}
-                    <a href={`https://github.com/${event.githubUsername}`} rel="noreferrer">
-                      @{event.githubUsername}
-                    </a>
-                    {event.socialUrl && (
-                      <>{' · '}<a href={event.socialUrl} rel="noreferrer">social</a></>
-                    )}
-                  </p>
-                  {event.contributorMessage && (
-                    <blockquote>{event.contributorMessage}</blockquote>
-                  )}
-                  <p>
-                    <a href={event.prUrl} rel="noreferrer">GitHub pr #{event.prNumber}</a>
-                    {' · '}merged {formatDate(event.occurredAt)}
-                  </p>
-                  {event.snapshot && <HistorySnapshots snapshot={event.snapshot} />}
-                </article>
-              ) : (
-                <article>
-                  <p className="history-event-kind">
-                    turn for {formatContributionNumber(event.targetContributionNumber)}
-                  </p>
-                  <p>
-                    <strong>{event.displayName}</strong>
-                    {' - '}{event.type === 'turn_expired' ? 'contribution window expired' : 'turn skipped'}
-                  </p>
-                  <p>no shame. life happens.</p>
-                  <time dateTime={event.occurredAt.toISOString()}>{formatDate(event.occurredAt)}</time>
-                </article>
-              )}
-            </li>
-          ))}
-        </ol>
+        <HistoryTimeline events={events} />
       )}
     </section>
   );

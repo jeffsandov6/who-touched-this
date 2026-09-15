@@ -5,8 +5,30 @@ import {
   type PublicHistoryItem,
 } from '../history';
 import { getPlatformFirestore } from './firestore';
-import { contributionDocumentPath, FIRESTORE_COLLECTIONS } from './paths';
+import {
+  contributionDocumentPath,
+  contributionSnapshotDocumentPath,
+  FIRESTORE_COLLECTIONS,
+} from './paths';
 import { parsePublicContributionSnapshot } from '../snapshots/public';
+import { buildPublicContributionDetail, type PublicContributionDetail } from '../history-detail';
+
+export async function loadPublicContributionDetail(
+  contributionNumber: number,
+): Promise<PublicContributionDetail | null> {
+  if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) return null;
+  const firestore = getPlatformFirestore();
+  const [contributionDocument, snapshotDocument] = await Promise.all([
+    getDoc(doc(firestore, contributionDocumentPath(contributionNumber))),
+    getDoc(doc(firestore, contributionSnapshotDocumentPath(contributionNumber))),
+  ]);
+  if (!contributionDocument.exists()) return null;
+  return buildPublicContributionDetail(
+    contributionNumber,
+    contributionDocument.data(),
+    snapshotDocument.exists() ? snapshotDocument.data() : undefined,
+  );
+}
 
 export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
   const firestore = getPlatformFirestore();
@@ -14,23 +36,25 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
     collection(firestore, FIRESTORE_COLLECTIONS.historyEvents),
     orderBy('occurredAt', 'desc'),
   ));
-  const snapshotDocuments = await getDocs(collection(firestore, FIRESTORE_COLLECTIONS.contributionSnapshots));
+  const [snapshotDocuments, contributionDocuments] = await Promise.all([
+    getDocs(collection(firestore, FIRESTORE_COLLECTIONS.contributionSnapshots)),
+    getDocs(collection(firestore, FIRESTORE_COLLECTIONS.contributions)),
+  ]);
   const snapshots = new Map(snapshotDocuments.docs.flatMap((document) => {
     const parsed = parsePublicContributionSnapshot(document.data());
     return parsed ? [[parsed.contributionNumber, parsed] as const] : [];
   }));
+  const contributions = new Map(contributionDocuments.docs.flatMap((document) => {
+    const parsed = parsePublicContribution(document.data());
+    return parsed ? [[parsed.number, parsed] as const] : [];
+  }));
 
-  return Promise.all(snapshot.docs.map(async (eventDocument) => {
+  return snapshot.docs.map((eventDocument) => {
     const event = parseHistoryEvent(eventDocument.id, eventDocument.data());
     if (!event) throw new Error('public history contains an unsupported event.');
     if (event.type !== 'contribution') return event;
 
-    const contributionSnapshot = await getDoc(
-      doc(firestore, contributionDocumentPath(event.contributionNumber)),
-    );
-    const contribution = contributionSnapshot.exists()
-      ? parsePublicContribution(contributionSnapshot.data())
-      : null;
+    const contribution = contributions.get(event.contributionNumber) ?? null;
     if (
       !contribution ||
       contribution.number !== event.contributionNumber ||
@@ -42,6 +66,7 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
 
     return {
       ...event,
+      ...(contribution.githubUserId ? { githubUserId: contribution.githubUserId } : {}),
       summary: contribution.summary,
       ...(contribution.contributorMessage
         ? { contributorMessage: contribution.contributorMessage }
@@ -56,5 +81,5 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
         ? { snapshot: snapshots.get(event.contributionNumber) }
         : {}),
     };
-  }));
+  });
 }

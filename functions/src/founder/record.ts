@@ -153,6 +153,7 @@ export async function recordFounderSeedContribution(
       number: 0,
       season: 1,
       contributionKind: 'founder_seed',
+      githubUserId,
       displayName: input.publicDisplayName,
       githubUsername,
       summary: input.summary,

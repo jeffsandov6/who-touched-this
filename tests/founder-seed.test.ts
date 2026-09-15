@@ -40,7 +40,7 @@ test('founder PR and snapshot commands are canonical and contribution number rem
 
 test('public parsers accept a founder seed and distinguish it from default community records', () => {
   const contribution = parsePublicContribution({
-    number: 0, season: 1, contributionKind: 'founder_seed', displayName: 'Founder',
+    number: 0, season: 1, contributionKind: 'founder_seed', githubUserId: '9001', displayName: 'Founder',
     githubUsername: 'JeffSandov6', summary: 'Initial creative seed', contributorMessage: 'Hello',
     prNumber: 27, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
     beforeGitSha: before, afterGitSha: after, mergedAt: timestamp, createdAt: timestamp,
@@ -93,7 +93,7 @@ test('Admin founder UI is owner-gated, confirms once, then presents immutable re
 });
 
 test('History gives founder seed distinct contribution wording without a founder turn', async () => {
-  const source = await readFile(new URL('../src/platform/pages/HistoryPage.tsx', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../src/platform/components/HistoryContributionRecord.tsx', import.meta.url), 'utf8');
   assert.match(source, /founder contribution/);
   assert.match(source, /history-founder-badge/);
   assert.doesNotMatch(source, /Founder Turn/);

@@ -145,6 +145,8 @@ export interface PublicContributionRecord {
   number: number;
   season: number;
   contributionKind?: 'community' | 'founder_seed';
+  /** Stable public GitHub identity used only to derive the successful contributor avatar. */
+  githubUserId?: string;
   githubUsername: string;
   displayName: string;
   summary: string;
@@ -188,17 +190,23 @@ export const HISTORY_EVENT_TYPES = [
 
 export type HistoryEventType = (typeof HISTORY_EVENT_TYPES)[number];
 
-/** Public-safe chronology item: historyEvents/{turnId}. */
-export interface PublicHistoryEvent {
-  type: HistoryEventType;
+/** Public-safe chronology item: historyEvents/{turnId}. Failed turns omit GitHub identity. */
+export type PublicHistoryEvent = {
+  type: 'contribution';
   contributionKind?: 'community' | 'founder_seed';
   season: number;
   displayName: string;
   githubUsername: string;
   targetContributionNumber: number;
-  contributionNumber?: number;
+  contributionNumber: number;
   occurredAt: Timestamp;
-}
+} | {
+  type: 'turn_expired' | 'turn_skipped';
+  season: number;
+  displayName: string;
+  targetContributionNumber: number;
+  occurredAt: Timestamp;
+};
 
 export interface PublicCurrentContributor {
   githubUsername: string;

@@ -6,6 +6,23 @@ import {
   normalizePullRequestSubmission,
   PullRequestValidationError,
 } from '../src/platform/turn-lifecycle.ts';
+import { calculateMergedCounters } from '../src/platform/contribution-validation.ts';
+import { calculateTargetContributionNumber } from '../src/platform/turn-state.ts';
+
+test('a failed turn does not consume its target site version', () => {
+  const afterContributionOne = { currentVersion: 1, totalContributions: 1 };
+  const firstAttemptTarget = calculateTargetContributionNumber(afterContributionOne.currentVersion);
+  assert.equal(firstAttemptTarget, 2);
+
+  // Expiration/skip preserves both counters, so the next accepted turn derives the same target.
+  const nextAttemptTarget = calculateTargetContributionNumber(afterContributionOne.currentVersion);
+  assert.equal(nextAttemptTarget, 2);
+  assert.deepEqual(calculateMergedCounters(
+    afterContributionOne.currentVersion,
+    afterContributionOne.totalContributions,
+    nextAttemptTarget,
+  ), { currentVersion: 2, totalContributions: 2 });
+});
 
 test('normalizes a valid GitHub pull request URL', () => {
   assert.deepEqual(

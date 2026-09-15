@@ -657,16 +657,17 @@ service cloud.firestore {
       let contributor = get(contributorPathFor(turnAfter.githubUserId)).data;
       return currentTurnIdBefore() == eventId
         && !exists(historyEventPath(eventId))
-        && data.keys().hasAll(['type','season','displayName','githubUsername','targetContributionNumber','occurredAt'])
-        && data.keys().hasOnly(['type','season','displayName','githubUsername','targetContributionNumber','occurredAt'])
+        && data.keys().hasAll(['type','season','displayName','targetContributionNumber','occurredAt'])
+        && data.keys().hasOnly(['type','season','displayName','targetContributionNumber','occurredAt'])
         && ((turnAfter.status == 'expired' && data.type == 'turn_expired')
           || (turnAfter.status == 'skipped' && data.type == 'turn_skipped'))
         && turnBefore.status in ['active','submitted','under_review']
         && data.season == 1 && data.season == turnAfter.season
         && data.targetContributionNumber == turnAfter.targetContributionNumber
-        && validPublicPresentation(data)
+        && data.displayName is string
+        && data.displayName.size() >= 1 && data.displayName.size() <= 50
+        && data.displayName.matches('^\\S(.*\\S)?$')
         && data.displayName == contributor.displayName
-        && data.githubUsername == contributor.githubUsername
         && data.occurredAt is timestamp && data.occurredAt == request.time
         && completeTurnEnd(eventId, turnAfter.githubUserId, turnAfter.status);
     }
@@ -758,12 +759,14 @@ service cloud.firestore {
       let contributor = get(contributorPathFor(turn.githubUserId)).data;
       return contributionDocument == string(data.number)
         && !exists(contributionPath(data.number))
-        && data.keys().hasAll(['number','season','displayName','githubUsername','summary','prNumber','prUrl','mergedAt','createdAt'])
-        && data.keys().hasOnly(['number','season','displayName','githubUsername','summary','contributorMessage','socialUrl','prNumber','prUrl','mergedAt','createdAt'])
+        && data.keys().hasAll(['number','season','githubUserId','displayName','githubUsername','summary','prNumber','prUrl','mergedAt','createdAt'])
+        && data.keys().hasOnly(['number','season','githubUserId','displayName','githubUsername','summary','contributorMessage','socialUrl','prNumber','prUrl','mergedAt','createdAt'])
         && data.number is int && data.number > 0
         && data.number == turn.targetContributionNumber
         && data.season == 1 && data.season == turn.season
         && validPublicPresentation(data) && validContributionSummary(data)
+        && data.githubUserId is string && data.githubUserId.matches('^[0-9]+$')
+        && data.githubUserId == turn.githubUserId
         && data.displayName == contributor.displayName
         && data.githubUsername == contributor.githubUsername
         && data.get('socialUrl', null) == contributor.get('socialUrl', null)
