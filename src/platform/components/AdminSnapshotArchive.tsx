@@ -3,8 +3,12 @@
 import { useRef, useState } from 'react';
 import { finalizeSnapshotArchive, uploadSnapshotArchive } from '../firebase/snapshot-archives';
 import { validateSelectedSnapshotBundle, type ValidatedSnapshotBundle } from '../snapshots/archive';
+import type { AdminPendingArchive } from '../firebase/turns';
 
-export default function AdminSnapshotArchive() {
+export default function AdminSnapshotArchive({ pendingArchive, onFinalized }: {
+  pendingArchive: AdminPendingArchive | null;
+  onFinalized?: () => Promise<void>;
+}) {
   const activeUpload = useRef<{ cancel(): void } | null>(null);
   const [bundle, setBundle] = useState<ValidatedSnapshotBundle | null>(null);
   const [phase, setPhase] = useState<'idle' | 'validating' | 'ready' | 'uploading' | 'finalizing' | 'done'>('idle');
@@ -18,6 +22,12 @@ export default function AdminSnapshotArchive() {
     setPhase('validating');
     try {
       const validated = await validateSelectedSnapshotBundle([...files]);
+      if (!pendingArchive
+        || validated.manifest.contributionNumber !== pendingArchive.contributionNumber
+        || validated.manifest.git.before !== pendingArchive.beforeGitSha
+        || validated.manifest.git.after !== pendingArchive.afterGitSha) {
+        throw new Error('this bundle does not match the contribution currently awaiting archival.');
+      }
       setBundle(validated);
       setPhase('ready');
     } catch (cause) {
@@ -38,6 +48,7 @@ export default function AdminSnapshotArchive() {
       setPhase('finalizing');
       await finalizeSnapshotArchive(bundle.manifest.contributionNumber, bundle.manifest.captureId);
       setPhase('done');
+      await onFinalized?.().catch(() => undefined);
     } catch {
       activeUpload.current = null;
       setPhase('ready');
@@ -49,6 +60,7 @@ export default function AdminSnapshotArchive() {
     <section className="admin-media" aria-labelledby="snapshot-archive-heading">
       <h2 id="snapshot-archive-heading">snapshot archive</h2>
       <p className="admin-private-note">import one reviewed local capture bundle. finalized history archives cannot be replaced or deleted here.</p>
+      {!pendingArchive && <p className="notice">no contribution archive is pending. the relay is ready for its next invitation.</p>}
       {error && <p className="notice notice-error" role="alert">{error}</p>}
       {phase === 'done' && bundle && <p className="notice" role="status">archived contribution #{bundle.manifest.contributionLabel}: {bundle.manifest.capturedRoutes.length} pages, {bundle.validChecksums} screenshots.</p>}
       <div className="form-field">

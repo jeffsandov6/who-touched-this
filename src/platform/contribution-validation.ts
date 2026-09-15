@@ -1,9 +1,28 @@
 export const CONTRIBUTION_SUMMARY_MAX_LENGTH = 160;
 export const CONTRIBUTOR_MESSAGE_MAX_LENGTH = 280;
+export const CONTRIBUTION_GIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 export interface ValidatedContributionDetails {
   summary: string;
   contributorMessage?: string;
+}
+
+export function validateContributionGitProvenance(beforeInput: string, afterInput: string): {
+  beforeGitSha: string;
+  afterGitSha: string;
+} {
+  const beforeGitSha = beforeInput.trim().toLowerCase();
+  const afterGitSha = afterInput.trim().toLowerCase();
+  if (!CONTRIBUTION_GIT_SHA_PATTERN.test(beforeGitSha)) {
+    throw new ContributionValidationError('before SHA must be the full 40-character commit SHA.');
+  }
+  if (!CONTRIBUTION_GIT_SHA_PATTERN.test(afterGitSha)) {
+    throw new ContributionValidationError('after SHA must be the full 40-character commit SHA.');
+  }
+  if (beforeGitSha === afterGitSha) {
+    throw new ContributionValidationError('before & after SHAs must be different.');
+  }
+  return { beforeGitSha, afterGitSha };
 }
 
 export class ContributionValidationError extends Error {

@@ -7,7 +7,8 @@ import { promisify } from 'node:util';
 import test from 'node:test';
 import { captureSnapshots, createBundlePaths, createCaptureId, renderReviewPage, startStaticServer } from '../scripts/snapshots/capture.mjs';
 import { validateRevisionPair } from '../scripts/snapshots/git.mjs';
-import { sha256, sha256File } from '../scripts/snapshots/integrity.mjs';
+import { pngDimensions, sha256, sha256File, validatePngScreenshot } from '../scripts/snapshots/integrity.mjs';
+import { SNAPSHOT_CONFIG } from '../scripts/snapshots/config.mjs';
 import { buildSnapshotManifest, formatContributionNumber, verifySnapshotBundle } from '../scripts/snapshots/manifest.mjs';
 import { createRouteKeyMap, mergeSnapshotRoutes } from '../scripts/snapshots/routes.mjs';
 
@@ -112,6 +113,27 @@ test('verification rejects changed, missing, malformed, and disagreeing screensh
 });
 
 test('checksum helper is deterministic', () => assert.equal(sha256(Buffer.from('snapshot')), sha256(Buffer.from('snapshot'))));
+
+test('permanent PNG verification enforces dimensions, pixel area, byte size, and full-page consistency', () => {
+  assert.deepEqual(pngDimensions(tinyPng), { width: 1, height: 1 });
+  assert.deepEqual(validatePngScreenshot(tinyPng, SNAPSHOT_CONFIG, { width: 1, height: 1 }), { width: 1, height: 1 });
+  assert.throws(() => validatePngScreenshot(tinyPng, SNAPSHOT_CONFIG, { width: 1, height: 2 }), /dimensions disagree/);
+  assert.throws(() => validatePngScreenshot(tinyPng, { ...SNAPSHOT_CONFIG, maximumScreenshotBytes: tinyPng.length - 1 }), /exceeds/);
+  const tooTall = Buffer.from(tinyPng); tooTall.writeUInt32BE(20_001, 20);
+  assert.throws(() => validatePngScreenshot(tooTall, SNAPSHOT_CONFIG), /archive bounds/);
+  const tooManyPixels = Buffer.from(tinyPng); tooManyPixels.writeUInt32BE(20_000, 16); tooManyPixels.writeUInt32BE(2_000, 20);
+  assert.throws(() => validatePngScreenshot(tooManyPixels, SNAPSHOT_CONFIG), /archive bounds/);
+});
+
+test('bundle verification rejects a manifest above the permanent one MiB limit', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'wtt-large-manifest-'));
+  try {
+    await createFixtureBundle(root);
+    const current = await readFile(join(root, 'manifest.json'), 'utf8');
+    await writeFile(join(root, 'manifest.json'), `${current}${' '.repeat(1024 * 1024)}`);
+    await assert.rejects(verifySnapshotBundle(root), /size limit/);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 
 test('loopback preview server serves routes and closes cleanly', async () => {
   const root = await mkdtemp(join(tmpdir(), 'wtt-server-'));

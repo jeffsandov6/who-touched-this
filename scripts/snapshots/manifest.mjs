@@ -1,7 +1,7 @@
 import { isAbsolute, resolve, sep } from 'node:path';
 import { readFile } from 'node:fs/promises';
 import { SNAPSHOT_CONFIG } from './config.mjs';
-import { isPng, sha256File } from './integrity.mjs';
+import { validatePngScreenshot, sha256File } from './integrity.mjs';
 import { createRouteKeyMap, normalizeSnapshotRoute } from './routes.mjs';
 import { validateSnapshotManifest } from '../../src/platform/snapshots/schema.ts';
 
@@ -57,7 +57,9 @@ export async function verifySnapshotBundle(bundlePath) {
   const manifestPath = resolve(bundlePath, 'manifest.json');
   let manifest;
   try {
-    manifest = validateSnapshotManifest(JSON.parse(await readFile(manifestPath, 'utf8')));
+    const serialized = await readFile(manifestPath);
+    if (serialized.length > SNAPSHOT_CONFIG.maximumManifestBytes) throw new Error('snapshot manifest exceeds its size limit.');
+    manifest = validateSnapshotManifest(JSON.parse(serialized.toString('utf8')));
   } catch (error) {
     throw new Error(`Malformed or missing snapshot manifest: ${error.message}`);
   }
@@ -120,7 +122,11 @@ export async function verifySnapshotBundle(bundlePath) {
       } catch {
         throw new Error(`Expected screenshot is missing: ${item.path}`);
       }
-      if (!isPng(contents)) throw new Error(`Expected screenshot is not a PNG: ${item.path}`);
+      try {
+        validatePngScreenshot(contents, SNAPSHOT_CONFIG);
+      } catch (error) {
+        throw new Error(`Invalid screenshot ${item.path}: ${error.message}`);
+      }
       const actual = await sha256File(absolute);
       if (actual !== item.sha256) throw new Error(`Screenshot checksum mismatch: ${item.path}`);
     }

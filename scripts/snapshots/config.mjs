@@ -14,5 +14,7 @@ export const SNAPSHOT_CONFIG = Object.freeze({
   screenshotTimeoutMs: 30_000,
   maximumDocumentHeight: 20_000,
   maximumScreenshotPixels: 32_000_000,
+  maximumScreenshotBytes: 20 * 1024 * 1024,
+  maximumManifestBytes: 1024 * 1024,
   serverStartupTimeoutMs: 15_000,
 });

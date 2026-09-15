@@ -11,6 +11,7 @@ import {
   calculateMergedCounters,
   ContributionValidationError,
   validateContributionDetails,
+  validateContributionGitProvenance,
 } from '../contribution-validation';
 import {
   type PublicSiteViewState,
@@ -60,6 +61,37 @@ export interface AdminCurrentTurn {
   prUrl?: string;
   submittedAt?: Date;
   reviewStartedAt?: Date;
+}
+
+export interface AdminPendingArchive {
+  contributionNumber: number;
+  archiveStatus: 'pending';
+  beforeGitSha: string;
+  afterGitSha: string;
+}
+
+export async function loadAdminPendingArchive(): Promise<AdminPendingArchive | null> {
+  try {
+    const firestore = getPlatformFirestore();
+    const privateSiteSnapshot = await getDoc(doc(firestore, PRIVATE_SITE_DOCUMENT_PATH));
+    if (!privateSiteSnapshot.exists()) return null;
+    const number = privateSiteSnapshot.data().pendingArchiveContributionNumber ?? null;
+    if (number === null) return null;
+    if (!Number.isSafeInteger(number) || number < 0) {
+      throw new AdminServiceError('the pending archive relay lock is malformed.');
+    }
+    const contributionSnapshot = await getDoc(doc(firestore, contributionDocumentPath(number)));
+    const data = contributionSnapshot.data();
+    if (!contributionSnapshot.exists() || data?.archiveStatus !== 'pending'
+      || typeof data.beforeGitSha !== 'string' || typeof data.afterGitSha !== 'string'
+      || !/^[0-9a-f]{40}$/.test(data.beforeGitSha) || !/^[0-9a-f]{40}$/.test(data.afterGitSha)
+      || data.beforeGitSha === data.afterGitSha) {
+      throw new AdminServiceError('the pending contribution archive state is inconsistent.');
+    }
+    return { contributionNumber: number, archiveStatus: 'pending', beforeGitSha: data.beforeGitSha, afterGitSha: data.afterGitSha };
+  } catch (error) {
+    throw toAdminServiceError(error, 'the pending contribution archive could not be loaded.');
+  }
 }
 
 function activeAdminRecordIsValid(data: Record<string, unknown>, githubUserId: string): boolean {
@@ -183,6 +215,12 @@ function assertActiveAdmin(exists: boolean, data: Record<string, unknown>, githu
   }
 }
 
+function assertArchiveRelayUnlocked(privateSiteData: Record<string, unknown> | undefined) {
+  if ((privateSiteData?.pendingArchiveContributionNumber ?? null) !== null) {
+    throw new AdminServiceError('the current lifecycle state conflicts with an archive relay lock.');
+  }
+}
+
 export async function recordPullRequestSubmission(input: RecordPullRequestInput): Promise<void> {
   let submission;
   try {
@@ -202,7 +240,9 @@ export async function recordPullRequestSubmission(input: RecordPullRequestInput)
         transaction.get(publicSiteReference),
       ]);
       assertActiveAdmin(adminSnapshot.exists(), adminSnapshot.data() ?? {}, input.adminGithubUserId);
-      const turnId = privateSiteSnapshot.data()?.activeTurnId;
+      const privateSiteData = privateSiteSnapshot.data();
+      assertArchiveRelayUnlocked(privateSiteData);
+      const turnId = privateSiteData?.activeTurnId;
       if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('there is no current turn.');
       const turnReference = doc(firestore, turnDocumentPath(turnId));
       const turnSnapshot = await transaction.get(turnReference);
@@ -233,7 +273,9 @@ export async function markCurrentTurnUnderReview(adminGithubUserId: string): Pro
         transaction.get(adminReference), transaction.get(privateSiteReference), transaction.get(publicSiteReference),
       ]);
       assertActiveAdmin(adminSnapshot.exists(), adminSnapshot.data() ?? {}, adminGithubUserId);
-      const turnId = privateSiteSnapshot.data()?.activeTurnId;
+      const privateSiteData = privateSiteSnapshot.data();
+      assertArchiveRelayUnlocked(privateSiteData);
+      const turnId = privateSiteData?.activeTurnId;
       if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('there is no current turn.');
       const turnReference = doc(firestore, turnDocumentPath(turnId));
       const turnSnapshot = await transaction.get(turnReference);
@@ -261,7 +303,9 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
         transaction.get(adminReference), transaction.get(privateSiteReference), transaction.get(publicSiteReference),
       ]);
       assertActiveAdmin(adminSnapshot.exists(), adminSnapshot.data() ?? {}, adminGithubUserId);
-      const turnId = privateSiteSnapshot.data()?.activeTurnId;
+      const privateSiteData = privateSiteSnapshot.data();
+      assertArchiveRelayUnlocked(privateSiteData);
+      const turnId = privateSiteData?.activeTurnId;
       if (typeof turnId !== 'string' || !turnId) throw new AdminServiceError('there is no current turn.');
       const turnReference = doc(firestore, turnDocumentPath(turnId));
       const turnSnapshot = await transaction.get(turnReference);
@@ -296,6 +340,7 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
       transaction.set(privateSiteReference, {
         activeTurnId: null,
         pendingInvitationId: null,
+        pendingArchiveContributionNumber: null,
         updatedAt: serverTimestamp(),
       });
       transaction.set(publicSiteReference, {
@@ -328,14 +373,18 @@ export interface RecordMergedContributionInput {
   adminGithubUserId: string;
   summary: string;
   contributorMessage: string;
+  beforeGitSha: string;
+  afterGitSha: string;
 }
 
 export async function recordMergedContribution(
   input: RecordMergedContributionInput,
 ): Promise<number> {
   let details;
+  let provenance;
   try {
     details = validateContributionDetails(input.summary, input.contributorMessage);
+    provenance = validateContributionGitProvenance(input.beforeGitSha, input.afterGitSha);
   } catch (error) {
     if (error instanceof ContributionValidationError) {
       throw new AdminServiceError(error.message);
@@ -360,6 +409,11 @@ export async function recordMergedContribution(
         adminSnapshot.data() ?? {},
         input.adminGithubUserId,
       );
+
+      const pendingArchive = privateSiteSnapshot.data()?.pendingArchiveContributionNumber ?? null;
+      if (pendingArchive !== null) {
+        throw new AdminServiceError(`archive contribution #${String(pendingArchive).padStart(3, '0')} before recording another merge.`);
+      }
 
       const turnId = privateSiteSnapshot.data()?.activeTurnId;
       if (typeof turnId !== 'string' || !turnId) {
@@ -445,6 +499,9 @@ export async function recordMergedContribution(
         ...(contributor.socialUrl ? { socialUrl: contributor.socialUrl } : {}),
         prNumber: turn.prNumber,
         prUrl: turn.prUrl,
+        beforeGitSha: provenance.beforeGitSha,
+        afterGitSha: provenance.afterGitSha,
+        archiveStatus: 'pending',
         mergedAt: serverTimestamp(),
         createdAt: serverTimestamp(),
       } satisfies WithFieldValue<PublicContributionRecord>;
@@ -479,6 +536,7 @@ export async function recordMergedContribution(
       transaction.set(privateSiteReference, {
         activeTurnId: null,
         pendingInvitationId: null,
+        pendingArchiveContributionNumber: turn.targetContributionNumber,
         updatedAt: serverTimestamp(),
       } satisfies WithFieldValue<PrivateSiteState>);
       transaction.set(publicSiteReference, {

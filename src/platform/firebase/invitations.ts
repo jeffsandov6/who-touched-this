@@ -116,9 +116,18 @@ function parsePrivateSiteState(data: Record<string, unknown> | undefined): Priva
     (data.activeTurnId !== null && (typeof data.activeTurnId !== 'string' || !data.activeTurnId)) ||
     (data.pendingInvitationId !== null
       && (typeof data.pendingInvitationId !== 'string' || !data.pendingInvitationId)) ||
+    ('pendingArchiveContributionNumber' in data
+      && data.pendingArchiveContributionNumber !== null
+      && (!Number.isSafeInteger(data.pendingArchiveContributionNumber)
+        || Number(data.pendingArchiveContributionNumber) < 0)) ||
     !(data.updatedAt instanceof Timestamp)
   ) throw new InvitationError('private site state is malformed.');
-  return data as unknown as PrivateSiteState;
+  return {
+    ...(data as unknown as Omit<PrivateSiteState, 'pendingArchiveContributionNumber'>),
+    pendingArchiveContributionNumber: 'pendingArchiveContributionNumber' in data
+      ? data.pendingArchiveContributionNumber as number | null
+      : null,
+  };
 }
 
 export async function inviteNextContributor(input: InviteContributorInput): Promise<string> {
@@ -181,6 +190,9 @@ export async function inviteNextContributor(input: InviteContributorInput): Prom
       if (privateState?.activeTurnId || privateState?.pendingInvitationId) {
         throw new AdminServiceError('another turn or invitation is already current.');
       }
+      if (privateState && privateState.pendingArchiveContributionNumber !== null) {
+        throw new AdminServiceError(`archive contribution #${String(privateState.pendingArchiveContributionNumber).padStart(3, '0')} before inviting the next contributor.`);
+      }
       const publicState = publicSite.exists() ? tryParsePublicSiteState(publicSite.data()) : null;
       if (publicState && publicState.turnStatus !== 'none') {
         throw new AdminServiceError('a public turn is already current.');
@@ -206,6 +218,7 @@ export async function inviteNextContributor(input: InviteContributorInput): Prom
       transaction.set(privateSiteReference, {
         activeTurnId: null,
         pendingInvitationId: invitationReference.id,
+        pendingArchiveContributionNumber: null,
         updatedAt: serverTimestamp(),
       } satisfies WithFieldValue<PrivateSiteState>);
     });
@@ -293,11 +306,12 @@ export async function acceptInvitation(
 
   try {
     return await runTransaction(firestore, async (transaction) => {
-      const [invitationSnapshot, contributorSnapshot, participationSnapshot, publicSiteSnapshot] =
+      const [invitationSnapshot, contributorSnapshot, participationSnapshot, privateSiteSnapshot, publicSiteSnapshot] =
         await Promise.all([
-        transaction.get(invitationReference), transaction.get(contributorReference),
-        transaction.get(participationReference), transaction.get(publicSiteReference),
-      ]);
+          transaction.get(invitationReference), transaction.get(contributorReference),
+          transaction.get(participationReference), transaction.get(privateSiteReference),
+          transaction.get(publicSiteReference),
+        ]);
       if (!invitationSnapshot.exists()) throw new InvitationError('your invitation is unavailable.');
       const invitation = parsePendingInvitation(invitationId, invitationSnapshot.data(), githubUserId);
       if (Date.now() > invitation.acceptBy.toMillis()) {
@@ -305,6 +319,12 @@ export async function acceptInvitation(
       }
       if (!contributorSnapshot.exists()) throw new InvitationError('your contributor record is missing.');
       const contributor = parseAdminContributor(contributorSnapshot.data(), githubUserId);
+      const privateState = parsePrivateSiteState(privateSiteSnapshot.data());
+      if (!privateState || privateState.pendingInvitationId !== invitationId
+        || privateState.activeTurnId !== null
+        || privateState.pendingArchiveContributionNumber !== null) {
+        throw new InvitationError('the relay is not available for this invitation.');
+      }
       if (
         !participationSnapshot.exists() || participationSnapshot.data().githubUserId !== githubUserId ||
         participationSnapshot.data().season !== CURRENT_SEASON ||
@@ -335,7 +355,8 @@ export async function acceptInvitation(
       transaction.update(participationReference, { status: 'active', updatedAt: serverTimestamp() });
       transaction.update(queueReference, { status: 'active', updatedAt: serverTimestamp() });
       transaction.set(privateSiteReference, {
-        activeTurnId: turnReference.id, pendingInvitationId: null, updatedAt: serverTimestamp(),
+        activeTurnId: turnReference.id, pendingInvitationId: null,
+        pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
       } satisfies WithFieldValue<PrivateSiteState>);
       transaction.set(publicSiteReference, {
         currentVersion: publicState.currentVersion,
@@ -369,6 +390,9 @@ export async function expirePendingInvitation(adminGithubUserId: string): Promis
       const state = parsePrivateSiteState(privateSiteSnapshot.data());
       if (!state?.pendingInvitationId || state.activeTurnId !== null) {
         throw new AdminServiceError('there is no pending invitation.');
+      }
+      if (state.pendingArchiveContributionNumber !== null) {
+        throw new AdminServiceError('the pending invitation conflicts with an archive relay lock.');
       }
       const invitationReference = doc(
         firestore,
@@ -407,7 +431,8 @@ export async function expirePendingInvitation(adminGithubUserId: string): Promis
         status: 'invitation_expired', updatedAt: serverTimestamp(),
       });
       transaction.set(privateSiteReference, {
-        activeTurnId: null, pendingInvitationId: null, updatedAt: serverTimestamp(),
+        activeTurnId: null, pendingInvitationId: null,
+        pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
       } satisfies WithFieldValue<PrivateSiteState>);
     });
   } catch (error) {

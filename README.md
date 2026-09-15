@@ -98,7 +98,9 @@ totalContributions = 1
 turnStatus = none
 ```
 
-There is no founder queue, participation, invitation, turn, countdown, or lifecycle email. The next
+The founder record is also `archiveStatus = pending` and privately locks the relay at contribution 0
+until the ordinary snapshot finalizer completes the exact-SHA archive. There is no founder queue,
+participation, invitation, turn, countdown, or lifecycle email. The next
 ordinary accepted community turn still targets `currentVersion + 1`, which is Contribution #001; its
 successful merge produces `currentVersion = 1` and `totalContributions = 2`.
 
@@ -217,6 +219,12 @@ canvas behavior may yield a different frame on recapture; the full Git SHAs rema
 identity. Run this trusted maintainer tool only on reviewed canonical commits, never an unreviewed fork
 head in privileged CI.
 
+Before each permanent screenshot, capture measures the full rendered document and rejects heights
+above 20,000 px or pixel areas above 32,000,000 px. It then verifies the PNG IHDR dimensions against
+the intended full-page dimensions, rejects PNGs above 20 MiB, and rejects manifests above 1 MiB.
+Failures name the route and BEFORE/AFTER side, delete the incomplete staging bundle, and never crop or
+unlock the relay.
+
 Bundles are collision-safe and ignored by Git:
 
 ```text
@@ -251,11 +259,12 @@ it. The browser verifies every PNG checksum and uploads only `manifest.json` plu
 public/history/contributions/{zero-padded-number}/{captureId}/
 ```
 
-A trusted `finalizeSnapshotArchive` callable then verifies admin identity, the permanent contribution,
+A trusted `finalizeSnapshotArchive` callable then verifies admin identity, the pending permanent contribution,
 uploaded manifest, exact object set, MIME/size/path/checksum metadata, and the one-archive policy before
-creating immutable public `contributionSnapshots/{number}` metadata. The local `index.html` is not
+atomically creating immutable public `contributionSnapshots/{number}` metadata, marking the contribution
+archive finalized, and clearing only its matching private relay lock. The local `index.html` is not
 uploaded. Interrupted uploads can retry the same capture: matching immutable objects are reused and
-public History changes only after finalization. Unfinalized orphan objects are not shown and require a
+the same completed finalization returns safely without duplicating effects. Unfinalized orphan objects are not shown and require a
 future protected cleanup process.
 
 Public History queries snapshot metadata once, attaches it only to permanent contribution events, and
@@ -712,15 +721,25 @@ Neither failure transition creates a contribution or consumes `targetContributio
 waiting contributor therefore targets the same `currentVersion + 1`.
 
 The application does not merge a GitHub pull request or verify its GitHub state. After manually
-merging an under-review PR on GitHub, an admin records the outcome with a required public summary
-and optional public contributor message. The GitHub PR number is independent of the Who Touched
+merging an under-review PR on GitHub, an admin records the outcome with a required public summary,
+optional public contributor message, and the exact full canonical BEFORE/AFTER SHAs. The GitHub PR number is independent of the Who Touched
 This contribution number: for example, Contribution #001 may refer to GitHub PR #27.
 
 That single transaction changes the turn from `under_review` to terminal `merged`, completes its
 participation and queue entries, creates `contributions/{number}` and a matching public History
 event, clears the current-turn lock, advances `currentVersion` to the target, increments
-`totalContributions` once, and clears current contributor data. This is the first operation that
-permanently consumes a contribution number. The next turn targets the new version plus one.
+`totalContributions` once, clears current contributor data, marks the public contribution archive
+`pending`, and sets `site/admin.pendingArchiveContributionNumber`. This is the accepted/public moment
+and the first operation that permanently consumes a contribution number. History shows it immediately,
+with “before & after is being archived.”
+
+The relay stays paused while that private archive lock exists. No invitation can be created or
+accepted, so no next countdown, turn, invitation email, or turn-started email can begin. Capture,
+visually review, verify, upload, and finalize the exact-SHA archive. Finalization changes only snapshot
+metadata, `archiveStatus`, and the matching lock; it does not touch counters, History, merged time,
+participation, queue, or email. The admin may then manually invite the next contributor, whose target
+is the new version plus one. If capture, upload, or finalization fails, the merged version stays public
+and the relay remains locked until a safe retry succeeds.
 
 ### Public History
 
@@ -734,6 +753,9 @@ snapshotted change summary, optional message, GitHub PR, merge time, and archive
 when one exists. New successful contribution records also preserve the verified numeric GitHub user
 ID as public presentation identity, solely to derive a stable avatar URL without browser GitHub API
 requests. Older contribution records remain valid and render an initials fallback.
+An explicit pending archive is presented as work in progress. A finalized valid archive exposes the
+normal visual comparison; a legacy record without archival status, or a defensive finalized record
+whose snapshot metadata is unavailable, uses an unavailable fallback rather than being mislabeled as pending.
 
 Explicit expiration and skipping create quieter timeline entries that explain an unwritten version
 without mislabeling it as a contribution. New failed-turn event documents contain only the public

@@ -27,7 +27,7 @@ interface State {
 function setup(overrides: Partial<State> = {}) {
   const state: State = {
     admins: new Map([['9001', { githubUserId: '9001', active: true, role: 'owner' }]]),
-    privateSite: { activeTurnId: null, pendingInvitationId: null },
+    privateSite: { activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null },
     publicSite: {
       currentVersion: 0, totalContributions: 0, turnStatus: 'none',
       targetContributionNumber: null, currentContributor: null, dueAt: null,
@@ -50,6 +50,7 @@ function setup(overrides: Partial<State> = {}) {
         createContribution: (data) => state.contributions.set(0, data),
         createHistory: (data) => state.history.set('founder_seed_000', data),
         setPublicSite: (data) => { state.publicSite = data; },
+        setPrivateSite: (data) => { state.privateSite = data; },
       });
     },
   };
@@ -97,7 +98,7 @@ test('active owner atomically records public founder contribution, History, and 
     number: 0, season: 1, contributionKind: 'founder_seed', githubUserId: '9001', displayName: 'Founder',
     githubUsername: 'JeffSandov6', summary: 'Initial creative seed', contributorMessage: 'Here we go.',
     prNumber: 27, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
-    beforeGitSha: before, afterGitSha: after, mergedAt: timestamp, createdAt: timestamp,
+    beforeGitSha: before, afterGitSha: after, archiveStatus: 'pending', mergedAt: timestamp, createdAt: timestamp,
   });
   assert.deepEqual(state.history.get('founder_seed_000'), {
     type: 'contribution', contributionKind: 'founder_seed', season: 1,
@@ -119,6 +120,7 @@ test('founder recording creates no operational or email records', async () => {
   assert.equal('contributorMessage' in state.contributions.get(0)!, false);
   assert.equal(state.privateSite?.activeTurnId, null);
   assert.equal(state.privateSite?.pendingInvitationId, null);
+  assert.equal(state.privateSite?.pendingArchiveContributionNumber, 0);
   assert.equal(state.contributions.size, 1);
   assert.equal(state.history.size, 1);
   assert.deepEqual(state.otherWrites, []);
@@ -150,10 +152,20 @@ test('pending invitation, active lock, and active public projections block found
   for (const overrides of [
     { privateSite: { activeTurnId: null, pendingInvitationId: 'invitation' } },
     { privateSite: { activeTurnId: 'turn', pendingInvitationId: null } },
+    { privateSite: { activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: 1 } },
     { publicSite: { currentVersion: 0, totalContributions: 0, turnStatus: 'submitted', targetContributionNumber: 1, currentContributor: {}, dueAt: null } },
     { publicSite: { currentVersion: 0, totalContributions: 0, turnStatus: 'under_review', targetContributionNumber: 1, currentContributor: {}, dueAt: null } },
     { publicSite: { currentVersion: 1, totalContributions: 1, turnStatus: 'none', targetContributionNumber: null, currentContributor: null, dueAt: null } },
   ]) await expectCode(recordFounderSeedContribution(auth(), input, setup(overrides).dependencies), 'failed-precondition');
+});
+
+test('founder recording cannot overwrite an existing archive relay lock', async () => {
+  const state = setup({
+    privateSite: { activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: 7 },
+  });
+  await expectCode(recordFounderSeedContribution(auth(), input, state.dependencies), 'failed-precondition');
+  assert.equal(state.state.privateSite?.pendingArchiveContributionNumber, 7);
+  assert.equal(state.state.contributions.has(0), false);
 });
 
 test('waiting queue state is irrelevant when locks, counters, and permanent history are empty', async () => {

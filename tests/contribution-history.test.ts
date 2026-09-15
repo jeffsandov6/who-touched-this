@@ -5,6 +5,7 @@ import {
   calculateMergedCounters,
   ContributionValidationError,
   validateContributionDetails,
+  validateContributionGitProvenance,
 } from '../src/platform/contribution-validation.ts';
 import {
   contributorInitials,
@@ -43,6 +44,14 @@ test('contributor message is optional and bounded', () => {
     () => validateContributionDetails('Summary', 'x'.repeat(281)),
     ContributionValidationError,
   );
+});
+
+test('merged contribution provenance requires distinct full SHAs and normalizes case', () => {
+  assert.deepEqual(validateContributionGitProvenance(' A'.trim().repeat(40), 'B'.repeat(40)), {
+    beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40),
+  });
+  assert.throws(() => validateContributionGitProvenance('abc', 'b'.repeat(40)), ContributionValidationError);
+  assert.throws(() => validateContributionGitProvenance('a'.repeat(40), 'a'.repeat(40)), ContributionValidationError);
 });
 
 test('merged counters advance exactly once and require the next target', () => {
@@ -273,10 +282,55 @@ test('detail page has complete and graceful ready, no-snapshot, and not-found st
   assert.match(source, /headingLevel="h1"/);
   assert.match(source, /<HistorySnapshots/);
   assert.match(source, /before & after wasn't archived for this version\./);
+  assert.match(source, /before & after is being archived\./);
+  assert.match(source, /before & after is unavailable for this version\./);
   assert.match(source, /version not found\./);
   assert.match(source, /back to history/);
   assert.doesNotMatch(source, /fixture|import\.meta\.env\.DEV|history-local/);
   assert.doesNotMatch(source, /contributors|participation|queue|turns/);
+});
+
+test('archive status distinguishes pending, finalized, and legacy public records', async () => {
+  const base = {
+    number: 2, season: 1, displayName: 'Archive Test', githubUsername: 'archive-test',
+    summary: 'Accepted change.', prNumber: 22, prUrl: 'https://github.com/example/repo/pull/22',
+    beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40),
+    mergedAt: timestamp(2000), createdAt: timestamp(2000),
+  };
+  assert.equal(parsePublicContribution({ ...base, archiveStatus: 'pending' })?.archiveStatus, 'pending');
+  assert.equal(parsePublicContribution({ ...base, archiveStatus: 'finalized' })?.archiveStatus, 'finalized');
+  assert.equal(parsePublicContribution({ ...base, archiveStatus: 'broken' }), null);
+  const mismatchedSnapshot = {
+    schemaVersion: 1, contributionNumber: 2, captureId: 'capture',
+    beforeGitSha: 'c'.repeat(40), afterGitSha: 'd'.repeat(40),
+    canonicalRoutes: ['/'], additionalRoutes: [], capturedRoutes: ['/'],
+    routes: [{ route: '/', routeKey: 'home',
+      before: { storagePath: 'public/history/contributions/002/capture/before/home.png', sha256: 'e'.repeat(64) },
+      after: { storagePath: 'public/history/contributions/002/capture/after/home.png', sha256: 'f'.repeat(64) } }],
+    manifestStoragePath: 'public/history/contributions/002/capture/manifest.json',
+    viewport: { width: 1440, height: 900, deviceScaleFactor: 1, fullPage: true }, archivedAt: timestamp(3000),
+  };
+  assert.equal(buildPublicContributionDetail(2, { ...base, archiveStatus: 'finalized' }, mismatchedSnapshot)?.snapshot, undefined);
+  const listSource = await readFile(new URL('../src/platform/pages/HistoryPage.tsx', import.meta.url), 'utf8');
+  assert.match(listSource, /event\.archiveStatus === 'pending'/);
+  assert.match(listSource, /before & after is being archived\./);
+});
+
+test('admin merge recording deliberately collects exact provenance and exposes the archive relay lock', async () => {
+  const [turnSource, adminSource, archiveSource] = await Promise.all([
+    readFile(new URL('../src/platform/components/AdminCurrentTurn.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/platform/pages/AdminPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/platform/components/AdminSnapshotArchive.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(turnSource, /contribution-before-sha/);
+  assert.match(turnSource, /contribution-after-sha/);
+  assert.match(turnSource, /pattern="\[0-9A-Fa-f\]\{40\}"/);
+  assert.match(adminSource, /relay paused for contribution/);
+  assert.match(adminSource, /archive this accepted contribution before inviting/);
+  assert.match(adminSource, /npm run snapshots:capture --/);
+  assert.match(adminSource, /--contribution \$\{pendingArchive\.contributionNumber\}/);
+  assert.doesNotMatch(adminSource, /\\n\+  --contribution/);
+  assert.match(archiveSource, /does not match the contribution currently awaiting archival/);
 });
 
 test('detail loader reads only deterministic public contribution and snapshot documents', async () => {

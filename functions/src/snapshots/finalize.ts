@@ -1,4 +1,5 @@
 import { githubIdFromAuthToken } from '../email/retry-invitation.js';
+import { createHash } from 'node:crypto';
 
 const SCREENSHOT_MAX_BYTES = 20 * 1024 * 1024;
 const MANIFEST_MAX_BYTES = 1024 * 1024;
@@ -25,11 +26,20 @@ interface ObjectMetadata {
 
 export interface SnapshotFinalizeDependencies {
   loadAdmin(githubUserId: string): Promise<Record<string, unknown> | null>;
-  contributionExists(contributionNumber: number): Promise<boolean>;
-  snapshotExists(contributionNumber: number): Promise<boolean>;
+  loadArchiveState(contributionNumber: number): Promise<{
+    contribution: Record<string, unknown> | null;
+    snapshot: Record<string, unknown> | null;
+    privateSite: Record<string, unknown> | null;
+  }>;
   loadObject(path: string): Promise<{ metadata: ObjectMetadata; contents?: Buffer } | null>;
   listObjects(prefix: string): Promise<string[]>;
-  createSnapshot(contributionNumber: number, data: Record<string, unknown>): Promise<void>;
+  commitFinalization(input: {
+    contributionNumber: number;
+    captureId: string;
+    beforeGitSha: string;
+    afterGitSha: string;
+    snapshot: Record<string, unknown>;
+  }): Promise<'finalized' | 'already_finalized'>;
   archivedAt(): unknown;
 }
 
@@ -149,7 +159,7 @@ export async function finalizeSnapshotArchiveRequest(
   authToken: Record<string, unknown> | null,
   input: unknown,
   dependencies: SnapshotFinalizeDependencies,
-): Promise<{ status: 'finalized'; contributionNumber: number }> {
+): Promise<{ status: 'finalized' | 'already_finalized'; contributionNumber: number }> {
   if (!authToken) throw new SnapshotFinalizeError('unauthenticated', 'authentication is required.');
   const githubUserId = githubIdFromAuthToken(authToken);
   if (!githubUserId) throw new SnapshotFinalizeError('permission-denied', 'access denied.');
@@ -164,8 +174,30 @@ export async function finalizeSnapshotArchiveRequest(
   const number = request.contributionNumber;
   const label = contributionLabel(number);
   const captureId = request.captureId;
-  if (!await dependencies.contributionExists(number)) throw new SnapshotFinalizeError('not-found', 'permanent contribution does not exist.');
-  if (await dependencies.snapshotExists(number)) throw new SnapshotFinalizeError('failed-precondition', 'this contribution already has a finalized snapshot archive.');
+  const state = await dependencies.loadArchiveState(number);
+  if (!state.contribution) throw new SnapshotFinalizeError('not-found', 'permanent contribution does not exist.');
+  const contributionBefore = state.contribution.beforeGitSha;
+  const contributionAfter = state.contribution.afterGitSha;
+  if (state.snapshot) {
+    if (state.contribution.archiveStatus === 'finalized'
+      && state.snapshot.captureId === captureId
+      && state.snapshot.contributionNumber === number
+      && state.snapshot.beforeGitSha === contributionBefore
+      && state.snapshot.afterGitSha === contributionAfter
+      && (state.privateSite?.pendingArchiveContributionNumber ?? null) !== number) {
+      return { status: 'already_finalized', contributionNumber: number };
+    }
+    throw new SnapshotFinalizeError('failed-precondition', 'this contribution already has a different finalized snapshot archive.');
+  }
+  if (state.contribution.archiveStatus !== 'pending'
+    || typeof contributionBefore !== 'string' || typeof contributionAfter !== 'string'
+    || !GIT_SHA.test(contributionBefore) || !GIT_SHA.test(contributionAfter)
+    || contributionBefore === contributionAfter) {
+    throw new SnapshotFinalizeError('failed-precondition', 'contribution archive provenance is invalid.');
+  }
+  if (state.privateSite?.pendingArchiveContributionNumber !== number) {
+    throw new SnapshotFinalizeError('failed-precondition', 'the pending archive relay lock does not match this contribution.');
+  }
   const prefix = `public/history/contributions/${label}/${captureId}`;
   const manifestPath = `${prefix}/manifest.json`;
   const manifestObject = await dependencies.loadObject(manifestPath);
@@ -174,7 +206,13 @@ export async function finalizeSnapshotArchiveRequest(
     path: manifestPath, type: 'application/json', max: MANIFEST_MAX_BYTES,
     custom: { contributionNumber: String(number), contributionLabel: label, captureId },
   });
+  if (manifestObject.metadata.size !== manifestObject.contents.length) {
+    throw new SnapshotFinalizeError('failed-precondition', 'uploaded manifest size metadata disagrees with its contents.');
+  }
   const manifest = parseManifest(manifestObject.contents, number, captureId);
+  if (manifest.git.before !== contributionBefore || manifest.git.after !== contributionAfter) {
+    throw new SnapshotFinalizeError('failed-precondition', 'manifest Git revisions do not match the accepted contribution.');
+  }
   const publicRoutes = [];
   const expectedPaths = [manifestPath];
   for (const record of manifest.screenshotRecords) {
@@ -197,7 +235,7 @@ export async function finalizeSnapshotArchiveRequest(
   if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths.sort())) {
     throw new SnapshotFinalizeError('failed-precondition', 'archive object count or paths do not match the manifest.');
   }
-  await dependencies.createSnapshot(number, {
+  const snapshot = {
     schemaVersion: 1,
     contributionNumber: number,
     captureId,
@@ -208,6 +246,7 @@ export async function finalizeSnapshotArchiveRequest(
     capturedRoutes: manifest.capturedRoutes,
     routes: publicRoutes,
     manifestStoragePath: manifestPath,
+    manifestSha256: createHash('sha256').update(manifestObject.contents).digest('hex'),
     viewport: {
       width: manifest.viewport.width,
       height: manifest.viewport.height,
@@ -215,6 +254,13 @@ export async function finalizeSnapshotArchiveRequest(
       fullPage: manifest.capture.fullPage,
     },
     archivedAt: dependencies.archivedAt(),
+  };
+  const status = await dependencies.commitFinalization({
+    contributionNumber: number,
+    captureId,
+    beforeGitSha: manifest.git.before,
+    afterGitSha: manifest.git.after,
+    snapshot,
   });
-  return { status: 'finalized', contributionNumber: number };
+  return { status, contributionNumber: number };
 }

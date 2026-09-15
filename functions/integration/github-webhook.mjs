@@ -75,7 +75,12 @@ async function seedTurn(status = 'active', options = {}) {
       githubUserId, displayName: 'Alice', githubUsername: 'alice',
       email: 'alice@example.test', createdAt: now, updatedAt: now,
     }),
-    firestore.doc('site/admin').set({ activeTurnId: turnId, pendingInvitationId: null, updatedAt: now }),
+    firestore.doc('site/admin').set({
+      activeTurnId: turnId,
+      pendingInvitationId: null,
+      pendingArchiveContributionNumber: options.pendingArchiveContributionNumber ?? null,
+      updatedAt: now,
+    }),
     firestore.doc('site/public').set({
       currentVersion: 0, totalContributions: 0,
       turnStatus: ['active', 'submitted', 'under_review'].includes(status) ? status : 'none',
@@ -199,6 +204,15 @@ await clearFirestore();
   const { turnId } = await seedTurn('active', { pastDue: true });
   assert.equal((await postWebhook(webhookPayload())).body.result, 'submitted');
   assert.equal((await firestore.doc(`turns/${turnId}`).get()).data()?.status, 'submitted');
+}
+
+await clearFirestore();
+{
+  const { turnId } = await seedTurn('active', { pendingArchiveContributionNumber: 7 });
+  assert.equal((await postWebhook(webhookPayload())).body.result, 'turn_not_active');
+  await assertStillActive(turnId);
+  assert.equal((await firestore.doc('site/admin').get()).data()?.pendingArchiveContributionNumber, 7);
+  assert.equal((await firestore.doc(`emailDeliveries/pr_submitted_${turnId}`).get()).exists, false);
 }
 
 for (const status of ['expired', 'skipped', 'submitted', 'under_review', 'merged']) {

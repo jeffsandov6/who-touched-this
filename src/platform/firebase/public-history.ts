@@ -64,6 +64,12 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
       contribution.mergedAt.getTime() !== event.occurredAt.getTime()
     ) throw new Error('a public contribution is missing or inconsistent.');
 
+    const snapshotRecord = snapshots.get(event.contributionNumber);
+    const snapshot = snapshotRecord
+      && (!contribution.beforeGitSha || (snapshotRecord.beforeGitSha === contribution.beforeGitSha
+        && snapshotRecord.afterGitSha === contribution.afterGitSha))
+      ? snapshotRecord
+      : null;
     return {
       ...event,
       ...(contribution.githubUserId ? { githubUserId: contribution.githubUserId } : {}),
@@ -77,9 +83,8 @@ export async function loadPublicHistory(): Promise<PublicHistoryItem[]> {
       ...(contribution.beforeGitSha && contribution.afterGitSha
         ? { beforeGitSha: contribution.beforeGitSha, afterGitSha: contribution.afterGitSha }
         : {}),
-      ...(snapshots.get(event.contributionNumber)
-        ? { snapshot: snapshots.get(event.contributionNumber) }
-        : {}),
+      ...(contribution.archiveStatus ? { archiveStatus: contribution.archiveStatus } : {}),
+      ...(snapshot ? { snapshot } : {}),
     };
   });
 }

@@ -71,13 +71,21 @@ export default function ContributionDetailPage() {
           avatarSize={72}
         />
       </article>
-      {contribution.snapshot ? (
+      {contribution.archiveStatus === 'pending' ? (
+        <section className="history-detail-no-snapshots" aria-labelledby="history-snapshots-heading">
+          <p className="history-section-label">visual history</p>
+          <h2 id="history-snapshots-heading">before & after</h2>
+          <p>before & after is being archived.</p>
+        </section>
+      ) : contribution.snapshot ? (
         <HistorySnapshots snapshot={contribution.snapshot} />
       ) : (
         <section className="history-detail-no-snapshots" aria-labelledby="history-snapshots-heading">
           <p className="history-section-label">visual history</p>
           <h2 id="history-snapshots-heading">before & after</h2>
-          <p>before & after wasn't archived for this version.</p>
+          <p>{contribution.archiveStatus === 'finalized'
+            ? 'before & after is unavailable for this version.'
+            : "before & after wasn't archived for this version."}</p>
         </section>
       )}
     </section>

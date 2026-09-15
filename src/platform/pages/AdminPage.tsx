@@ -35,11 +35,13 @@ import { retryFailedInvitationEmail } from '../firebase/email-deliveries';
 import {
   expireCurrentTurn,
   loadAdminCurrentTurn,
+  loadAdminPendingArchive,
   markCurrentTurnUnderReview,
   recordPullRequestSubmission,
   recordMergedContribution,
   skipCurrentTurn,
   type AdminCurrentTurn,
+  type AdminPendingArchive,
 } from '../firebase/turns';
 import AdminCurrentTurnPanel from '../components/AdminCurrentTurn';
 import AdminPendingInvitationPanel from '../components/AdminPendingInvitation';
@@ -81,6 +83,7 @@ export default function AdminPage() {
   const [queue, setQueue] = useState<AdminQueueItem[]>([]);
   const [currentTurn, setCurrentTurn] = useState<AdminCurrentTurn | null>(null);
   const [pendingInvitation, setPendingInvitation] = useState<AdminPendingInvitation | null>(null);
+  const [pendingArchive, setPendingArchive] = useState<AdminPendingArchive | null>(null);
   const [queueLoading, setQueueLoading] = useState(false);
   const [busyEntryId, setBusyEntryId] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
@@ -94,21 +97,24 @@ export default function AdminPage() {
   async function refreshAdminData(sequence = requestSequence.current) {
     setQueueLoading(true);
     try {
-      const [nextQueue, nextTurn, nextInvitation] = await Promise.all([
+      const [nextQueue, nextTurn, nextInvitation, nextArchive] = await Promise.all([
         loadSeasonOneAdminQueue(),
         loadAdminCurrentTurn(),
         loadAdminPendingInvitation(),
+        loadAdminPendingArchive(),
       ]);
       if (sequence === requestSequence.current) {
         setQueue(nextQueue);
         setCurrentTurn(nextTurn);
         setPendingInvitation(nextInvitation);
+        setPendingArchive(nextArchive);
       }
     } catch (error) {
       if (sequence === requestSequence.current) {
         setQueue([]);
         setCurrentTurn(null);
         setPendingInvitation(null);
+        setPendingArchive(null);
         setErrorMessage(safeErrorMessage(error, 'admin turn data could not be loaded.'));
       }
     } finally {
@@ -123,6 +129,7 @@ export default function AdminPage() {
     setQueue([]);
     setCurrentTurn(null);
     setPendingInvitation(null);
+    setPendingArchive(null);
     setQueueLoading(false);
     setAccessState('checking');
     setErrorMessage(null);
@@ -162,6 +169,7 @@ export default function AdminPage() {
               setQueue([]);
               setCurrentTurn(null);
               setPendingInvitation(null);
+              setPendingArchive(null);
               setAccessState('signed-out');
               setErrorMessage(null);
             }
@@ -179,6 +187,7 @@ export default function AdminPage() {
               setQueue([]);
               setCurrentTurn(null);
               setPendingInvitation(null);
+              setPendingArchive(null);
               setAccessState('denied');
               setErrorMessage(null);
             }
@@ -241,6 +250,7 @@ export default function AdminPage() {
     setQueue([]);
     setCurrentTurn(null);
     setPendingInvitation(null);
+    setPendingArchive(null);
     try {
       await signOutOfPlatform();
     } catch {
@@ -385,11 +395,13 @@ export default function AdminPage() {
                   () => markCurrentTurnUnderReview(identity!.githubUserId),
                   'the turn could not be marked under review.',
                 )}
-                onRecordMerged={(summary, contributorMessage) => runCurrentTurnAction(
+                onRecordMerged={(summary, contributorMessage, beforeGitSha, afterGitSha) => runCurrentTurnAction(
                   () => recordMergedContribution({
                     adminGithubUserId: identity!.githubUserId,
                     summary,
                     contributorMessage,
+                    beforeGitSha,
+                    afterGitSha,
                   }),
                   'the merged contribution could not be recorded.',
                 )}
@@ -415,6 +427,23 @@ export default function AdminPage() {
                   'the invitation email could not be retried.',
                 )}
               />
+            ) : pendingArchive ? (
+              <div className="admin-start-turn" role="status">
+                <h3>relay paused for contribution #{String(pendingArchive.contributionNumber).padStart(3, '0')}</h3>
+                <p>archive this accepted contribution before inviting the next contributor.</p>
+                <dl>
+                  <div><dt>archive status</dt><dd>{pendingArchive.archiveStatus}</dd></div>
+                  <div><dt>before SHA</dt><dd><code>{pendingArchive.beforeGitSha}</code></dd></div>
+                  <div><dt>after SHA</dt><dd><code>{pendingArchive.afterGitSha}</code></dd></div>
+                </dl>
+                <pre><code>{[
+                  'npm run snapshots:capture -- \\',
+                  `  --contribution ${pendingArchive.contributionNumber} \\`,
+                  `  --before ${pendingArchive.beforeGitSha} \\`,
+                  `  --after ${pendingArchive.afterGitSha}`,
+                ].join('\n')}</code></pre>
+                <p>verify the local bundle, then upload & finalize it in Snapshot Archive below. invitation creation remains blocked until finalization clears this lock.</p>
+              </div>
             ) : waitingQueue[0] ? (
               <div className="admin-start-turn">
                 <p>
@@ -473,7 +502,7 @@ export default function AdminPage() {
 
           <AdminFounderSeed isOwner={adminRole === 'owner'} />
 
-          <AdminSnapshotArchive />
+          <AdminSnapshotArchive pendingArchive={pendingArchive} onFinalized={() => refreshAdminData()} />
 
           <div className="admin-filters" aria-label="queue filters">
             <div className="form-field">

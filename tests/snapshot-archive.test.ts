@@ -113,7 +113,7 @@ test('public metadata supports historical three and future four route archives',
   assert.equal(four?.routes.length, 4);
   assert.equal(historicalRouteLabel('/'), 'home');
   assert.equal(historicalRouteLabel('/gallery'), '/gallery');
-  assert.equal(snapshotImageAlt('before', 42, '/random'), 'before contribution #042 — /random');
+  assert.equal(snapshotImageAlt('before', 42, '/random'), 'before contribution #042, /random');
 });
 
 test('public parser fails closed for unsupported schemas and unsafe Storage records', () => {
@@ -122,9 +122,10 @@ test('public parser fails closed for unsupported schemas and unsafe Storage reco
   assert.equal(parsePublicContributionSnapshot(unsafe), null);
 });
 
-test('History snapshot UI is collapsed, lazy, accessible, and failure tolerant', async () => {
+test('History detail snapshot UI is complete, lazy, accessible, and failure tolerant', async () => {
   const source = await readFile(new URL('../src/platform/components/HistorySnapshots.tsx', import.meta.url), 'utf8');
-  assert.match(source, /expanded && snapshot\.routes\.map/);
+  assert.match(source, /snapshot\.routes\.map/);
+  assert.doesNotMatch(source, /expanded &&/);
   assert.match(source, /loading="lazy"/);
   assert.match(source, /useEffect/);
   assert.match(source, /loading screenshot/);

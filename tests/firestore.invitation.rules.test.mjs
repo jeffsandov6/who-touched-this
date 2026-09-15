@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
 import {
@@ -56,7 +57,7 @@ async function seed({ adminActive = true, secondContributor = false, totalContri
         targetContributionNumber: null, currentContributor: null, dueAt: null, updatedAt: now,
       }),
       setDoc(doc(firestore, 'site/admin'), {
-        activeTurnId: null, pendingInvitationId: null, updatedAt: now,
+        activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: now,
       }),
     ];
     if (secondContributor) {
@@ -101,7 +102,7 @@ function inviteBatch(firestore, {
     status: 'invited', updatedAt: serverTimestamp(),
   });
   if (include.includes('private')) batch.set(doc(firestore, 'site/admin'), {
-    activeTurnId: null, pendingInvitationId: invitationId, updatedAt: serverTimestamp(),
+    activeTurnId: null, pendingInvitationId: invitationId, pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
   });
   return batch.commit();
 }
@@ -121,7 +122,7 @@ async function seedPending({ expired = false, identity = contributor, duration =
       }),
       updateDoc(doc(firestore, `queue/1_${identity.id}`), { status: 'invited', updatedAt: now }),
       setDoc(doc(firestore, 'site/admin'), {
-        activeTurnId: null, pendingInvitationId: 'invitation-1', updatedAt: now,
+        activeTurnId: null, pendingInvitationId: 'invitation-1', pendingArchiveContributionNumber: null, updatedAt: now,
       }),
     ]);
   });
@@ -156,7 +157,7 @@ function acceptBatch(firestore, {
     status: 'active', updatedAt: serverTimestamp(), ...queueUpdates,
   });
   if (include.includes('private')) batch.set(doc(firestore, 'site/admin'), {
-    activeTurnId: turnId, pendingInvitationId: null, updatedAt: serverTimestamp(),
+    activeTurnId: turnId, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
   });
   if (include.includes('public')) batch.set(doc(firestore, 'site/public'), {
     currentVersion: 0, totalContributions: 0, turnStatus: 'active',
@@ -191,7 +192,7 @@ function acceptTransaction(firestore) {
       status: 'active', updatedAt: serverTimestamp(),
     });
     transaction.set(doc(firestore, 'site/admin'), {
-      activeTurnId: 'turn-1', pendingInvitationId: null, updatedAt: serverTimestamp(),
+      activeTurnId: 'turn-1', pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
     });
     transaction.set(doc(firestore, 'site/public'), {
       currentVersion: 0, totalContributions: 0, turnStatus: 'active', targetContributionNumber: 1,
@@ -213,7 +214,7 @@ function expireBatch(firestore, { include = ['invitation','participation','queue
     status: 'invitation_expired', updatedAt: serverTimestamp(),
   });
   if (include.includes('private')) batch.set(doc(firestore, 'site/admin'), {
-    activeTurnId: null, pendingInvitationId: null, updatedAt: serverTimestamp(),
+    activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
   });
   return batch.commit();
 }
@@ -308,7 +309,7 @@ test('a pending invitation or active turn prevents another invitation', async ()
     invitationId: 'invitation-2', identity: other,
   }));
   await environment.withSecurityRulesDisabled((context) => setDoc(doc(context.firestore(), 'site/admin'), {
-    activeTurnId: 'active-turn', pendingInvitationId: null, updatedAt: Timestamp.now(),
+    activeTurnId: 'active-turn', pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: Timestamp.now(),
   }));
   await assertFails(inviteBatch(firestoreFor(admin), {
     invitationId: 'invitation-2', identity: other,
@@ -475,4 +476,43 @@ test('expiration releases the lock so the next waiting contributor can be invite
   await assertSucceeds(inviteBatch(firestoreFor(admin), {
     invitationId: 'invitation-2', identity: other,
   }));
+});
+
+test('a pending contribution archive blocks invitation creation and invitation acceptance', async () => {
+  await seed();
+  await environment.withSecurityRulesDisabled((context) => updateDoc(
+    doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: 1 },
+  ));
+  await assertFails(inviteBatch(firestoreFor(admin)));
+  assert.equal((await getDocs(collection(firestoreFor(admin), 'invitations'))).empty, true);
+  assert.equal((await getDoc(doc(firestoreFor(admin), 'site/admin'))).data()?.pendingArchiveContributionNumber, 1);
+  await environment.withSecurityRulesDisabled((context) => updateDoc(
+    doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: null },
+  ));
+  await assertSucceeds(inviteBatch(firestoreFor(admin)));
+
+  await environment.clearFirestore();
+  await seed();
+  await seedPending();
+  await environment.withSecurityRulesDisabled((context) => updateDoc(
+    doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: 1 },
+  ));
+  await assertFails(acceptBatch(firestoreFor(contributor)));
+  assert.equal((await getDocs(collection(firestoreFor(admin), 'turns'))).empty, true);
+  assert.equal((await getDoc(doc(firestoreFor(admin), 'site/admin'))).data()?.pendingArchiveContributionNumber, 1);
+});
+
+test('invitation expiration cannot clear a pending contribution archive lock', async () => {
+  await seed();
+  await seedPending({ expired: true });
+  await environment.withSecurityRulesDisabled((context) => updateDoc(
+    doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: 1 },
+  ));
+  await assertFails(expireBatch(firestoreFor(admin)));
+  const [privateSite, invitation] = await Promise.all([
+    getDoc(doc(firestoreFor(admin), 'site/admin')),
+    getDoc(doc(firestoreFor(admin), 'invitations/invitation-1')),
+  ]);
+  assert.equal(privateSite.data()?.pendingArchiveContributionNumber, 1);
+  assert.equal(invitation.data()?.status, 'pending');
 });
