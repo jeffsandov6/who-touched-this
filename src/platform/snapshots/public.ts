@@ -30,6 +30,7 @@ export interface PublicContributionSnapshot {
   capturedRoutes: string[];
   routes: PublicSnapshotRoute[];
   manifestStoragePath: string;
+  manifestSha256?: string;
   viewport: { width: number; height: number; deviceScaleFactor: number; fullPage: boolean };
   archivedAt: Date;
 }
@@ -50,7 +51,9 @@ export function parsePublicContributionSnapshot(value: unknown): PublicContribut
     || data.beforeGitSha === data.afterGitSha
     || !Array.isArray(data.canonicalRoutes) || !Array.isArray(data.additionalRoutes)
     || !Array.isArray(data.capturedRoutes) || !Array.isArray(data.routes)
-    || typeof data.manifestStoragePath !== 'string' || !isAllowedPublicHistorySnapshotPath(data.manifestStoragePath)) return null;
+    || typeof data.manifestStoragePath !== 'string' || !isAllowedPublicHistorySnapshotPath(data.manifestStoragePath)
+    || ('manifestSha256' in data && (typeof data.manifestSha256 !== 'string'
+      || !SNAPSHOT_SHA256.test(data.manifestSha256)))) return null;
   const capturedRoutes = data.capturedRoutes as unknown[];
   if (capturedRoutes.length === 0 || data.routes.length !== capturedRoutes.length) return null;
   let canonicalRoutes: string[];
@@ -105,6 +108,7 @@ export function parsePublicContributionSnapshot(value: unknown): PublicContribut
     capturedRoutes: normalizedCaptured,
     routes,
     manifestStoragePath: data.manifestStoragePath,
+    ...('manifestSha256' in data ? { manifestSha256: data.manifestSha256 as string } : {}),
     viewport: viewport as unknown as PublicContributionSnapshot['viewport'],
     archivedAt,
   };

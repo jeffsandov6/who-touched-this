@@ -198,7 +198,8 @@ service cloud.firestore {
     function noCurrentWorkBefore() {
       return (!exists(privateSitePath())
           || (get(privateSitePath()).data.activeTurnId == null
-            && get(privateSitePath()).data.pendingInvitationId == null))
+            && get(privateSitePath()).data.pendingInvitationId == null
+            && get(privateSitePath()).data.get('pendingArchiveContributionNumber', null) == null))
         && (!exists(publicSitePath()) || get(publicSitePath()).data.turnStatus == 'none');
     }
 
@@ -251,9 +252,10 @@ service cloud.firestore {
     function validPrivateSiteInvite() {
       let invitationId = request.resource.data.pendingInvitationId;
       return noCurrentWorkBefore()
-        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
         && request.resource.data.activeTurnId == null
+        && request.resource.data.pendingArchiveContributionNumber == null
         && invitationId is string && invitationId.size() >= 1 && invitationId.size() <= 128
         && request.resource.data.updatedAt == request.time
         && completeInvite(invitationId, getAfter(invitationPath(invitationId)).data.githubUserId);
@@ -270,6 +272,7 @@ service cloud.firestore {
         && getAfter(queuePathFor(id)).data.status == 'invited'
         && getAfter(privateSitePath()).data.activeTurnId == null
         && getAfter(privateSitePath()).data.pendingInvitationId == invitationId
+        && getAfter(privateSitePath()).data.pendingArchiveContributionNumber == null
         && (!exists(publicSitePath()) || getAfter(publicSitePath()).data.turnStatus == 'none');
     }
 
@@ -282,6 +285,7 @@ service cloud.firestore {
       let after = request.resource.data;
       return hasGitHubIdentity() && before.githubUserId == githubUserId()
         && currentInvitationIdBefore() == invitationId
+        && get(privateSitePath()).data.get('pendingArchiveContributionNumber', null) == null
         && before.status == 'pending' && request.time <= before.acceptBy
         && after.keys().hasAll(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','acceptedAt','turnId','createdAt','updatedAt'])
         && after.keys().hasOnly(['githubUserId','season','status','invitedAt','acceptBy','turnDurationHours','acceptedAt','turnId','createdAt','updatedAt'])
@@ -362,13 +366,15 @@ service cloud.firestore {
       let id = get(invitationPath(invitationId)).data.githubUserId;
       return hasGitHubIdentity() && id == githubUserId()
         && resource.data.activeTurnId == null
-        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
+        && resource.data.get('pendingArchiveContributionNumber', null) == null
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
         && request.resource.data.activeTurnId is string
         && request.resource.data.activeTurnId.size() >= 1
         && request.resource.data.activeTurnId.size() <= 128
         && request.resource.data.pendingInvitationId == null
+        && request.resource.data.pendingArchiveContributionNumber == null
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.updatedAt == request.time
         && completeAcceptance(invitationId, request.resource.data.activeTurnId, id);
@@ -440,6 +446,7 @@ service cloud.firestore {
         && getAfter(queuePathFor(id)).data.status == 'active'
         && getAfter(privateSitePath()).data.activeTurnId == turnId
         && getAfter(privateSitePath()).data.pendingInvitationId == null
+        && getAfter(privateSitePath()).data.pendingArchiveContributionNumber == null
         && getAfter(publicSitePath()).data.turnStatus == 'active'
         && getAfter(publicSitePath()).data.targetContributionNumber
           == getAfter(turnPath(turnId)).data.targetContributionNumber
@@ -479,11 +486,13 @@ service cloud.firestore {
       let invitationId = resource.data.pendingInvitationId;
       let id = get(invitationPath(invitationId)).data.githubUserId;
       return resource.data.activeTurnId == null
-        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingInvitationId','updatedAt'])
+        && resource.data.get('pendingArchiveContributionNumber', null) == null
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
         && request.resource.data.activeTurnId == null
         && request.resource.data.pendingInvitationId == null
+        && request.resource.data.pendingArchiveContributionNumber == null
         && request.resource.data.updatedAt == request.time
         && completeInvitationExpiration(invitationId, id);
     }
@@ -493,7 +502,8 @@ service cloud.firestore {
         && getAfter(participationPathFor(id)).data.status == 'invitation_expired'
         && getAfter(queuePathFor(id)).data.status == 'invitation_expired'
         && getAfter(privateSitePath()).data.activeTurnId == null
-        && getAfter(privateSitePath()).data.pendingInvitationId == null;
+        && getAfter(privateSitePath()).data.pendingInvitationId == null
+        && getAfter(privateSitePath()).data.pendingArchiveContributionNumber == null;
     }
 
     function currentTurnIdBefore() { return get(privateSitePath()).data.activeTurnId; }
@@ -614,10 +624,12 @@ service cloud.firestore {
       let turnId = resource.data.activeTurnId;
       let turnAfter = getAfter(turnPath(turnId)).data;
       return turnId is string && request.resource.data.activeTurnId == null
-        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','updatedAt'])
+        && resource.data.get('pendingArchiveContributionNumber', null) == null
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','pendingArchiveContributionNumber','updatedAt'])
         && request.resource.data.pendingInvitationId == null
+        && request.resource.data.pendingArchiveContributionNumber == null
         && request.resource.data.updatedAt is timestamp && request.resource.data.updatedAt == request.time
         && turnAfter.status in ['expired','skipped']
         && completeTurnEnd(turnId, turnAfter.githubUserId, turnAfter.status);
@@ -725,10 +737,12 @@ service cloud.firestore {
       let turn = getAfter(turnPath(turnId)).data;
       return turnId is string
         && request.resource.data.activeTurnId == null
-        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','updatedAt'])
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','updatedAt'])
+        && resource.data.get('pendingArchiveContributionNumber', null) == null
+        && request.resource.data.keys().hasAll(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.keys().hasOnly(['activeTurnId','pendingInvitationId','pendingArchiveContributionNumber','updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeTurnId','pendingArchiveContributionNumber','updatedAt'])
         && request.resource.data.pendingInvitationId == null
+        && request.resource.data.pendingArchiveContributionNumber == turn.targetContributionNumber
         && request.resource.data.updatedAt is timestamp
         && request.resource.data.updatedAt == request.time
         && turn.status == 'merged'
@@ -759,8 +773,8 @@ service cloud.firestore {
       let contributor = get(contributorPathFor(turn.githubUserId)).data;
       return contributionDocument == string(data.number)
         && !exists(contributionPath(data.number))
-        && data.keys().hasAll(['number','season','githubUserId','displayName','githubUsername','summary','prNumber','prUrl','mergedAt','createdAt'])
-        && data.keys().hasOnly(['number','season','githubUserId','displayName','githubUsername','summary','contributorMessage','socialUrl','prNumber','prUrl','mergedAt','createdAt'])
+        && data.keys().hasAll(['number','season','githubUserId','displayName','githubUsername','summary','prNumber','prUrl','beforeGitSha','afterGitSha','archiveStatus','mergedAt','createdAt'])
+        && data.keys().hasOnly(['number','season','githubUserId','displayName','githubUsername','summary','contributorMessage','socialUrl','prNumber','prUrl','beforeGitSha','afterGitSha','archiveStatus','mergedAt','createdAt'])
         && data.number is int && data.number > 0
         && data.number == turn.targetContributionNumber
         && data.season == 1 && data.season == turn.season
@@ -771,6 +785,10 @@ service cloud.firestore {
         && data.githubUsername == contributor.githubUsername
         && data.get('socialUrl', null) == contributor.get('socialUrl', null)
         && data.prNumber == turn.prNumber && data.prUrl == turn.prUrl
+        && data.beforeGitSha is string && data.beforeGitSha.matches('^[0-9a-f]{40}$')
+        && data.afterGitSha is string && data.afterGitSha.matches('^[0-9a-f]{40}$')
+        && data.beforeGitSha != data.afterGitSha
+        && data.archiveStatus == 'pending'
         && validPullRequest(data)
         && data.mergedAt is timestamp && data.mergedAt == request.time
         && data.createdAt is timestamp && data.createdAt == request.time
@@ -810,6 +828,7 @@ service cloud.firestore {
         && getAfter(queuePathFor(id)).data.contributionNumber == number
         && getAfter(privateSitePath()).data.activeTurnId == null
         && getAfter(privateSitePath()).data.pendingInvitationId == null
+        && getAfter(privateSitePath()).data.pendingArchiveContributionNumber == number
         && publicSite.turnStatus == 'none'
         && publicSite.currentVersion == number
         && publicSite.totalContributions == get(publicSitePath()).data.totalContributions + 1
@@ -818,6 +837,7 @@ service cloud.firestore {
         && existsAfter(contributionPath(number))
         && contribution.number == number
         && contribution.prNumber == turn.prNumber && contribution.prUrl == turn.prUrl
+        && contribution.archiveStatus == 'pending'
         && existsAfter(historyEventPath(turnId))
         && event.type == 'contribution'
         && event.contributionNumber == number

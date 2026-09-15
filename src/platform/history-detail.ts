@@ -21,7 +21,11 @@ export function buildPublicContributionDetail(
   const contribution = parsePublicContribution(contributionData);
   if (!contribution || contribution.number !== contributionNumber) return null;
   const parsedSnapshot = snapshotData === undefined ? null : parsePublicContributionSnapshot(snapshotData);
-  const snapshot = parsedSnapshot?.contributionNumber === contributionNumber ? parsedSnapshot : null;
+  const snapshot = parsedSnapshot?.contributionNumber === contributionNumber
+    && (!contribution.beforeGitSha || (parsedSnapshot.beforeGitSha === contribution.beforeGitSha
+      && parsedSnapshot.afterGitSha === contribution.afterGitSha))
+    ? parsedSnapshot
+    : null;
   return {
     id: `contribution-${contribution.number}`,
     type: 'contribution',
@@ -41,6 +45,7 @@ export function buildPublicContributionDetail(
     ...(contribution.beforeGitSha && contribution.afterGitSha
       ? { beforeGitSha: contribution.beforeGitSha, afterGitSha: contribution.afterGitSha }
       : {}),
+    ...(contribution.archiveStatus ? { archiveStatus: contribution.archiveStatus } : {}),
     ...(snapshot ? { snapshot } : {}),
   };
 }

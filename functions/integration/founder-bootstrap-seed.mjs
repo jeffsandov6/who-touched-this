@@ -9,7 +9,7 @@ const firestore = getFirestore();
 const now = Timestamp.now();
 await Promise.all([
   firestore.doc('admins/9001').set({ githubUserId: '9001', role: 'owner', active: true, createdAt: now }),
-  firestore.doc('site/admin').set({ activeTurnId: null, pendingInvitationId: null, updatedAt: now }),
+  firestore.doc('site/admin').set({ activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: now }),
   firestore.doc('site/public').set({
     currentVersion: 0, totalContributions: 0, turnStatus: 'none', targetContributionNumber: null,
     currentContributor: null, dueAt: null, updatedAt: now,

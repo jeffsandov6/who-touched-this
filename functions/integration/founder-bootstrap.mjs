@@ -16,7 +16,7 @@ const firestore = getFirestore();
 const now = Timestamp.now();
 await Promise.all([
   firestore.doc('admins/9001').set({ githubUserId: '9001', role: 'owner', active: true, createdAt: now }),
-  firestore.doc('site/admin').set({ activeTurnId: null, pendingInvitationId: null, updatedAt: now }),
+  firestore.doc('site/admin').set({ activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: now }),
   firestore.doc('site/public').set({
     currentVersion: 0, totalContributions: 0, turnStatus: 'none', targetContributionNumber: null,
     currentContributor: null, dueAt: null, updatedAt: now,
@@ -52,6 +52,8 @@ const [contribution, history, publicSite, queue, participation, invitations, tur
 assert.equal(contribution.data()?.contributionKind, 'founder_seed');
 assert.equal(contribution.data()?.githubUserId, '9001');
 assert.equal(contribution.data()?.prUrl, 'https://github.com/JeffSandov6/who-touched-this/pull/27');
+assert.equal(contribution.data()?.archiveStatus, 'pending');
+assert.equal((await firestore.doc('site/admin').get()).data()?.pendingArchiveContributionNumber, 0);
 assert.equal(history.data()?.contributionNumber, 0);
 assert.equal(publicSite.data()?.currentVersion, 0);
 assert.equal(publicSite.data()?.totalContributions, 1);
@@ -102,4 +104,6 @@ const finalize = await fetch('http://127.0.0.1:5001/who-touched-this/us-central1
 });
 assert.equal(finalize.ok, true, await finalize.text());
 assert.equal((await firestore.doc('contributionSnapshots/0').get()).data()?.contributionNumber, 0);
+assert.equal((await firestore.doc('contributions/0').get()).data()?.archiveStatus, 'finalized');
+assert.equal((await firestore.doc('site/admin').get()).data()?.pendingArchiveContributionNumber, null);
 console.log('Founder #000 callable and standard 000 snapshot-finalization integration passed.');

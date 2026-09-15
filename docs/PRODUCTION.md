@@ -225,6 +225,15 @@ Hosting History/Admin UI from the same reviewed commit. Capture and verify exact
 locally first; archival is a separate authenticated admin action. Do not upload a production archive
 until its permanent contribution exists and the local comparison viewer has been reviewed.
 
+The production relay is deliberately two-stage. Recording a trusted GitHub merge immediately publishes
+the contribution and History event, advances public counters, clears the contributor projection, sends
+the existing contribution-completed email, sets `archiveStatus=pending`, and acquires the private
+`pendingArchiveContributionNumber` lock. While locked, invitation creation and acceptance are denied.
+Capture, inspect, verify, upload, and finalize the exact recorded SHA pair; the finalizer then creates
+the immutable snapshot metadata, marks the contribution finalized, and clears that matching lock in one
+transaction. It never invites automatically. If capture or archival fails, leave the accepted version
+public, keep the relay paused, correct/retry the reviewed bundle, and do not bypass the lock.
+
 Before accepting contributions, deploy the reviewed History release as one coordinated change:
 Hosting for the timeline/avatar UI, Firestore Rules for the successful-contribution identity snapshot
 and identity-free missed-turn projection, and Functions for Founder #000's equivalent trusted identity

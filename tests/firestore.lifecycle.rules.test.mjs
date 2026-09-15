@@ -59,7 +59,7 @@ async function seedCurrent(
         ...(status === 'under_review' ? { reviewStartedAt } : {}),
       }),
       setDoc(doc(firestore, 'site/admin'), {
-        activeTurnId: 'current-turn', pendingInvitationId: null, updatedAt: createdAt,
+        activeTurnId: 'current-turn', pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: createdAt,
       }),
       setDoc(doc(firestore, 'site/public'), {
         currentVersion: 0, totalContributions, turnStatus: status,
@@ -114,7 +114,7 @@ function endBatch(firestore, status, {
     status, updatedAt: serverTimestamp(),
   });
   if (include.includes('private')) batch.set(doc(firestore, 'site/admin'), {
-    activeTurnId: null, pendingInvitationId: null, updatedAt: serverTimestamp(),
+    activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
   });
   if (include.includes('public')) batch.set(doc(firestore, 'site/public'), {
     currentVersion: 0, totalContributions: 0, turnStatus: 'none',
@@ -165,7 +165,7 @@ function activateSecond(_firestore, { currentVersion = 0, totalContributions = 0
     batch.update(doc(firestore, `participation/1_${second.id}`), { status: 'active', updatedAt: Timestamp.now() });
     batch.update(doc(firestore, `queue/1_${second.id}`), { status: 'active', updatedAt: Timestamp.now() });
     batch.set(doc(firestore, 'site/admin'), {
-      activeTurnId: 'second-turn', pendingInvitationId: null, updatedAt: Timestamp.now(),
+      activeTurnId: 'second-turn', pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: Timestamp.now(),
     });
     batch.set(doc(firestore, 'site/public'), {
       currentVersion, totalContributions, turnStatus: 'active', targetContributionNumber: target,
@@ -203,6 +203,7 @@ function mergeBatch(firestore, {
     displayName: 'Octo Contributor', githubUsername: contributor.username,
     summary, ...(contributorMessage ? { contributorMessage } : {}),
     prNumber: 12, prUrl: 'https://github.com/example/repo/pull/12',
+    beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40), archiveStatus: 'pending',
     mergedAt: serverTimestamp(), createdAt: serverTimestamp(), ...contributionUpdates,
   });
   if (include.includes('event')) batch.set(doc(firestore, 'historyEvents/current-turn'), {
@@ -211,7 +212,7 @@ function mergeBatch(firestore, {
     contributionNumber: 1, occurredAt: serverTimestamp(), ...eventUpdates,
   });
   if (include.includes('private')) batch.set(doc(firestore, 'site/admin'), {
-    activeTurnId: null, pendingInvitationId: null, updatedAt: serverTimestamp(),
+    activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: 1, updatedAt: serverTimestamp(),
   });
   if (include.includes('public')) batch.set(doc(firestore, 'site/public'), {
     currentVersion: 1, totalContributions: 1, turnStatus: 'none',
@@ -342,6 +343,23 @@ test('ordinary users cannot skip and partial skip is rejected', async () => {
   await assertFails(endBatch(firestoreFor(admin), 'skipped', { include: ['turn','participation','queue','public'] }));
 });
 
+for (const terminalStatus of ['expired', 'skipped']) test(`${terminalStatus} cannot clear a pending contribution archive lock`, async () => {
+  await seedAdmin();
+  await seedCurrent('active', Timestamp.fromMillis(Date.now() - 1_000));
+  await environment.withSecurityRulesDisabled((context) => updateDoc(
+    doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: 7 },
+  ));
+  const firestore = firestoreFor(admin);
+  await assertFails(endBatch(firestore, terminalStatus));
+  const [privateSite, turn] = await Promise.all([
+    getDoc(doc(firestore, 'site/admin')),
+    getDoc(doc(firestore, 'turns/current-turn')),
+  ]);
+  if (privateSite.data()?.pendingArchiveContributionNumber !== 7 || turn.data()?.status !== 'active') {
+    throw new Error(`${terminalStatus} changed state despite the archive relay lock.`);
+  }
+});
+
 for (const terminalStatus of ['expired', 'skipped']) test(`${terminalStatus} turn is immutable`, async () => {
   await seedAdmin(); await seedCurrent('active', Timestamp.fromMillis(Date.now() - 1_000));
   const firestore = firestoreFor(admin);
@@ -399,9 +417,13 @@ test('valid under-review merge creates public records, completes private state, 
     || participation.data()?.contributionNumber !== 1 || queue.data()?.status !== 'completed'
     || queue.data()?.contributionNumber !== 1 || contribution.data()?.number !== 1
     || contribution.data()?.prNumber !== 12 || contribution.data()?.githubUserId !== contributor.id
+    || contribution.data()?.archiveStatus !== 'pending'
+    || contribution.data()?.beforeGitSha !== 'a'.repeat(40)
+    || contribution.data()?.afterGitSha !== 'b'.repeat(40)
     || 'socialUrl' in (contribution.data() ?? {})
     || event.data()?.type !== 'contribution'
     || event.data()?.contributionNumber !== 1 || lock.data()?.activeTurnId !== null
+    || lock.data()?.pendingArchiveContributionNumber !== 1
     || publicSite.data()?.currentVersion !== 1 || publicSite.data()?.totalContributions !== 1
     || publicSite.data()?.currentContributor !== null || publicSite.data()?.targetContributionNumber !== null
     || publicSite.data()?.dueAt !== null) throw new Error('Merged state was inconsistent.');
@@ -419,6 +441,41 @@ test('valid merge copies the contributor social link only into the contribution 
   ]);
   if (contribution.data()?.socialUrl !== socialUrl || 'socialUrl' in (event.data() ?? {})) {
     throw new Error('The merged social link was not isolated to the contribution record.');
+  }
+});
+
+test('merge cannot overwrite an existing pending contribution archive lock', async () => {
+  await seedAdmin();
+  await seedCurrent('under_review');
+  await environment.withSecurityRulesDisabled((context) => updateDoc(
+    doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: 7 },
+  ));
+  const firestore = firestoreFor(admin);
+  await assertFails(mergeBatch(firestore));
+  const privateSite = await getDoc(doc(firestore, 'site/admin'));
+  if (privateSite.data()?.pendingArchiveContributionNumber !== 7) {
+    throw new Error('Merge changed an existing archive relay lock.');
+  }
+});
+
+test('browser admins cannot establish or clear an archive lock outside an approved transaction', async () => {
+  await seedAdmin();
+  await seedCurrent('active');
+  const firestore = firestoreFor(admin);
+  await assertFails(updateDoc(doc(firestore, 'site/admin'), {
+    pendingArchiveContributionNumber: 7,
+    updatedAt: serverTimestamp(),
+  }));
+  await environment.withSecurityRulesDisabled((context) => updateDoc(
+    doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: 7 },
+  ));
+  await assertFails(updateDoc(doc(firestore, 'site/admin'), {
+    pendingArchiveContributionNumber: null,
+    updatedAt: serverTimestamp(),
+  }));
+  const privateSite = await getDoc(doc(firestore, 'site/admin'));
+  if (privateSite.data()?.pendingArchiveContributionNumber !== 7) {
+    throw new Error('An arbitrary browser write changed the archive relay lock.');
   }
 });
 
@@ -461,6 +518,9 @@ for (const [name, options] of [
   ['changed contributor snapshot', { contributionUpdates: { displayName: 'Impostor' } }],
   ['private email in contribution', { contributionUpdates: { email: 'private@example.test' } }],
   ['changed numeric GitHub ID in contribution', { contributionUpdates: { githubUserId: second.id } }],
+  ['malformed before SHA', { contributionUpdates: { beforeGitSha: 'short' } }],
+  ['identical SHA pair', { contributionUpdates: { afterGitSha: 'a'.repeat(40) } }],
+  ['non-pending archive status', { contributionUpdates: { archiveStatus: 'finalized' } }],
   ['private field in history event', { eventUpdates: { priority: 99 } }],
 ]) test(`merge rejects ${name}`, async () => {
   await seedAdmin(); await seedCurrent('under_review');
@@ -551,10 +611,14 @@ test('failed terminal transactions require their public History event', async ()
   }));
 });
 
-test('a turn after merge targets the following contribution number', async () => {
+test('a turn after archive finalization targets the following contribution number', async () => {
   await seedAdmin(); await seedCurrent('under_review');
   const firestore = firestoreFor(admin);
   await assertSucceeds(mergeBatch(firestore));
+  await environment.withSecurityRulesDisabled((context) => Promise.all([
+    updateDoc(doc(context.firestore(), 'contributions/1'), { archiveStatus: 'finalized' }),
+    updateDoc(doc(context.firestore(), 'site/admin'), { pendingArchiveContributionNumber: null }),
+  ]));
   await seedSecondWaiting();
   await assertSucceeds(activateSecond(firestore, {
     currentVersion: 1, totalContributions: 1, target: 2,

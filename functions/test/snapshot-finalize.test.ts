@@ -31,7 +31,8 @@ function fixture(number = 42, routes = ['/']) {
   const objects = new Map<string, { metadata: { path: string; size: number; contentType: string; metadata: Record<string, string> }; contents?: Buffer }>();
   const common = { contributionNumber: String(number), contributionLabel: label, captureId };
   const manifestPath = `${prefix}/manifest.json`;
-  objects.set(manifestPath, { metadata: { path: manifestPath, size: 500, contentType: 'application/json', metadata: common }, contents: Buffer.from(JSON.stringify(manifest)) });
+  const manifestContents = Buffer.from(JSON.stringify(manifest));
+  objects.set(manifestPath, { metadata: { path: manifestPath, size: manifestContents.length, contentType: 'application/json', metadata: common }, contents: manifestContents });
   for (const record of manifest.screenshots) for (const side of ['before', 'after'] as const) {
     const path = `${prefix}/${record[side].path}`;
     objects.set(path, { metadata: { path, size: 1000, contentType: 'image/png', metadata: { ...common, routeKey: record.key, side, sha256: checksum } } });
@@ -41,18 +42,42 @@ function fixture(number = 42, routes = ['/']) {
 
 function dependencies(options: {
   number?: number; routes?: string[]; contribution?: boolean; finalized?: boolean;
+  conflicting?: boolean; wrongLock?: boolean; wrongShas?: boolean;
   admin?: Record<string, unknown> | null; mutate?: (value: ReturnType<typeof fixture>) => void;
 } = {}) {
   const value = fixture(options.number ?? 42, options.routes ?? ['/']);
   options.mutate?.(value);
   const writes: Array<Record<string, unknown>> = [];
+  const number = options.number ?? 42;
+  const contribution = options.contribution === false ? null : {
+    number, archiveStatus: options.finalized ? 'finalized' : 'pending',
+    beforeGitSha: options.wrongShas ? 'd'.repeat(40) : 'a'.repeat(40),
+    afterGitSha: 'b'.repeat(40),
+  };
+  let snapshot: Record<string, unknown> | null = options.finalized ? {
+    contributionNumber: number,
+    captureId: options.conflicting ? 'different-capture' : captureId,
+    beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40),
+  } : null;
+  const privateSite: Record<string, unknown> = {
+    pendingArchiveContributionNumber: options.finalized ? null : options.wrongLock ? number + 1 : number,
+  };
   const deps: SnapshotFinalizeDependencies = {
     loadAdmin: async () => options.admin === undefined ? { githubUserId: '9001', active: true, role: 'owner' } : options.admin,
-    contributionExists: async () => options.contribution !== false,
-    snapshotExists: async () => options.finalized === true,
+    loadArchiveState: async () => ({ contribution, snapshot, privateSite }),
     loadObject: async (path) => value.objects.get(path) ?? null,
     listObjects: async () => [...value.objects.keys()],
-    createSnapshot: async (_number, data) => { writes.push(data); },
+    commitFinalization: async (input) => {
+      if (snapshot) {
+        if (snapshot.captureId === input.captureId && contribution?.archiveStatus === 'finalized') return 'already_finalized';
+        throw new SnapshotFinalizeError('failed-precondition', 'conflicting archive');
+      }
+      writes.push(input.snapshot);
+      snapshot = input.snapshot;
+      if (contribution) contribution.archiveStatus = 'finalized';
+      privateSite.pendingArchiveContributionNumber = null;
+      return 'finalized';
+    },
     archivedAt: () => 'server-time',
   };
   return { value, writes, deps };
@@ -94,9 +119,24 @@ test('finalization requires auth, stable matching admin ID, and active owner/adm
   await expectCode(finalizeSnapshotArchiveRequest(auth('7777'), { contributionNumber: 42, captureId }, dependencies({ admin: { githubUserId: '9001', active: true, role: 'owner' } }).deps), 'permission-denied');
 });
 
-test('nonexistent permanent contribution and duplicate finalization are rejected', async () => {
+test('nonexistent contribution rejects, while a same-archive retry is idempotent and a conflict rejects', async () => {
   await expectCode(finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, dependencies({ contribution: false }).deps), 'not-found');
-  await expectCode(finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, dependencies({ finalized: true }).deps), 'failed-precondition');
+  assert.deepEqual(await finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, dependencies({ finalized: true }).deps), {
+    status: 'already_finalized', contributionNumber: 42,
+  });
+  await expectCode(finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, dependencies({ finalized: true, conflicting: true }).deps), 'failed-precondition');
+});
+
+test('pending lock and immutable contribution SHA pair must match the archive', async () => {
+  await expectCode(finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, dependencies({ wrongLock: true }).deps), 'failed-precondition');
+  await expectCode(finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, dependencies({ wrongShas: true }).deps), 'failed-precondition');
+});
+
+test('lost-response retry returns already finalized without another write', async () => {
+  const state = dependencies();
+  assert.equal((await finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, state.deps)).status, 'finalized');
+  assert.equal((await finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, state.deps)).status, 'already_finalized');
+  assert.equal(state.writes.length, 1);
 });
 
 test('missing or malformed manifest and identity mismatch fail closed', async () => {
@@ -138,7 +178,12 @@ test('wrong path, MIME, size, and checksum metadata are rejected', async () => {
 test('finalization writes snapshot metadata only and never lifecycle state', async () => {
   const touched: string[] = [];
   const state = dependencies();
-  state.deps.createSnapshot = async (number, data) => { touched.push(`contributionSnapshots/${number}`); state.writes.push(data); };
+  state.deps.commitFinalization = async (input) => {
+    touched.push(`contributionSnapshots/${input.contributionNumber}`, `contributions/${input.contributionNumber}.archiveStatus`, 'site/admin.pendingArchiveContributionNumber');
+    state.writes.push(input.snapshot);
+    return 'finalized';
+  };
   await finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, state.deps);
-  assert.deepEqual(touched, ['contributionSnapshots/42']);
+  assert.deepEqual(touched, ['contributionSnapshots/42', 'contributions/42.archiveStatus', 'site/admin.pendingArchiveContributionNumber']);
+  assert.equal(typeof state.writes[0]?.manifestSha256, 'string');
 });

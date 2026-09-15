@@ -21,6 +21,7 @@ export type PublicHistoryItem =
       prUrl: string;
       beforeGitSha?: string;
       afterGitSha?: string;
+      archiveStatus?: 'pending' | 'finalized';
       snapshot?: PublicContributionSnapshot;
     }
   | {
@@ -153,6 +154,7 @@ export interface ParsedContribution {
   prUrl: string;
   beforeGitSha?: string;
   afterGitSha?: string;
+  archiveStatus?: 'pending' | 'finalized';
   mergedAt: Date;
   createdAt: Date;
 }
@@ -166,6 +168,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
   const hasKind = 'contributionKind' in record;
   const hasBeforeSha = 'beforeGitSha' in record;
   const hasAfterSha = 'afterGitSha' in record;
+  const hasArchiveStatus = 'archiveStatus' in record;
   const contributionKind = hasKind ? record.contributionKind : 'community';
   if (
     !hasExactKeys(record, [
@@ -177,6 +180,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
       ...(hasSocialUrl ? ['socialUrl'] : []), 'prNumber', 'prUrl', 'mergedAt', 'createdAt',
       ...(hasBeforeSha ? ['beforeGitSha'] : []),
       ...(hasAfterSha ? ['afterGitSha'] : []),
+      ...(hasArchiveStatus ? ['archiveStatus'] : []),
     ]) ||
     !Number.isSafeInteger(record.number) ||
     (record.number as number) < 0 ||
@@ -208,6 +212,8 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
       || record.beforeGitSha === record.afterGitSha
     )) ||
     (contributionKind === 'founder_seed' && !hasBeforeSha)
+    || (hasArchiveStatus && !['pending', 'finalized'].includes(record.archiveStatus as string))
+    || (hasArchiveStatus && !hasBeforeSha)
   ) return null;
 
   try {
@@ -236,6 +242,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
       beforeGitSha: record.beforeGitSha as string,
       afterGitSha: record.afterGitSha as string,
     } : {}),
+    ...(hasArchiveStatus ? { archiveStatus: record.archiveStatus as 'pending' | 'finalized' } : {}),
     mergedAt,
     createdAt,
   };

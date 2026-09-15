@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 import { chromium } from 'playwright';
 import { SNAPSHOT_CONFIG } from './config.mjs';
 import { validateRevisionPair, readHistoricalRouteRegistry, resolveRepositoryRoot, runGit } from './git.mjs';
-import { sha256File } from './integrity.mjs';
+import { sha256File, validatePngScreenshot } from './integrity.mjs';
 import { buildSnapshotManifest, formatContributionNumber, verifySnapshotBundle } from './manifest.mjs';
 import { createRouteKeyMap, mergeSnapshotRoutes } from './routes.mjs';
 
@@ -94,7 +94,7 @@ export function validateScreenshotDimensions(dimensions, config = SNAPSHOT_CONFI
     throw new Error('Page reported invalid screenshot dimensions.');
   }
   if (height > config.maximumDocumentHeight || width * height > config.maximumScreenshotPixels) {
-    throw new Error(`Page exceeds preview screenshot bounds (${width} × ${height}).`);
+    throw new Error(`Page exceeds screenshot safety bounds (${width} × ${height}).`);
   }
   return { width, height, pixels: width * height };
 }
@@ -135,14 +135,13 @@ export async function captureRevision({ browser, side, sha, routes, routeKeys, d
           }
         });
         await page.waitForTimeout(waitMs);
-        if (blockExternalRequests) {
-          validateScreenshotDimensions(await page.evaluate(() => ({
-            width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0, window.innerWidth),
-            height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0, window.innerHeight),
-          })));
-        }
+        const intendedDimensions = validateScreenshotDimensions(await page.evaluate(() => ({
+          width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0, window.innerWidth),
+          height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0, window.innerHeight),
+        })));
         const filePath = join(outputPath, side, `${routeKeys[route]}.png`);
         await page.screenshot({ path: filePath, fullPage: SNAPSHOT_CONFIG.fullPage, type: 'png', timeout: SNAPSHOT_CONFIG.screenshotTimeoutMs });
+        validatePngScreenshot(await readFile(filePath), SNAPSHOT_CONFIG, intendedDimensions);
         checksums[route] = await sha256File(filePath);
       } catch (error) {
         throw new Error(`${side.toUpperCase()} ${sha.slice(0, 12)} route ${route} failed: ${error.message}`);
@@ -258,7 +257,11 @@ export async function captureSnapshots(options) {
       waitMs,
       checksums: { before: beforeChecksums, after: afterChecksums },
     });
-    await writeFile(join(stagingPath, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
+    const serializedManifest = `${JSON.stringify(manifest, null, 2)}\n`;
+    if (Buffer.byteLength(serializedManifest) > SNAPSHOT_CONFIG.maximumManifestBytes) {
+      throw new Error(`Snapshot manifest exceeds ${SNAPSHOT_CONFIG.maximumManifestBytes} bytes.`);
+    }
+    await writeFile(join(stagingPath, 'manifest.json'), serializedManifest, { flag: 'wx' });
     await writeFile(join(stagingPath, 'index.html'), renderReviewPage(manifest), { flag: 'wx' });
     await verifySnapshotBundle(stagingPath);
     await mkdir(contributionRoot, { recursive: true });

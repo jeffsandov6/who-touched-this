@@ -157,6 +157,7 @@ export interface PublicContributionRecord {
   prUrl: string;
   beforeGitSha?: string;
   afterGitSha?: string;
+  archiveStatus?: 'pending' | 'finalized';
   mergedAt: Timestamp;
   createdAt: Timestamp;
 }
@@ -178,6 +179,7 @@ export interface PublicContributionSnapshotRecord {
     after: { storagePath: string; sha256: string };
   }>;
   manifestStoragePath: string;
+  manifestSha256?: string;
   viewport: { width: number; height: number; deviceScaleFactor: number; fullPage: boolean };
   archivedAt: Timestamp;
 }
@@ -228,5 +230,6 @@ export interface PublicSiteState {
 export interface PrivateSiteState {
   activeTurnId: string | null;
   pendingInvitationId: string | null;
+  pendingArchiveContributionNumber: number | null;
   updatedAt: Timestamp;
 }

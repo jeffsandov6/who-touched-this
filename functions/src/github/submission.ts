@@ -98,12 +98,17 @@ export async function submitCurrentTurnFromWebhook(
       transaction.get(deliveryReference), transaction.get(privateSiteReference),
     ]);
     if (deliverySnapshot.exists) return 'duplicate_delivery';
-    const activeTurnId = privateSiteSnapshot.data()?.activeTurnId;
+    const privateSite = privateSiteSnapshot.data();
+    if ((privateSite?.pendingArchiveContributionNumber ?? null) !== null) {
+      transaction.create(deliveryReference, deliveryRecord(metadata, 'turn_not_active'));
+      return 'turn_not_active';
+    }
+    const activeTurnId = privateSite?.activeTurnId;
     if (typeof activeTurnId !== 'string' || !activeTurnId) {
       transaction.create(deliveryReference, deliveryRecord(metadata, 'no_active_turn'));
       return 'no_active_turn';
     }
-    if (privateSiteSnapshot.data()?.pendingInvitationId !== null) {
+    if (privateSite?.pendingInvitationId !== null) {
       transaction.create(deliveryReference, deliveryRecord(metadata, 'turn_not_active'));
       return 'turn_not_active';
     }

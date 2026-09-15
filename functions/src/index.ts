@@ -204,11 +204,17 @@ export const finalizeSnapshotArchive = onCall({ region: 'us-central1' }, async (
         const snapshot = await firestore.doc(`admins/${id}`).get();
         return snapshot.exists ? snapshot.data() ?? null : null;
       },
-      async contributionExists(number) {
-        return (await firestore.doc(`contributions/${number}`).get()).exists;
-      },
-      async snapshotExists(number) {
-        return (await firestore.doc(`contributionSnapshots/${number}`).get()).exists;
+      async loadArchiveState(number) {
+        const [contribution, snapshot, privateSite] = await Promise.all([
+          firestore.doc(`contributions/${number}`).get(),
+          firestore.doc(`contributionSnapshots/${number}`).get(),
+          firestore.doc('site/admin').get(),
+        ]);
+        return {
+          contribution: contribution.exists ? contribution.data() ?? null : null,
+          snapshot: snapshot.exists ? snapshot.data() ?? null : null,
+          privateSite: privateSite.exists ? privateSite.data() ?? null : null,
+        };
       },
       async loadObject(path) {
         const file = bucket.file(path);
@@ -231,8 +237,44 @@ export const finalizeSnapshotArchive = onCall({ region: 'us-central1' }, async (
         const [files] = await bucket.getFiles({ prefix: `${prefix}/` });
         return files.map((file) => file.name);
       },
-      async createSnapshot(number, data) {
-        await firestore.doc(`contributionSnapshots/${number}`).create(data);
+      async commitFinalization(input) {
+        return firestore.runTransaction(async (transaction) => {
+          const contributionReference = firestore.doc(`contributions/${input.contributionNumber}`);
+          const snapshotReference = firestore.doc(`contributionSnapshots/${input.contributionNumber}`);
+          const privateSiteReference = firestore.doc('site/admin');
+          const [contribution, snapshot, privateSite] = await Promise.all([
+            transaction.get(contributionReference),
+            transaction.get(snapshotReference),
+            transaction.get(privateSiteReference),
+          ]);
+          const contributionData = contribution.exists ? contribution.data() : null;
+          const snapshotData = snapshot.exists ? snapshot.data() : null;
+          const privateSiteData = privateSite.exists ? privateSite.data() : null;
+          if (snapshotData) {
+            if (contributionData?.archiveStatus === 'finalized'
+              && snapshotData.captureId === input.captureId
+              && snapshotData.contributionNumber === input.contributionNumber
+              && snapshotData.beforeGitSha === input.beforeGitSha
+              && snapshotData.afterGitSha === input.afterGitSha
+              && (privateSiteData?.pendingArchiveContributionNumber ?? null) !== input.contributionNumber) {
+              return 'already_finalized' as const;
+            }
+            throw new SnapshotFinalizeError('failed-precondition', 'this contribution already has a different finalized snapshot archive.');
+          }
+          if (!contributionData || contributionData.archiveStatus !== 'pending'
+            || contributionData.beforeGitSha !== input.beforeGitSha
+            || contributionData.afterGitSha !== input.afterGitSha
+            || privateSiteData?.pendingArchiveContributionNumber !== input.contributionNumber) {
+            throw new SnapshotFinalizeError('failed-precondition', 'archive state changed before finalization.');
+          }
+          transaction.create(snapshotReference, input.snapshot);
+          transaction.update(contributionReference, { archiveStatus: 'finalized' });
+          transaction.update(privateSiteReference, {
+            pendingArchiveContributionNumber: null,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+          return 'finalized' as const;
+        });
       },
       archivedAt: () => FieldValue.serverTimestamp(),
     });
@@ -283,6 +325,9 @@ export const recordFounderContributionZero = onCall({ region: 'us-central1' }, a
         },
         setPublicSite(data) {
           transaction.set(firestore.doc('site/public'), data);
+        },
+        setPrivateSite(data) {
+          transaction.set(firestore.doc('site/admin'), data);
         },
       })),
     });

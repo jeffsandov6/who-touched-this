@@ -38,6 +38,7 @@ interface FounderSeedTransaction {
   createContribution(data: Record<string, unknown>): void;
   createHistory(data: Record<string, unknown>): void;
   setPublicSite(data: Record<string, unknown>): void;
+  setPrivateSite(data: Record<string, unknown>): void;
 }
 
 export interface FounderSeedDependencies {
@@ -102,7 +103,8 @@ function validInactivePublicSite(site: Record<string, unknown> | null): boolean 
 }
 
 function validUnlockedPrivateSite(site: Record<string, unknown> | null): boolean {
-  return site === null || (site.activeTurnId === null && site.pendingInvitationId === null);
+  return site === null || (site.activeTurnId === null && site.pendingInvitationId === null
+    && (site.pendingArchiveContributionNumber ?? null) === null);
 }
 
 export async function recordFounderSeedContribution(
@@ -162,6 +164,7 @@ export async function recordFounderSeedContribution(
       prUrl,
       beforeGitSha: input.beforeGitSha,
       afterGitSha: input.afterGitSha,
+      archiveStatus: 'pending',
       mergedAt: timestamp,
       createdAt: timestamp,
     });
@@ -182,6 +185,12 @@ export async function recordFounderSeedContribution(
       targetContributionNumber: null,
       currentContributor: null,
       dueAt: null,
+      updatedAt: timestamp,
+    });
+    transaction.setPrivateSite({
+      activeTurnId: null,
+      pendingInvitationId: null,
+      pendingArchiveContributionNumber: 0,
       updatedAt: timestamp,
     });
     return { status: 'recorded', contributionNumber: 0 };

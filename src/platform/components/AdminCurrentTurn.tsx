@@ -14,7 +14,7 @@ interface Props {
   busy: boolean;
   onRecordSubmission: (prUrl: string, prNumber: string) => Promise<void>;
   onMarkUnderReview: () => Promise<void>;
-  onRecordMerged: (summary: string, contributorMessage: string) => Promise<void>;
+  onRecordMerged: (summary: string, contributorMessage: string, beforeGitSha: string, afterGitSha: string) => Promise<void>;
   onExpire: () => Promise<void>;
   onSkip: () => Promise<void>;
 }
@@ -40,6 +40,8 @@ export default function AdminCurrentTurn({
   const [prNumber, setPrNumber] = useState('');
   const [summary, setSummary] = useState('');
   const [contributorMessage, setContributorMessage] = useState('');
+  const [beforeGitSha, setBeforeGitSha] = useState('');
+  const [afterGitSha, setAfterGitSha] = useState('');
 
   useEffect(() => {
     const timer = window.setInterval(() => setNowMillis(Date.now()), 1000);
@@ -56,7 +58,7 @@ export default function AdminCurrentTurn({
     if (!window.confirm(
       'record this contribution as merged? the pull request should already be merged on GitHub.',
     )) return;
-    await onRecordMerged(summary, contributorMessage);
+    await onRecordMerged(summary, contributorMessage, beforeGitSha, afterGitSha);
   }
 
   return (
@@ -151,6 +153,20 @@ export default function AdminCurrentTurn({
               disabled={busy}
             />
             <small>public & limited to {CONTRIBUTOR_MESSAGE_MAX_LENGTH} characters.</small>
+          </div>
+          <div className="form-field">
+            <label htmlFor="contribution-before-sha">before SHA</label>
+            <input id="contribution-before-sha" value={beforeGitSha}
+              onChange={(event) => setBeforeGitSha(event.target.value)} minLength={40} maxLength={40}
+              pattern="[0-9A-Fa-f]{40}" spellCheck={false} disabled={busy} required />
+            <small>canonical main immediately before the accepted PR merge. enter the full 40-character SHA.</small>
+          </div>
+          <div className="form-field">
+            <label htmlFor="contribution-after-sha">after SHA</label>
+            <input id="contribution-after-sha" value={afterGitSha}
+              onChange={(event) => setAfterGitSha(event.target.value)} minLength={40} maxLength={40}
+              pattern="[0-9A-Fa-f]{40}" spellCheck={false} disabled={busy} required />
+            <small>canonical main containing the accepted merge. capture tooling verifies ancestry independently.</small>
           </div>
           <button className="button" type="submit" disabled={busy}>
             {busy ? 'recording…' : 'record merged contribution'}

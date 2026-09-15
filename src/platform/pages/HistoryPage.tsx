@@ -22,9 +22,18 @@ function ContributionEntry({ event }: {
       <span className="history-rail-marker" aria-hidden="true">{number}</span>
       <article className="history-entry-card" aria-labelledby={headingId}>
         <HistoryContributionRecord event={event} headingId={headingId} />
-        <a className={`history-detail-link${event.snapshot ? ' history-detail-link-visual' : ''}`} href={detailUrl}>
-          {event.snapshot ? `see before & after · ${event.snapshot.routes.length} ${event.snapshot.routes.length === 1 ? 'page' : 'pages'}` : 'view contribution'}
-        </a>
+        {event.archiveStatus === 'pending' ? (
+          <div className="history-archive-state">
+            <p>before & after is being archived.</p>
+            <a className="history-detail-link" href={detailUrl}>view contribution</a>
+          </div>
+        ) : (
+          <a className={`history-detail-link${event.snapshot ? ' history-detail-link-visual' : ''}`} href={detailUrl}>
+            {event.snapshot
+              ? `see before & after · ${event.snapshot.routes.length} ${event.snapshot.routes.length === 1 ? 'page' : 'pages'}`
+              : 'view contribution'}
+          </a>
+        )}
       </article>
     </li>
   );
