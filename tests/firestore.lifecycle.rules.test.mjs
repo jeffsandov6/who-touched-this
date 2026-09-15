@@ -100,7 +100,9 @@ function reviewBatch(firestore, { includePublic = true, turnUpdates = {} } = {})
   return batch.commit();
 }
 
-function endBatch(firestore, status, { include = ['turn','participation','queue','private','public','event'] } = {}) {
+function endBatch(firestore, status, {
+  include = ['turn','participation','queue','private','public','event'], eventUpdates = {},
+} = {}) {
   const batch = writeBatch(firestore);
   if (include.includes('turn')) batch.update(doc(firestore, 'turns/current-turn'), {
     status, endedAt: serverTimestamp(), updatedAt: serverTimestamp(),
@@ -123,9 +125,9 @@ function endBatch(firestore, status, { include = ['turn','participation','queue'
     type: status === 'expired' ? 'turn_expired' : 'turn_skipped',
     season: 1,
     displayName: 'Octo Contributor',
-    githubUsername: contributor.username,
     targetContributionNumber: 1,
     occurredAt: serverTimestamp(),
+    ...eventUpdates,
   });
   return batch.commit();
 }
@@ -197,7 +199,8 @@ function mergeBatch(firestore, {
     status: 'completed', contributionNumber: 1, updatedAt: serverTimestamp(), ...queueUpdates,
   });
   if (include.includes('contribution')) batch.set(doc(firestore, 'contributions/1'), {
-    number: 1, season: 1, displayName: 'Octo Contributor', githubUsername: contributor.username,
+    number: 1, season: 1, githubUserId: contributor.id,
+    displayName: 'Octo Contributor', githubUsername: contributor.username,
     summary, ...(contributorMessage ? { contributorMessage } : {}),
     prNumber: 12, prUrl: 'https://github.com/example/repo/pull/12',
     mergedAt: serverTimestamp(), createdAt: serverTimestamp(), ...contributionUpdates,
@@ -395,7 +398,8 @@ test('valid under-review merge creates public records, completes private state, 
   if (turn.data()?.status !== 'merged' || participation.data()?.status !== 'completed'
     || participation.data()?.contributionNumber !== 1 || queue.data()?.status !== 'completed'
     || queue.data()?.contributionNumber !== 1 || contribution.data()?.number !== 1
-    || contribution.data()?.prNumber !== 12 || 'socialUrl' in (contribution.data() ?? {})
+    || contribution.data()?.prNumber !== 12 || contribution.data()?.githubUserId !== contributor.id
+    || 'socialUrl' in (contribution.data() ?? {})
     || event.data()?.type !== 'contribution'
     || event.data()?.contributionNumber !== 1 || lock.data()?.activeTurnId !== null
     || publicSite.data()?.currentVersion !== 1 || publicSite.data()?.totalContributions !== 1
@@ -456,11 +460,24 @@ for (const [name, options] of [
   ['changed contribution PR', { contributionUpdates: { prNumber: 13 } }],
   ['changed contributor snapshot', { contributionUpdates: { displayName: 'Impostor' } }],
   ['private email in contribution', { contributionUpdates: { email: 'private@example.test' } }],
-  ['numeric GitHub ID in contribution', { contributionUpdates: { githubUserId: contributor.id } }],
+  ['changed numeric GitHub ID in contribution', { contributionUpdates: { githubUserId: second.id } }],
   ['private field in history event', { eventUpdates: { priority: 99 } }],
 ]) test(`merge rejects ${name}`, async () => {
   await seedAdmin(); await seedCurrent('under_review');
   await assertFails(mergeBatch(firestoreFor(admin), options));
+});
+
+test('failed-turn History rejects GitHub identity and social fields', async () => {
+  for (const eventUpdates of [
+    { githubUsername: contributor.username },
+    { githubUserId: contributor.id },
+    { socialUrl: 'https://example.test/octo' },
+  ]) {
+    await seedAdmin();
+    await seedCurrent('active', Timestamp.fromMillis(Date.now() - 1_000));
+    await assertFails(endBatch(firestoreFor(admin), 'expired', { eventUpdates }));
+    await environment.clearFirestore();
+  }
 });
 
 for (const omitted of ['turn','participation','queue','contribution','event','private','public']) {

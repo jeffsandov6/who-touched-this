@@ -9,6 +9,7 @@ export type PublicHistoryItem =
       contributionKind: 'community' | 'founder_seed';
       season: number;
       displayName: string;
+      githubUserId?: string;
       githubUsername: string;
       targetContributionNumber: number;
       contributionNumber: number;
@@ -27,7 +28,6 @@ export type PublicHistoryItem =
       type: 'turn_expired' | 'turn_skipped';
       season: number;
       displayName: string;
-      githubUsername: string;
       targetContributionNumber: number;
       occurredAt: Date;
     };
@@ -50,28 +50,38 @@ function asDate(value: unknown): Date | null {
   }
 }
 
-function validPresentation(record: Record<string, unknown>): boolean {
+function validDisplayName(record: Record<string, unknown>): boolean {
   return (
     typeof record.displayName === 'string' &&
     record.displayName.trim() === record.displayName &&
     record.displayName.length >= 1 &&
-    record.displayName.length <= 50 &&
-    typeof record.githubUsername === 'string' &&
-    /^[A-Za-z0-9-]{1,39}$/.test(record.githubUsername)
+    record.displayName.length <= 50
   );
+}
+
+function validGitHubUsername(value: unknown): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9-]{1,39}$/.test(value);
+}
+
+function validGitHubUserId(value: unknown): value is string {
+  return typeof value === 'string' && /^[1-9][0-9]{0,19}$/.test(value);
 }
 
 interface ParsedHistoryEventBase {
   id: string;
   season: number;
   displayName: string;
-  githubUsername: string;
   targetContributionNumber: number;
   occurredAt: Date;
 }
 
 export type ParsedHistoryEvent =
-  | (ParsedHistoryEventBase & { type: 'contribution'; contributionNumber: number; contributionKind: 'community' | 'founder_seed' })
+  | (ParsedHistoryEventBase & {
+      type: 'contribution';
+      githubUsername: string;
+      contributionNumber: number;
+      contributionKind: 'community' | 'founder_seed';
+    })
   | (ParsedHistoryEventBase & { type: 'turn_expired' | 'turn_skipped' });
 
 export function parseHistoryEvent(id: string, data: unknown): ParsedHistoryEvent | null {
@@ -80,16 +90,21 @@ export function parseHistoryEvent(id: string, data: unknown): ParsedHistoryEvent
   const type = record.type;
   const contribution = type === 'contribution';
   const hasKind = 'contributionKind' in record;
+  const hasLegacyFailureUsername = !contribution && 'githubUsername' in record;
   const contributionKind = hasKind ? record.contributionKind : 'community';
   if (
     !['contribution', 'turn_expired', 'turn_skipped'].includes(type as string) ||
     !hasExactKeys(record, [
-      'type', 'season', 'displayName', 'githubUsername', 'targetContributionNumber',
+      'type', 'season', 'displayName',
+      ...(contribution || hasLegacyFailureUsername ? ['githubUsername'] : []),
+      'targetContributionNumber',
       ...(hasKind ? ['contributionKind'] : []),
       ...(contribution ? ['contributionNumber'] : []), 'occurredAt',
     ]) ||
     record.season !== 1 ||
-    !validPresentation(record) ||
+    !validDisplayName(record) ||
+    (contribution && !validGitHubUsername(record.githubUsername)) ||
+    (hasLegacyFailureUsername && !validGitHubUsername(record.githubUsername)) ||
     !Number.isSafeInteger(record.targetContributionNumber) ||
     (record.targetContributionNumber as number) < 0 ||
     (contribution && !['community', 'founder_seed'].includes(contributionKind as string)) ||
@@ -110,7 +125,6 @@ export function parseHistoryEvent(id: string, data: unknown): ParsedHistoryEvent
     id,
     season: 1,
     displayName: record.displayName as string,
-    githubUsername: record.githubUsername as string,
     targetContributionNumber: record.targetContributionNumber as number,
     occurredAt,
   };
@@ -118,6 +132,7 @@ export function parseHistoryEvent(id: string, data: unknown): ParsedHistoryEvent
     ? {
         ...base,
         type: 'contribution',
+        githubUsername: record.githubUsername as string,
         contributionNumber: record.contributionNumber as number,
         contributionKind: contributionKind as 'community' | 'founder_seed',
       }
@@ -129,6 +144,7 @@ export interface ParsedContribution {
   contributionKind: 'community' | 'founder_seed';
   season: number;
   displayName: string;
+  githubUserId?: string;
   githubUsername: string;
   summary: string;
   contributorMessage?: string;
@@ -146,13 +162,16 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
   const record = data as Record<string, unknown>;
   const hasMessage = 'contributorMessage' in record;
   const hasSocialUrl = 'socialUrl' in record;
+  const hasGitHubUserId = 'githubUserId' in record;
   const hasKind = 'contributionKind' in record;
   const hasBeforeSha = 'beforeGitSha' in record;
   const hasAfterSha = 'afterGitSha' in record;
   const contributionKind = hasKind ? record.contributionKind : 'community';
   if (
     !hasExactKeys(record, [
-      'number', 'season', 'displayName', 'githubUsername', 'summary',
+      'number', 'season', 'displayName',
+      ...(hasGitHubUserId ? ['githubUserId'] : []),
+      'githubUsername', 'summary',
       ...(hasKind ? ['contributionKind'] : []),
       ...(hasMessage ? ['contributorMessage'] : []),
       ...(hasSocialUrl ? ['socialUrl'] : []), 'prNumber', 'prUrl', 'mergedAt', 'createdAt',
@@ -165,7 +184,9 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
     (contributionKind === 'founder_seed' ? record.number !== 0 : (record.number as number) < 1) ||
     (record.number === 0 && contributionKind !== 'founder_seed') ||
     record.season !== 1 ||
-    !validPresentation(record) ||
+    !validDisplayName(record) ||
+    !validGitHubUsername(record.githubUsername) ||
+    (hasGitHubUserId && !validGitHubUserId(record.githubUserId)) ||
     typeof record.summary !== 'string' ||
     record.summary.trim() !== record.summary ||
     record.summary.length < 1 ||
@@ -204,6 +225,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
     contributionKind: contributionKind as 'community' | 'founder_seed',
     season: 1,
     displayName: record.displayName as string,
+    ...(hasGitHubUserId ? { githubUserId: record.githubUserId as string } : {}),
     githubUsername: record.githubUsername as string,
     summary: record.summary,
     ...(hasMessage ? { contributorMessage: record.contributorMessage as string } : {}),
@@ -221,4 +243,16 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
 
 export function formatContributionNumber(number: number): string {
   return `#${String(number).padStart(3, '0')}`;
+}
+
+export function githubAvatarUrl(githubUserId: string | undefined): string | null {
+  return validGitHubUserId(githubUserId)
+    ? `https://avatars.githubusercontent.com/u/${githubUserId}?v=4&s=96`
+    : null;
+}
+
+export function contributorInitials(displayName: string): string {
+  return displayName.trim().split(/\s+/).slice(0, 2)
+    .map((part) => Array.from(part)[0] ?? '')
+    .join('').toLocaleUpperCase() || '?';
 }

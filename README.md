@@ -259,9 +259,10 @@ public History changes only after finalization. Unfinalized orphan objects are n
 future protected cleanup process.
 
 Public History queries snapshot metadata once, attaches it only to permanent contribution events, and
-initially shows a compact “Before & after · N pages” control. Expanding it uses the historical routes
-stored in the archive—not today's registry—and only then resolves public Storage URLs. Screenshots are
-lazy-loaded with explicit BEFORE/AFTER labels and alt text; failures do not hide the contribution.
+shows a compact “see before & after · N pages” link to that accepted version's detail page. The detail
+page uses the historical routes stored in the archive, not today's registry, and only then resolves
+public Storage URLs. Screenshots are lazy-loaded with explicit BEFORE/AFTER labels and alt text;
+failures do not hide the contribution.
 Known archive objects and manifests are anonymously readable, but directories cannot be listed and no
 browser client can overwrite or delete archive objects or metadata.
 
@@ -724,14 +725,22 @@ permanently consumes a contribution number. The next turn targets the new versio
 ### Public History
 
 `/history` is a small hydrated public view because History changes independently of static Astro
-builds. It queries public `historyEvents/**`, successful `contributions/{number}`, and one public
-`contributionSnapshots/**` collection snapshot. Events are displayed newest-first.
+builds. It loads the public History, contribution, and snapshot collections in bounded collection
+reads rather than issuing one contribution lookup per event. Events are displayed newest-first as a
+connected version timeline.
 
-Successful events prominently show Contribution number, contributor presentation identity,
-summary, optional message, GitHub PR, and merge time. Explicit expiration and skipping also create
-compact public events such as `Turn for #001 — Expired`; these explain the chronology without
-mislabeling an unsuccessful turn as Contribution #001. Event documents never contain email,
-Firebase UID, stable GitHub provider ID, queue metadata, admin identity, or private reasons.
+Successful events prominently show the contribution number, contributor presentation identity,
+snapshotted change summary, optional message, GitHub PR, merge time, and archived visual comparison
+when one exists. New successful contribution records also preserve the verified numeric GitHub user
+ID as public presentation identity, solely to derive a stable avatar URL without browser GitHub API
+requests. Older contribution records remain valid and render an initials fallback.
+
+Explicit expiration and skipping create quieter timeline entries that explain an unwritten version
+without mislabeling it as a contribution. New failed-turn event documents contain only the public
+display name, status, target number, season, and time: no GitHub username, numeric GitHub identity,
+profile/avatar link, social URL, email, Firebase UID, queue metadata, admin identity, or private
+reason. The parser remains compatible with older failed-turn documents but discards their legacy
+GitHub username before rendering.
 Founder Contribution #000 uses the additive public `contributionKind: "founder_seed"` discriminator,
 so History labels it distinctly without pretending it had a turn. Older/community records without a
 kind remain valid and default to `community`. The founder record also preserves public-safe exact Git

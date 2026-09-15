@@ -94,7 +94,7 @@ test('active owner atomically records public founder contribution, History, and 
   assert.deepEqual(await recordFounderSeedContribution(auth(), input, dependencies), { status: 'recorded', contributionNumber: 0 });
   const contribution = state.contributions.get(0)!;
   assert.deepEqual(contribution, {
-    number: 0, season: 1, contributionKind: 'founder_seed', displayName: 'Founder',
+    number: 0, season: 1, contributionKind: 'founder_seed', githubUserId: '9001', displayName: 'Founder',
     githubUsername: 'JeffSandov6', summary: 'Initial creative seed', contributorMessage: 'Here we go.',
     prNumber: 27, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
     beforeGitSha: before, afterGitSha: after, mergedAt: timestamp, createdAt: timestamp,
@@ -108,7 +108,8 @@ test('active owner atomically records public founder contribution, History, and 
     currentVersion: 0, totalContributions: 1, turnStatus: 'none', targetContributionNumber: null,
     currentContributor: null, dueAt: null, updatedAt: timestamp,
   });
-  assert.equal(Object.values(contribution).some((value) => value === '9001'), false);
+  assert.equal(contribution.githubUserId, '9001');
+  assert.equal('firebaseUid' in contribution, false);
   assert.deepEqual(state.otherWrites, []);
 });
 

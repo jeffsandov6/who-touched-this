@@ -120,5 +120,5 @@ export function historicalRouteLabel(route: string): string {
 
 export function snapshotImageAlt(side: 'before' | 'after', contributionNumber: number, route: string): string {
   const label = String(contributionNumber).padStart(3, '0');
-  return `${side === 'before' ? 'before' : 'after'} contribution #${label} — ${route}`;
+  return `${side === 'before' ? 'before' : 'after'} contribution #${label}, ${route}`;
 }

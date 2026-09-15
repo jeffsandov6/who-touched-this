@@ -225,6 +225,16 @@ Hosting History/Admin UI from the same reviewed commit. Capture and verify exact
 locally first; archival is a separate authenticated admin action. Do not upload a production archive
 until its permanent contribution exists and the local comparison viewer has been reviewed.
 
+Before accepting contributions, deploy the reviewed History release as one coordinated change:
+Hosting for the timeline/avatar UI, Firestore Rules for the successful-contribution identity snapshot
+and identity-free missed-turn projection, and Functions for Founder #000's equivalent trusted identity
+snapshot. Confirm a legacy contribution without `githubUserId` renders its initials fallback. Confirm
+an expired/skipped entry exposes only its public nickname and outcome. Successful contribution data
+needs no migration; do not backfill numeric identity from mutable usernames. Before launch, inspect
+any pre-existing failed-turn documents: Rules prevent new identity-bearing outcomes but cannot remove
+legacy fields already stored in a public document. Any such cleanup is a deliberate owner data task
+and was not performed by this change.
+
 ## Read-only smoke test
 
 For pre-launch:

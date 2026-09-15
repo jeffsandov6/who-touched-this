@@ -307,7 +307,6 @@ async function endCurrentTurn(adminGithubUserId: string, nextStatus: Extract<Tur
         type: nextStatus === 'expired' ? 'turn_expired' : 'turn_skipped',
         season: CURRENT_SEASON,
         displayName: contributor.displayName,
-        githubUsername: contributor.githubUsername,
         targetContributionNumber: turn.targetContributionNumber,
         occurredAt: serverTimestamp(),
       } satisfies WithFieldValue<PublicHistoryEvent>);
@@ -436,6 +435,7 @@ export async function recordMergedContribution(
       const contribution = {
         number: turn.targetContributionNumber,
         season: CURRENT_SEASON,
+        githubUserId: turn.githubUserId,
         displayName: contributor.displayName,
         githubUsername: contributor.githubUsername,
         summary: details.summary,

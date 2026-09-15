@@ -16,6 +16,12 @@
     "public": "dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "cleanUrls": true,
+    "rewrites": [
+      {
+        "regex": "^/history/(0|[1-9][0-9]*)/?$",
+        "destination": "/history/detail-shell/index.html"
+      }
+    ],
     "predeploy": ["npm run build"]
   },
   "emulators": {

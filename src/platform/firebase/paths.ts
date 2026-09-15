@@ -93,6 +93,10 @@ export function contributionDocumentPath(contributionNumber: number): string {
   return `${FIRESTORE_COLLECTIONS.contributions}/${assertContributionNumber(contributionNumber)}`;
 }
 
+export function contributionSnapshotDocumentPath(contributionNumber: number): string {
+  return `${FIRESTORE_COLLECTIONS.contributionSnapshots}/${assertContributionNumber(contributionNumber)}`;
+}
+
 export function historyEventDocumentPath(turnId: string): string {
   return `${FIRESTORE_COLLECTIONS.historyEvents}/${assertPathSegment(turnId, 'history event id')}`;
 }

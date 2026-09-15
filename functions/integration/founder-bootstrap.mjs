@@ -50,6 +50,7 @@ const [contribution, history, publicSite, queue, participation, invitations, tur
   firestore.collection('turns').get(), firestore.collection('emailDeliveries').get(),
 ]);
 assert.equal(contribution.data()?.contributionKind, 'founder_seed');
+assert.equal(contribution.data()?.githubUserId, '9001');
 assert.equal(contribution.data()?.prUrl, 'https://github.com/JeffSandov6/who-touched-this/pull/27');
 assert.equal(history.data()?.contributionNumber, 0);
 assert.equal(publicSite.data()?.currentVersion, 0);
