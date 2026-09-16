@@ -64,7 +64,7 @@ const boringQuestions = [
   {
     question: 'can i add a new page?',
     answer:
-      'not as part of a normal contribution. ordinary turns are meant to modify the existing editable site. if your idea requires an entirely new page, reach out to the maintainer first. there are plans to make additional pages available in the future.',
+      'not as part of a normal contribution. ordinary turns can modify the existing editable pages at /, /random, & /thoughts. if your idea requires an entirely new page, reach out to the maintainer first.',
   },
   {
     question: 'how big can my contribution be?',
@@ -107,6 +107,14 @@ export default function FaqPage() {
   return (
     <section className="page-content" aria-labelledby="faq-heading">
       <h1 id="faq-heading">frequently asked questions</h1>
+
+      <p>
+        have an active turn? read the{' '}
+        <a href="https://github.com/JeffSandov6/who-touched-this/blob/main/CONTRIBUTING.md">
+          full contributor guide ↗
+        </a>
+        .
+      </p>
 
       <h2>the fun stuff</h2>
       <dl className="faq-list">

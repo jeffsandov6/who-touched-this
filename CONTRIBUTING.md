@@ -1,9 +1,11 @@
 # contribute to Who Touched This
 
-> Public contributions are not open yet. Use this guide after the repository is public & your turn is active.
+> **Pre-launch:** the repository is still private. When contributions open, use this guide only after
+> `/join` confirms that your turn is active.
 
-Who Touched This is one website changed by one community contributor at a time. You work in your own
-fork, submit one small coherent idea, & never need write access to the canonical repository.
+This is the canonical manual for an active contribution turn. Who Touched This is one website changed
+by one community contributor at a time. You work in your own fork, submit one small coherent idea, &
+never need write access to the canonical repository.
 
 ## start here
 
