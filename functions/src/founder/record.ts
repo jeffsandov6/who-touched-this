@@ -4,7 +4,7 @@ const DISPLAY_NAME_MAX = 50;
 const SUMMARY_MAX = 160;
 const MESSAGE_MAX = 280;
 const GIT_SHA = /^[0-9a-f]{40}$/;
-const CANONICAL_REPOSITORY = 'JeffSandov6/who-touched-this';
+const CANONICAL_REPOSITORY = 'jeffsandov6/who-touched-this';
 
 export type FounderSeedErrorCode =
   | 'unauthenticated'

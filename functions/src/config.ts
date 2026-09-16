@@ -11,7 +11,7 @@ export const emailProviderMode = defineString('EMAIL_PROVIDER_MODE', {
   description: 'Production uses resend. The emulator forces local unless set to failure.',
 });
 export const githubRepository = defineString('GITHUB_REPOSITORY', {
-  default: 'JeffSandov6/who-touched-this',
+  default: 'jeffsandov6/who-touched-this',
   description: 'Canonical GitHub owner/repository accepted by the webhook.',
 });
 export const githubBaseBranch = defineString('GITHUB_BASE_BRANCH', {

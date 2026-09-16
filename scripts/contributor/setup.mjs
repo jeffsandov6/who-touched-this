@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 
 const exec = promisify(execFile);
 
-export const CANONICAL_REPOSITORY = 'JeffSandov6/who-touched-this';
+export const CANONICAL_REPOSITORY = 'jeffsandov6/who-touched-this';
 export const CANONICAL_HTTPS_REMOTE = `https://github.com/${CANONICAL_REPOSITORY}.git`;
 export const CANONICAL_SSH_REMOTE = `git@github.com:${CANONICAL_REPOSITORY}.git`;
 
@@ -114,7 +114,7 @@ export async function runContributorSetup({
   const originUrl = await remoteUrl(root, 'origin');
   const origin = classifyOrigin(originUrl);
   if (origin.kind === 'canonical') {
-    throw new Error('origin points to JeffSandov6/who-touched-this. Ordinary contributors must clone their own fork and use the canonical repository as upstream.');
+    throw new Error('origin points to jeffsandov6/who-touched-this. Ordinary contributors must clone their own fork and use the canonical repository as upstream.');
   }
   if (origin.kind !== 'fork') {
     throw new Error('origin must point to YOUR_GITHUB_USERNAME/who-touched-this on GitHub. No remotes were changed.');

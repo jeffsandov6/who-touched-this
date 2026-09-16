@@ -35,7 +35,7 @@ test('GitHub remote parsing distinguishes a contributor fork from canonical and 
   assert.equal(classifyOrigin(CANONICAL_HTTPS_REMOTE).kind, 'canonical');
   assert.equal(classifyOrigin('https://github.com/alice/something-else.git').kind, 'unrelated');
   assert.equal(classifyOrigin('https://example.com/alice/who-touched-this.git').kind, 'invalid');
-  assert.equal(parseGitHubRemote('ssh://git@github.com/JeffSandov6/who-touched-this.git')?.repository, CANONICAL_REPOSITORY);
+  assert.equal(parseGitHubRemote('ssh://git@github.com/jeffsandov6/who-touched-this.git')?.repository, CANONICAL_REPOSITORY);
 });
 
 test('setup refuses a canonical origin without changing remotes', async () => {
@@ -127,7 +127,7 @@ test('contributor docs preserve fork direction, zero-secret setup, and public Hi
     readFile(new URL('../.github/pull_request_template.md', import.meta.url), 'utf8'),
     readFile(new URL('../.env.example', import.meta.url), 'utf8'),
   ]);
-  assert.match(contributing, /FROM:[\s\S]*YOUR_GITHUB_USERNAME\/who-touched-this[\s\S]*INTO:[\s\S]*JeffSandov6\/who-touched-this : main/);
+  assert.match(contributing, /FROM:[\s\S]*YOUR_GITHUB_USERNAME\/who-touched-this[\s\S]*INTO:[\s\S]*jeffsandov6\/who-touched-this : main/);
   assert.match(contributing, /npm run dev:contributor/);
   assert.match(contributing, /requires no `\.env`/);
   assert.match(contributing, /one ordinary\s+contribution per season/);

@@ -56,7 +56,7 @@ Its production values are:
 ```text
 EMAIL_PROVIDER_MODE=resend
 APP_ORIGIN=https://whotouchedthis.website
-GITHUB_REPOSITORY=JeffSandov6/who-touched-this
+GITHUB_REPOSITORY=jeffsandov6/who-touched-this
 GITHUB_BASE_BRANCH=main
 ```
 
@@ -122,13 +122,13 @@ Founder Contribution #000 media during onboarding documentation work.
 After Functions are deployed and the HTTPS `githubWebhook` URL exists:
 
 - Create/configure the GitHub App if it does not exist and install it only on
-  `JeffSandov6/who-touched-this`.
+  `jeffsandov6/who-touched-this`.
 - Grant Metadata read-only and Pull requests read-only only.
 - Subscribe to Pull request events.
 - Set its webhook URL to the deployed `githubWebhook` Function.
 - Configure the same random signing value in GitHub and Firebase Secret Manager as
   `GITHUB_WEBHOOK_SECRET`.
-- Verify the expected repository and base branch remain `JeffSandov6/who-touched-this` and `main`.
+- Verify the expected repository and base branch remain `jeffsandov6/who-touched-this` and `main`.
 
 No App ID/private key is currently required because the application makes no outbound GitHub API
 calls. Do not broaden permissions.

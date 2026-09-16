@@ -265,8 +265,8 @@ test('detail model uses one immutable successful contribution and remains compat
 test('Founder contribution zero uses the same detail model', () => {
   const founder = buildPublicContributionDetail(0, {
     number: 0, season: 1, contributionKind: 'founder_seed', displayName: 'Founder',
-    githubUsername: 'JeffSandov6', summary: 'Initial creative seed.', prNumber: 27,
-    prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
+    githubUsername: 'jeffsandov6', summary: 'Initial creative seed.', prNumber: 27,
+    prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/27',
     beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40),
     mergedAt: timestamp(1000), createdAt: timestamp(1000),
   });

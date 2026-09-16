@@ -16,7 +16,7 @@ The maintainer sequence is:
 
 1. Ensure this bootstrap infrastructure is already merged into canonical `main`.
 2. Create a dedicated creative branch and modify only the intended canvas.
-3. Open a normal PR against `JeffSandov6/who-touched-this:main` and review/test it.
+3. Open a normal PR against `jeffsandov6/who-touched-this:main` and review/test it.
 4. Manually merge it. Record the exact canonical main SHA immediately before the merge, the exact SHA
    containing the merge, and GitHub's assigned PR number. GitHub PR #27 can legitimately become Who
    Touched This Contribution #000; these number systems are independent.
@@ -573,7 +573,7 @@ Responses never disclose current-turn or contributor data.
 Server-controlled Functions configuration is:
 
 ```text
-GITHUB_REPOSITORY=JeffSandov6/who-touched-this
+GITHUB_REPOSITORY=jeffsandov6/who-touched-this
 GITHUB_BASE_BRANCH=main
 ```
 

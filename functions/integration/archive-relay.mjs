@@ -41,7 +41,7 @@ await Promise.all([
   adminFirestore.doc('turns/archive-turn').set({
     githubUserId: contributor.id, season: 1, status: 'under_review', targetContributionNumber: 1,
     startedAt: now, dueAt: Timestamp.fromMillis(now.toMillis() + 168 * 60 * 60 * 1000),
-    prNumber: 321, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/321',
+    prNumber: 321, prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/321',
     submittedAt: now, reviewStartedAt: now, createdAt: now, updatedAt: now,
   }),
   adminFirestore.doc('site/admin').set({ activeTurnId: 'archive-turn', pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: now }),
@@ -77,7 +77,7 @@ merge.update(doc(ownerClient.firestore, `queue/1_${contributor.id}`), { status: 
 merge.set(doc(ownerClient.firestore, 'contributions/1'), {
   number: 1, season: 1, githubUserId: contributor.id, githubUsername: contributor.username,
   displayName: 'Archive Contributor', summary: 'Archive relay integration.', prNumber: 321,
-  prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/321', beforeGitSha: beforeSha, afterGitSha: afterSha,
+  prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/321', beforeGitSha: beforeSha, afterGitSha: afterSha,
   archiveStatus: 'pending', mergedAt: serverTimestamp(), createdAt: serverTimestamp(),
 });
 merge.set(doc(ownerClient.firestore, 'historyEvents/archive-turn'), {

@@ -51,7 +51,7 @@ const [contribution, history, publicSite, queue, participation, invitations, tur
 ]);
 assert.equal(contribution.data()?.contributionKind, 'founder_seed');
 assert.equal(contribution.data()?.githubUserId, '9001');
-assert.equal(contribution.data()?.prUrl, 'https://github.com/JeffSandov6/who-touched-this/pull/27');
+assert.equal(contribution.data()?.prUrl, 'https://github.com/jeffsandov6/who-touched-this/pull/27');
 assert.equal(contribution.data()?.archiveStatus, 'pending');
 assert.equal((await firestore.doc('site/admin').get()).data()?.pendingArchiveContributionNumber, 0);
 assert.equal(history.data()?.contributionNumber, 0);

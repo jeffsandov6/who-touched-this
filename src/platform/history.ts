@@ -219,7 +219,7 @@ export function parsePublicContribution(data: unknown): ParsedContribution | nul
   try {
     const pullRequest = normalizePullRequestSubmission(record.prUrl, record.prNumber as number);
     if (contributionKind === 'founder_seed'
-      && pullRequest.prUrl !== `https://github.com/JeffSandov6/who-touched-this/pull/${record.prNumber}`) return null;
+      && pullRequest.prUrl !== `https://github.com/jeffsandov6/who-touched-this/pull/${record.prNumber}`) return null;
   } catch {
     return null;
   }

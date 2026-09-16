@@ -176,7 +176,7 @@ async function writeGitHubEvent(t, pullRequest = {}) {
   const eventPath = path.join(cwd, 'event.json');
   await writeFile(eventPath, JSON.stringify({
     number: 17,
-    repository: { full_name: 'JeffSandov6/who-touched-this' },
+    repository: { full_name: 'jeffsandov6/who-touched-this' },
     pull_request: {
       head: { sha: githubHeadSha, repo: { full_name: 'private-contributor/private-fork' } },
       ...pullRequest,
@@ -224,7 +224,7 @@ test('trusted GitHub metadata collection uses only base-repository PR and tree e
   const collected = await collectGitHubContribution(eventPath, githubEnvironment(), request);
   assert.equal(evaluate(collected.changes).passed, true);
   assert.equal(requested.length, 3);
-  assert.equal(requested.every((url) => url.includes('/repos/JeffSandov6/who-touched-this/')), true);
+  assert.equal(requested.every((url) => url.includes('/repos/jeffsandov6/who-touched-this/')), true);
   assert.equal(requested.some((url) => url.includes('/private-contributor/private-fork/')), false);
   assert.equal(requested.some((url) => url.includes('/pulls/17/commits')), true);
   assert.equal(requested.some((url) => url.includes(`/git/trees/${githubTreeSha}`)), true);

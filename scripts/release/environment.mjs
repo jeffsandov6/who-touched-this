@@ -54,7 +54,7 @@ export function validateProductionEnvironment(browser, functionsConfig) {
   for (const name of ['EMAIL_PROVIDER_MODE', 'APP_ORIGIN', 'GITHUB_REPOSITORY', 'GITHUB_BASE_BRANCH']) requireValue(functionsConfig, name);
   if (functionsConfig.EMAIL_PROVIDER_MODE !== 'resend') throw new Error('Production Functions must use EMAIL_PROVIDER_MODE=resend.');
   if (normalizeOrigin(functionsConfig.APP_ORIGIN) !== 'https://whotouchedthis.website') throw new Error('Functions APP_ORIGIN is incorrect.');
-  if (functionsConfig.GITHUB_REPOSITORY !== 'JeffSandov6/who-touched-this') throw new Error('Functions canonical GitHub repository is incorrect.');
+  if (functionsConfig.GITHUB_REPOSITORY !== 'jeffsandov6/who-touched-this') throw new Error('Functions canonical GitHub repository is incorrect.');
   if (functionsConfig.GITHUB_BASE_BRANCH !== 'main') throw new Error('Functions base branch must be main.');
   return { indexingEnabled: browser.PUBLIC_SITE_INDEXING_ENABLED === 'true' };
 }

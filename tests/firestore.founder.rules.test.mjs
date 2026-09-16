@@ -17,8 +17,8 @@ beforeEach(async () => {
       setDoc(doc(context.firestore(), 'admins/9001'), { githubUserId: '9001', active: true, role: 'owner' }),
       setDoc(doc(context.firestore(), 'contributions/0'), {
         number: 0, season: 1, contributionKind: 'founder_seed', displayName: 'Founder',
-        githubUsername: 'JeffSandov6', summary: 'Seed', prNumber: 27,
-        prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
+        githubUsername: 'jeffsandov6', summary: 'Seed', prNumber: 27,
+        prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/27',
         beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40), mergedAt: now, createdAt: now,
       }),
     ]);
@@ -38,7 +38,7 @@ test('even a browser owner cannot directly create founder contribution or Histor
   await assertFails(setDoc(doc(firestore, 'contributions/0'), { number: 0 }));
   await assertFails(setDoc(doc(firestore, 'historyEvents/founder_seed_000'), {
     type: 'contribution', contributionKind: 'founder_seed', season: 1,
-    displayName: 'Founder', githubUsername: 'JeffSandov6', targetContributionNumber: 0,
+    displayName: 'Founder', githubUsername: 'jeffsandov6', targetContributionNumber: 0,
     contributionNumber: 0, occurredAt: Timestamp.now(),
   }));
 });

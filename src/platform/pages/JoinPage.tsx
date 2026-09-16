@@ -32,7 +32,7 @@ const initialFormValues: JoinFormValues = {
   rulesAcknowledged: false,
 };
 
-const CANONICAL_REPOSITORY_URL = 'https://github.com/JeffSandov6/who-touched-this';
+const CANONICAL_REPOSITORY_URL = 'https://github.com/jeffsandov6/who-touched-this';
 const CONTRIBUTOR_GUIDE_URL = `${CANONICAL_REPOSITORY_URL}/blob/main/CONTRIBUTING.md`;
 
 function ActiveTurnGuide() {

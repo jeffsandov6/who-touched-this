@@ -6,7 +6,7 @@ import {
 
 export const FOUNDER_DISPLAY_NAME_MAX_LENGTH = 50;
 export const FOUNDER_CONTRIBUTION_NUMBER = 0;
-export const FOUNDER_GITHUB_REPOSITORY = 'JeffSandov6/who-touched-this';
+export const FOUNDER_GITHUB_REPOSITORY = 'jeffsandov6/who-touched-this';
 const GIT_SHA = /^[0-9a-f]{40}$/;
 
 export interface FounderSeedFormInput {

@@ -31,7 +31,7 @@ test('founder form validation trims public data and normalizes full SHAs', () =>
 });
 
 test('founder PR and snapshot commands are canonical and contribution number remains independent', () => {
-  assert.equal(founderPullRequestUrl(27), 'https://github.com/JeffSandov6/who-touched-this/pull/27');
+  assert.equal(founderPullRequestUrl(27), 'https://github.com/jeffsandov6/who-touched-this/pull/27');
   const command = founderSnapshotCommand(before, after);
   assert.match(command, /--contribution 0/);
   assert.match(command, new RegExp(`--before ${before}`));
@@ -41,17 +41,17 @@ test('founder PR and snapshot commands are canonical and contribution number rem
 test('public parsers accept a founder seed and distinguish it from default community records', () => {
   const contribution = parsePublicContribution({
     number: 0, season: 1, contributionKind: 'founder_seed', githubUserId: '9001', displayName: 'Founder',
-    githubUsername: 'JeffSandov6', summary: 'Initial creative seed', contributorMessage: 'Hello',
-    prNumber: 27, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
+    githubUsername: 'jeffsandov6', summary: 'Initial creative seed', contributorMessage: 'Hello',
+    prNumber: 27, prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/27',
     beforeGitSha: before, afterGitSha: after, mergedAt: timestamp, createdAt: timestamp,
   });
   const event = parseHistoryEvent('founder_seed_000', {
     type: 'contribution', contributionKind: 'founder_seed', season: 1, displayName: 'Founder',
-    githubUsername: 'JeffSandov6', targetContributionNumber: 0, contributionNumber: 0, occurredAt: timestamp,
+    githubUsername: 'jeffsandov6', targetContributionNumber: 0, contributionNumber: 0, occurredAt: timestamp,
   });
   const community = parsePublicContribution({
     number: 1, season: 1, displayName: 'Alice', githubUsername: 'alice', summary: 'Next',
-    prNumber: 28, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/28',
+    prNumber: 28, prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/28',
     mergedAt: timestamp, createdAt: timestamp,
   });
   assert.equal(contribution?.contributionKind, 'founder_seed');
@@ -62,13 +62,13 @@ test('public parsers accept a founder seed and distinguish it from default commu
 test('malformed founder public data fails closed', () => {
   const base = {
     number: 0, season: 1, contributionKind: 'founder_seed', displayName: 'Founder',
-    githubUsername: 'JeffSandov6', summary: 'Seed', prNumber: 27,
-    prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
+    githubUsername: 'jeffsandov6', summary: 'Seed', prNumber: 27,
+    prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/27',
     beforeGitSha: before, afterGitSha: after, mergedAt: timestamp, createdAt: timestamp,
   };
   assert.equal(parsePublicContribution({ ...base, afterGitSha: before }), null);
   assert.equal(parsePublicContribution({ ...base, prUrl: 'https://github.com/other/repo/pull/27' }), null);
-  assert.equal(parseHistoryEvent('founder', { type: 'contribution', season: 1, displayName: 'Founder', githubUsername: 'JeffSandov6', targetContributionNumber: 0, contributionNumber: 0, occurredAt: timestamp }), null);
+  assert.equal(parseHistoryEvent('founder', { type: 'contribution', season: 1, displayName: 'Founder', githubUsername: 'jeffsandov6', targetContributionNumber: 0, contributionNumber: 0, occurredAt: timestamp }), null);
 });
 
 test('founder bootstrap leaves version zero and makes community target and merge become #001', () => {

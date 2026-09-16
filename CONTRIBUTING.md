@@ -15,7 +15,7 @@ contribution per season.
 
 Then follow this path:
 
-1. Fork <https://github.com/JeffSandov6/who-touched-this> into your GitHub account.
+1. Fork <https://github.com/jeffsandov6/who-touched-this> into your GitHub account.
 2. Clone **your fork**, not Jeff's repository.
 3. Run the safe setup helper. It verifies your fork, adds the canonical `upstream`, checks Node.js/npm,
    & installs dependencies.
@@ -25,7 +25,7 @@ Then follow this path:
 7. Edit only `src/canvas/**`.
 8. Validate, test, check, & build your work.
 9. Commit only the canvas files & push the branch to your fork.
-10. Open a **non-draft** PR from your fork branch into `JeffSandov6/who-touched-this:main`.
+10. Open a **non-draft** PR from your fork branch into `jeffsandov6/who-touched-this:main`.
 11. Push requested revisions to that same branch & PR.
 12. Wait for automated checks & maintainer review. Passing checks do not guarantee acceptance.
 
@@ -43,7 +43,7 @@ npm run contributor:setup
 
 The setup command is safe to rerun. It:
 
-- refuses an `origin` that points to `JeffSandov6/who-touched-this` instead of your fork
+- refuses an `origin` that points to `jeffsandov6/who-touched-this` instead of your fork
 - adds `upstream` when it is missing, using HTTPS or SSH to match your `origin`
 - verifies an existing `upstream` instead of silently replacing an unexpected remote
 - checks the requirements in `package.json` & `.nvmrc`
@@ -68,7 +68,7 @@ You should see:
 
 ```text
 origin    YOUR_GITHUB_USERNAME/who-touched-this
-upstream  JeffSandov6/who-touched-this
+upstream  jeffsandov6/who-touched-this
 ```
 
 If the helper finds an unexpected existing remote, it stops without replacing it. Inspect the output
@@ -200,7 +200,7 @@ FROM:
 YOUR_GITHUB_USERNAME/who-touched-this : contribution/SHORT-DESCRIPTION
 
 INTO:
-JeffSandov6/who-touched-this : main
+jeffsandov6/who-touched-this : main
 ```
 
 In GitHub terminology, **head/compare** is your fork branch; **base** is the canonical `main` branch.

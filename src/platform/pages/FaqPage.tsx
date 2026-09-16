@@ -110,7 +110,7 @@ export default function FaqPage() {
 
       <p>
         have an active turn? read the{' '}
-        <a href="https://github.com/JeffSandov6/who-touched-this/blob/main/CONTRIBUTING.md">
+        <a href="https://github.com/jeffsandov6/who-touched-this/blob/main/CONTRIBUTING.md">
           full contributor guide ↗
         </a>
         .

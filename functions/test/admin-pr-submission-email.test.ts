@@ -55,7 +55,7 @@ const active = {
 };
 const submitted = {
   ...active, status: 'submitted', prNumber: 321,
-  prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/321',
+  prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/321',
   submittedAt: new FakeTimestamp(submittedAt),
 };
 
@@ -64,7 +64,7 @@ function setup() {
   const emailProvider = new FakeProvider();
   const dependencies: AdminSubmissionDependencies = {
     appOrigin: 'https://whotouchedthis.website',
-    expectedRepository: 'JeffSandov6/who-touched-this',
+    expectedRepository: 'jeffsandov6/who-touched-this',
     deliveryStore, emailProvider,
     async loadContributor() { return { displayName: 'Alice <Maker>', githubUsername: 'alice-maker' }; },
   };
@@ -149,9 +149,9 @@ test('malformed, unrelated, and wrong-account notification data fails without se
 test('template contains only operational public presentation and safe canonical links', () => {
   const input = {
     displayName: 'Alice', githubUsername: 'alice', contributionNumber: 12, prNumber: 321,
-    prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/321', submittedAt,
+    prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/321', submittedAt,
     appOrigin: 'https://whotouchedthis.website',
-    expectedRepository: 'JeffSandov6/who-touched-this',
+    expectedRepository: 'jeffsandov6/who-touched-this',
     idempotencyKey: 'pr_submitted_turn-abc',
   };
   const email = buildAdminPrSubmittedEmail(input);
@@ -164,7 +164,7 @@ test('template contains only operational public presentation and safe canonical 
     ...input, prUrl: 'https://github.com/another-owner/who-touched-this/pull/321',
   }));
   assert.throws(() => buildAdminPrSubmittedEmail({
-    ...input, prUrl: 'https://github.com/JeffSandov6/another-repo/pull/321',
+    ...input, prUrl: 'https://github.com/jeffsandov6/another-repo/pull/321',
   }));
   assert.doesNotThrow(() => buildAdminPrSubmittedEmail({
     ...input, prUrl: 'https://github.com/jeffsandov6/WHO-TOUCHED-THIS/pull/321',

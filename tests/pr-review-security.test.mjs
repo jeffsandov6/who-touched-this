@@ -14,17 +14,17 @@ const exec = promisify(execFile);
 const baseSha = 'a'.repeat(40);
 const headSha = 'b'.repeat(40);
 const event = {
-  action: 'synchronize', number: 27, repository: { full_name: 'JeffSandov6/who-touched-this' },
+  action: 'synchronize', number: 27, repository: { full_name: 'jeffsandov6/who-touched-this' },
   pull_request: {
     number: 27, state: 'open',
-    base: { sha: baseSha, repo: { full_name: 'JeffSandov6/who-touched-this' } },
+    base: { sha: baseSha, repo: { full_name: 'jeffsandov6/who-touched-this' } },
     head: { sha: headSha, repo: { full_name: 'attacker/who-touched-this' } },
   },
 };
 
 test('trusted handoff contains only bounded event-derived identity', () => {
   assert.deepEqual(createReviewHandoffFromPullRequestEvent(event), {
-    schemaVersion: 1, pullRequestNumber: 27, baseRepository: 'JeffSandov6/who-touched-this', baseSha,
+    schemaVersion: 1, pullRequestNumber: 27, baseRepository: 'jeffsandov6/who-touched-this', baseSha,
     headRepository: 'attacker/who-touched-this', headSha,
   });
   assert.throws(() => validateReviewHandoff({ ...createReviewHandoffFromPullRequestEvent(event), extra: true }), /unexpected/);

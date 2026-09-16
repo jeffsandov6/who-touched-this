@@ -4,7 +4,7 @@ import { qualifyPullRequestPayload } from '../src/github/qualification.js';
 import { createGitHubSignature, verifyGitHubSignature } from '../src/github/signature.js';
 
 const secret = 'synthetic-test-webhook-secret';
-const config = { repository: 'JeffSandov6/who-touched-this', baseBranch: 'main' };
+const config = { repository: 'jeffsandov6/who-touched-this', baseBranch: 'main' };
 
 function payload(overrides: Record<string, unknown> = {}) {
   const base = {
@@ -12,7 +12,7 @@ function payload(overrides: Record<string, unknown> = {}) {
     repository: { full_name: config.repository },
     pull_request: {
       number: 41,
-      html_url: 'https://github.com/JeffSandov6/who-touched-this/pull/41',
+      html_url: 'https://github.com/jeffsandov6/who-touched-this/pull/41',
       draft: false,
       user: { id: 12345, login: 'new-username' },
       base: { ref: 'main', repo: { full_name: config.repository } },
@@ -43,7 +43,7 @@ test('valid non-draft opened fork PR qualifies by canonical base repository and 
   if (result.kind === 'qualified') {
     assert.equal(result.pullRequest.authorGitHubUserId, '12345');
     assert.equal(result.pullRequest.prNumber, 41);
-    assert.equal(result.pullRequest.prUrl, 'https://github.com/JeffSandov6/who-touched-this/pull/41');
+    assert.equal(result.pullRequest.prUrl, 'https://github.com/jeffsandov6/who-touched-this/pull/41');
   }
 });
 
@@ -71,7 +71,7 @@ test('wrong repository and wrong base branch do not qualify', () => {
 test('invalid PR number and structurally invalid URL are rejected', () => {
   assert.equal(qualifyPullRequestPayload(withPullRequest({ number: 0 }), config).kind, 'ignored');
   assert.equal(qualifyPullRequestPayload(withPullRequest({
-    html_url: 'https://github.com/JeffSandov6/who-touched-this/issues/41',
+    html_url: 'https://github.com/jeffsandov6/who-touched-this/issues/41',
   }), config).kind, 'ignored');
 });
 

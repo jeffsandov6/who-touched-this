@@ -12,7 +12,7 @@ await Promise.all([
   firestore.doc('contributions/1').set({
     number: 1, season: 1, displayName: 'Snapshot Fixture', githubUsername: 'snapshot-fixture',
     summary: 'Synthetic emulator contribution for snapshot archive testing.',
-    prNumber: 1, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/1',
+    prNumber: 1, prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/1',
     mergedAt: now, createdAt: now,
   }),
   firestore.doc('historyEvents/emulator-snapshot-turn').set({

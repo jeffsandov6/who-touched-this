@@ -27,7 +27,7 @@ test('README is a concise landing page with one clear path to the canonical guid
 test('CONTRIBUTING remains the ordered active-turn manual', () => {
   const required = [
     'your turn is active',
-    'Fork <https://github.com/JeffSandov6/who-touched-this>',
+    'Fork <https://github.com/jeffsandov6/who-touched-this>',
     'Clone **your fork**',
     'npm run contributor:setup',
     'upstream',
@@ -36,7 +36,7 @@ test('CONTRIBUTING remains the ordered active-turn manual', () => {
     'src/canvas/**',
     'npm run contribution:validate',
     'git push -u origin',
-    'JeffSandov6/who-touched-this : main',
+    'jeffsandov6/who-touched-this : main',
     'first valid non-draft PR',
     'same branch',
     'does not guarantee acceptance',
@@ -73,7 +73,7 @@ test('Join provides the journey and an active-turn launchpad without changing li
     'open your non-draft pull request',
     'full contributor guide ↗',
   ]) assert.ok(joinPage.includes(text), text);
-  assert.match(joinPage, /CANONICAL_REPOSITORY_URL = 'https:\/\/github\.com\/JeffSandov6\/who-touched-this'/);
+  assert.match(joinPage, /CANONICAL_REPOSITORY_URL = 'https:\/\/github\.com\/jeffsandov6\/who-touched-this'/);
   assert.match(joinPage, /<a href=\{CANONICAL_REPOSITORY_URL\}>fork the repository<\/a>/);
   assert.match(joinPage, /CONTRIBUTOR_GUIDE_URL = `\$\{CANONICAL_REPOSITORY_URL\}\/blob\/main\/CONTRIBUTING\.md`/);
 });

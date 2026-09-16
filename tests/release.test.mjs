@@ -25,7 +25,7 @@ const browser = {
 };
 const functionsConfig = {
   EMAIL_PROVIDER_MODE: 'resend', APP_ORIGIN: 'https://whotouchedthis.website',
-  GITHUB_REPOSITORY: 'JeffSandov6/who-touched-this', GITHUB_BASE_BRANCH: 'main',
+  GITHUB_REPOSITORY: 'jeffsandov6/who-touched-this', GITHUB_BASE_BRANCH: 'main',
 };
 
 test('production identity contract accepts only the intended project and HTTPS origin', () => {

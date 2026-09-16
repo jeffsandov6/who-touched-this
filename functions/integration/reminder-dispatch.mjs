@@ -151,11 +151,11 @@ assert.deepEqual(await operationalState(progressingId), beforeReminders);
 // An overdue active turn can still be submitted normally after the deadline notice.
 assert.equal(await submitCurrentTurnFromWebhook(firestore, {
   deliveryId: randomUUID(), event: 'pull_request', action: 'opened',
-  repository: 'JeffSandov6/who-touched-this',
+  repository: 'jeffsandov6/who-touched-this',
 }, {
-  action: 'opened', repository: 'JeffSandov6/who-touched-this',
+  action: 'opened', repository: 'jeffsandov6/who-touched-this',
   authorGitHubUserId: githubUserId, prNumber: 321,
-  prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/321',
+  prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/321',
 }), 'submitted');
 assert.equal((await firestore.doc(`turns/${progressingId}`).get()).data()?.status, 'submitted');
 

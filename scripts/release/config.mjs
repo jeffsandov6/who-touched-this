@@ -1,7 +1,7 @@
 export const RELEASE_CONFIG = Object.freeze({
   projectId: 'who-touched-this',
   origin: 'https://whotouchedthis.website',
-  repository: 'JeffSandov6/who-touched-this',
+  repository: 'jeffsandov6/who-touched-this',
   baseBranch: 'main',
   requiredNode: Object.freeze({ major: 22, minor: 12 }),
   browserVariables: Object.freeze([

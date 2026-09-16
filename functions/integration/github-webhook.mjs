@@ -9,7 +9,7 @@ if (!projectId || !firestoreHost) throw new Error('Run this inside Firebase emul
 if (getApps().length === 0) initializeApp({ projectId });
 const firestore = getFirestore();
 const secret = 'local-github-webhook-secret';
-const repository = 'JeffSandov6/who-touched-this';
+const repository = 'jeffsandov6/who-touched-this';
 const endpoint = `http://127.0.0.1:5001/${projectId}/us-central1/githubWebhook`;
 
 async function clearFirestore() {

@@ -36,7 +36,7 @@ function setup(overrides: Partial<State> = {}) {
   };
   const timestamp = { serverTimestamp: true };
   const dependencies: FounderSeedDependencies = {
-    canonicalRepository: 'JeffSandov6/who-touched-this',
+    canonicalRepository: 'jeffsandov6/who-touched-this',
     timestamp: () => timestamp,
     async runTransaction(operation) {
       return operation({
@@ -78,7 +78,7 @@ test('founder input is bounded, trimmed, normalized, and rejects unknown fields'
 test('recording requires authenticated stable-ID active owner authorization', async () => {
   await expectCode(recordFounderSeedContribution(null, input, setup().dependencies), 'unauthenticated');
   await expectCode(recordFounderSeedContribution({}, input, setup().dependencies), 'permission-denied');
-  await expectCode(recordFounderSeedContribution(auth('JeffSandov6'), input, setup().dependencies), 'permission-denied');
+  await expectCode(recordFounderSeedContribution(auth('jeffsandov6'), input, setup().dependencies), 'permission-denied');
   for (const admin of [
     null,
     { githubUserId: '9001', active: false, role: 'owner' },
@@ -96,13 +96,13 @@ test('active owner atomically records public founder contribution, History, and 
   const contribution = state.contributions.get(0)!;
   assert.deepEqual(contribution, {
     number: 0, season: 1, contributionKind: 'founder_seed', githubUserId: '9001', displayName: 'Founder',
-    githubUsername: 'JeffSandov6', summary: 'Initial creative seed', contributorMessage: 'Here we go.',
-    prNumber: 27, prUrl: 'https://github.com/JeffSandov6/who-touched-this/pull/27',
+    githubUsername: 'jeffsandov6', summary: 'Initial creative seed', contributorMessage: 'Here we go.',
+    prNumber: 27, prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/27',
     beforeGitSha: before, afterGitSha: after, archiveStatus: 'pending', mergedAt: timestamp, createdAt: timestamp,
   });
   assert.deepEqual(state.history.get('founder_seed_000'), {
     type: 'contribution', contributionKind: 'founder_seed', season: 1,
-    displayName: 'Founder', githubUsername: 'JeffSandov6', targetContributionNumber: 0,
+    displayName: 'Founder', githubUsername: 'jeffsandov6', targetContributionNumber: 0,
     contributionNumber: 0, occurredAt: timestamp,
   });
   assert.deepEqual(state.publicSite, {

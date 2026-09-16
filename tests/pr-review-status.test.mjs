@@ -11,7 +11,7 @@ const headSha = 'b'.repeat(40);
 const handoff = {
   schemaVersion: 1,
   pullRequestNumber: 42,
-  baseRepository: 'JeffSandov6/who-touched-this',
+  baseRepository: 'jeffsandov6/who-touched-this',
   baseSha,
   headRepository: 'malicious-fork/who-touched-this',
   headSha,
@@ -43,7 +43,7 @@ function reportInput(mock, overrides = {}) {
     handoff,
     jobResults: successResults,
     token: 'test-read-checks-write-token',
-    detailsUrl: 'https://github.com/JeffSandov6/who-touched-this/actions/runs/1234',
+    detailsUrl: 'https://github.com/jeffsandov6/who-touched-this/actions/runs/1234',
     request: mock.request,
     ...overrides,
   };
@@ -55,12 +55,12 @@ test('success requires validated handoff, sandboxed build, preview, and current 
   assert.equal(result.conclusion, 'success');
   assert.equal(result.identityMatches, true);
   assert.equal(mock.calls.length, 2);
-  assert.match(mock.calls[0].url, /repos\/JeffSandov6\/who-touched-this\/pulls\/42$/);
-  assert.match(mock.calls[1].url, /repos\/JeffSandov6\/who-touched-this\/check-runs$/);
+  assert.match(mock.calls[0].url, /repos\/jeffsandov6\/who-touched-this\/pulls\/42$/);
+  assert.match(mock.calls[1].url, /repos\/jeffsandov6\/who-touched-this\/check-runs$/);
   assert.equal(mock.calls[1].body.name, TRUSTED_REVIEW_CHECK_NAME);
   assert.equal(mock.calls[1].body.head_sha, headSha);
   assert.equal(mock.calls[1].body.conclusion, 'success');
-  assert.equal(mock.calls[1].body.details_url, 'https://github.com/JeffSandov6/who-touched-this/actions/runs/1234');
+  assert.equal(mock.calls[1].body.details_url, 'https://github.com/jeffsandov6/who-touched-this/actions/runs/1234');
   assert.doesNotMatch(JSON.stringify(mock.calls[1].body), /test-read-checks-write-token/);
 });
 
