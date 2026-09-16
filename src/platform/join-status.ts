@@ -3,7 +3,7 @@ import type { ParticipationStatus } from './firebase/models';
 export function participationStatusMessage(status: ParticipationStatus): string {
   switch (status) {
     case 'waiting':
-      return "you're already in the queue. your exact position is private.";
+      return "you're in the queue. wait for your invitation; your exact position is private.";
 
     case 'invited':
       return 'you have a pending invitation.';

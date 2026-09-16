@@ -8,11 +8,11 @@ is not a contribution.
 ## Architecture and prerequisites
 
 Production consists of Firebase Hosting static output, Firestore Rules and indexes, Storage Rules,
-and Node.js 22 Firebase Functions. Milestone #17 adds the owner-only
-`recordFounderContributionZero` callable and Founder #000 Admin/History presentation. Milestone #16
-adds the `finalizeSnapshotArchive` callable, immutable `public/history/contributions/**` Storage
-policy, public `contributionSnapshots/**` metadata, and History UI; all four deployed surfaces must be
-released together before archive use. Before first deployment, the owner must confirm Firebase/GCP
+and Node.js 22 Firebase Functions. The owner-only `recordFounderContributionZero` callable and
+Founder #000 Admin/History presentation are part of the protected platform. The
+`finalizeSnapshotArchive` callable, immutable `public/history/contributions/**` Storage policy,
+public `contributionSnapshots/**` metadata, and History UI must be released together before archive
+use. For a new or recovered environment, the owner must confirm Firebase/GCP
 billing and API requirements, provision the default Storage bucket, authenticate the
 repository-pinned Firebase CLI, and have access to Firebase Auth, Secret Manager, Hosting, DNS,
 Resend, and the GitHub OAuth/GitHub App settings. Do not run release tooling against unreviewed
@@ -103,7 +103,7 @@ Never document or commit the OAuth client secret.
 - Confirm `hello@whotouchedthis.website` receives the one-time admin notice when a controlled test PR
   first changes its active turn to submitted. The recipient is the server-controlled public project
   mailbox, not a configurable webhook field.
-- Perform controlled email testing only after deployment; this milestone sends nothing.
+- Perform controlled email testing only after deployment; documentation changes send nothing.
 
 Creative email redesign remains separate.
 
@@ -115,7 +115,7 @@ Confirm the actual production bucket and put its Web SDK bucket name in
 immutable objects. Because Storage Rules consult Firestore `admins/{githubUserId}`, configure any
 required cross-service Rules-to-Firestore IAM permission manually. After deployment, use a small
 disposable admin media object to verify upload/public read/delete, then delete it. Do not upload
-Founder Contribution #000 media during this milestone.
+Founder Contribution #000 media during onboarding documentation work.
 
 ## GitHub App webhook
 
@@ -190,7 +190,7 @@ runs the complete release preflight, which creates a fresh production—not cont
 deploys Hosting. Firebase Hosting's configured predeploy build runs production build again, so stale
 output is not used. There is intentionally no all-in-one or automatic deployment command.
 
-## First deployment order
+## Coordinated full-stack release order
 
 1. Confirm project ownership, billing/APIs, local CLI authentication, and project `who-touched-this`.
 2. Configure production Firebase Auth/GitHub OAuth and authorized domains.
@@ -208,8 +208,6 @@ output is not used. There is intentionally no all-in-one or automatic deployment
 14. Run the read-only smoke test below.
 15. Carefully perform the separate manual stateful checks.
 16. Keep indexing disabled until the actual public launch.
-
-This milestone performs none of these production steps.
 
 Before recording the real Founder Contribution #000, deploy the reviewed Function and Hosting UI from
 the same canonical release and verify owner authorization in production. The owner must then create,
@@ -293,5 +291,5 @@ automatic destructive rollback command.
 Before public announcement: complete all production prerequisites, stateful tests, custom-domain and
 HTTPS verification; make the repository public; configure branch protection/code-owner and required
 CI checks; verify GitHub App installation; create Founder Contribution #000 through the deliberate
-workflow; switch indexing to enabled and redeploy/smoke-test Hosting. Repository launch, PR #000,
-automatic snapshot capture/archive and production deployment remain outside the current milestone.
+workflow; switch indexing to enabled and redeploy/smoke-test Hosting. Keep the repository private and
+indexing disabled until those owner decisions are complete.

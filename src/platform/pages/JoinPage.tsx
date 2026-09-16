@@ -32,6 +32,31 @@ const initialFormValues: JoinFormValues = {
   rulesAcknowledged: false,
 };
 
+const CONTRIBUTOR_GUIDE_URL =
+  'https://github.com/JeffSandov6/who-touched-this/blob/main/CONTRIBUTING.md';
+
+function ActiveTurnGuide() {
+  return (
+    <section className="notice" aria-labelledby="active-turn-heading">
+      <h2 id="active-turn-heading">your turn is active.</h2>
+      <ol>
+        <li>fork the repository</li>
+        <li>clone your fork</li>
+        <li>run <code>npm run contributor:setup</code></li>
+        <li>run <code>npm run dev:contributor</code></li>
+        <li>edit only <code>src/canvas/**</code></li>
+        <li>test your change</li>
+        <li>open your non-draft pull request</li>
+      </ol>
+      <p>
+        <strong>
+          <a href={CONTRIBUTOR_GUIDE_URL}>full contributor guide ↗</a>
+        </strong>
+      </p>
+    </section>
+  );
+}
+
 function safeMessage(error: unknown, fallback: string): string {
   return error instanceof AuthenticationError ||
     (error instanceof Error && (error.name === 'JoinError' || error.name === 'InvitationError'))
@@ -169,11 +194,7 @@ export default function JoinPage() {
       const { joinCurrentSeason } = await import('../firebase/join');
       const result = await joinCurrentSeason(identity, normalizedFormValues);
       setParticipationStatus(result.status);
-      setMessage(
-        result.kind === 'joined'
-          ? "you're in the queue. your exact position is private."
-          : participationStatusMessage(result.status),
-      );
+      setMessage(participationStatusMessage(result.status));
     } catch (error) {
       setErrorMessage(safeMessage(error, 'the queue could not be joined. please try again.'));
     } finally {
@@ -207,6 +228,7 @@ export default function JoinPage() {
         sign in with GitHub to join the private season 1 contribution queue. joining doesn't give you
         write access to the main repository or guarantee an immediate turn.
       </p>
+      <p>join → wait → invitation → accept → contribute</p>
 
       {errorMessage && (
         <p className="notice notice-error" role="alert">
@@ -258,6 +280,8 @@ export default function JoinPage() {
               busy={busy}
               onAccept={handleAcceptInvitation}
             />
+          ) : participationStatus === 'active' ? (
+            <ActiveTurnGuide />
           ) : joinIdentityView === 'participation' && participationStatus ? (
             <p className="notice" role="status">
               {message ?? participationStatusMessage(participationStatus)}
