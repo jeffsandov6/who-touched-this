@@ -37,5 +37,10 @@ const robots = robotsMetaContent(import.meta.env.PUBLIC_SITE_INDEXING_ENABLED);
       {contributorPreview ? <ContributorSiteStatus /> : <SiteStatus client:load />}
     </header>
     <main id="main-content"><slot /></main>
+    <script>
+      import { initializeNavigationDropdowns } from '../navigation-dropdown';
+
+      initializeNavigationDropdowns();
+    </script>
   </body>
 </html>
