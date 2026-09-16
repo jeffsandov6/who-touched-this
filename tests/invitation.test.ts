@@ -44,9 +44,9 @@ test('join presentation distinguishes invited and invitation-expired participati
   );
 });
 
-test('waiting participation tells the contributor to wait for an invitation', () => {
+test('waiting participation keeps position private and explains turn notification', () => {
   assert.equal(
     participationStatusMessage('waiting'),
-    "you're in the queue. wait for your invitation; your exact position is private.",
+    "you're in the queue. wait for your invitation; your exact position is private. we'll email you when it's your turn.",
   );
 });

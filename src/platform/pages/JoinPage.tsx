@@ -32,15 +32,15 @@ const initialFormValues: JoinFormValues = {
   rulesAcknowledged: false,
 };
 
-const CONTRIBUTOR_GUIDE_URL =
-  'https://github.com/JeffSandov6/who-touched-this/blob/main/CONTRIBUTING.md';
+const CANONICAL_REPOSITORY_URL = 'https://github.com/JeffSandov6/who-touched-this';
+const CONTRIBUTOR_GUIDE_URL = `${CANONICAL_REPOSITORY_URL}/blob/main/CONTRIBUTING.md`;
 
 function ActiveTurnGuide() {
   return (
     <section className="notice" aria-labelledby="active-turn-heading">
       <h2 id="active-turn-heading">your turn is active.</h2>
       <ol>
-        <li>fork the repository</li>
+        <li><a href={CANONICAL_REPOSITORY_URL}>fork the repository</a></li>
         <li>clone your fork</li>
         <li>run <code>npm run contributor:setup</code></li>
         <li>run <code>npm run dev:contributor</code></li>
@@ -251,7 +251,7 @@ export default function JoinPage() {
         <>
           <section className="github-identity" aria-labelledby="github-identity-heading">
             <div>
-              <h2 id="github-identity-heading">authenticated GitHub identity</h2>
+              <h2 id="github-identity-heading">signed in with GitHub</h2>
               {identity.githubUsername ? (
                 <p>
                   <a href={identity.profileUrl ?? undefined} rel="noreferrer">
@@ -259,7 +259,7 @@ export default function JoinPage() {
                   </a>
                 </p>
               ) : (
-                <p>GitHub account authenticated; username unavailable in this browser session.</p>
+                <p>GitHub account connected.</p>
               )}
             </div>
             {identity.avatarUrl && (

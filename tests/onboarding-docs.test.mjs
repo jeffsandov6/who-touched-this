@@ -60,6 +60,8 @@ test('every documented npm run command exists', async () => {
 
 test('Join provides the journey and an active-turn launchpad without changing lifecycle code', () => {
   assert.match(joinPage, /join → wait → invitation → accept → contribute/);
+  assert.match(joinPage, /signed in with GitHub/);
+  assert.match(joinPage, /GitHub account connected\./);
   assert.match(joinPage, /participationStatus === 'active'/);
   for (const text of [
     'fork the repository',
@@ -71,7 +73,9 @@ test('Join provides the journey and an active-turn launchpad without changing li
     'open your non-draft pull request',
     'full contributor guide ↗',
   ]) assert.ok(joinPage.includes(text), text);
-  assert.match(joinPage, /github\.com\/JeffSandov6\/who-touched-this\/blob\/main\/CONTRIBUTING\.md/);
+  assert.match(joinPage, /CANONICAL_REPOSITORY_URL = 'https:\/\/github\.com\/JeffSandov6\/who-touched-this'/);
+  assert.match(joinPage, /<a href=\{CANONICAL_REPOSITORY_URL\}>fork the repository<\/a>/);
+  assert.match(joinPage, /CONTRIBUTOR_GUIDE_URL = `\$\{CANONICAL_REPOSITORY_URL\}\/blob\/main\/CONTRIBUTING\.md`/);
 });
 
 test('FAQ names the current editable pages and links to the full guide', () => {
