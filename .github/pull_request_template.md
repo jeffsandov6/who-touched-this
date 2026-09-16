@@ -13,7 +13,7 @@ Leave this section empty if you do not want to add a message. -->
 - [ ] I changed only contributor-editable files under `src/canvas/**`.
 - [ ] This pull request contains one coherent contribution.
 - [ ] I did not include secrets or private information.
-- [ ] I tested the site locally and ran the documented validation commands.
+- [ ] I tested the site locally & ran the documented validation commands.
 - [ ] I coordinated any large media with the maintainer before submitting.
 - [ ] I understand this is my one ordinary contribution for this season.
 - [ ] This PR is non-draft because I am ready to submit my turn for review.
