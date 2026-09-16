@@ -1,11 +1,13 @@
 # who touched this
 
-one website. one contributor at a time.
+one website, one contributor at a time.
 
-Who Touched This is a social coding experiment where contributors sequentially modify one public
-website. Each accepted contribution becomes part of its permanent history.
+take your turn, make a change, & become part of its history.
 
-> **Pre-launch:** the repository and contribution queue are not public yet. This note can be removed
+who touched this is a social coding experiment where one public website is passed from contributor to contributor.
+each person gets one turn to make a small change, and every accepted contribution becomes part of the site's permanent history.
+
+> **Pre-launch:** the repository & contribution queue are not public yet. This note can be removed
 > when public contributions open.
 
 ## how it works
@@ -16,7 +18,7 @@ website. Each accepted contribution becomes part of its permanent history.
 4. Fork the repository.
 5. Make one small change to the editable canvas.
 6. Open a pull request.
-7. If accepted, your version becomes part of the site's permanent history.
+7. If accepted, your change goes live, becomes part of the site's permanent history, & the website passes to the next contributor.
 
 ## want to contribute?
 
@@ -25,7 +27,7 @@ your turn is active.
 
 When your turn starts:
 
-1. Fork the repository and clone your fork.
+1. Fork the repository & clone your fork.
 2. Run `npm run contributor:setup`.
 3. Run `npm run dev:contributor`.
 4. Edit only `src/canvas/**`.
@@ -33,7 +35,7 @@ When your turn starts:
 6. Open a non-draft pull request from your fork into canonical `main`.
 
 Read the full [contributor guide](CONTRIBUTING.md) before opening your pull request. It is the
-authoritative setup, validation, scope, and review workflow.
+authoritative setup, validation, scope, & review workflow.
 
 ## what can contributors edit?
 
@@ -44,8 +46,8 @@ src/canvas/**
 ```
 
 Protected areas include `src/platform/**`, `src/pages/**`, `src/styles/**`, platform configuration,
-lifecycle and security infrastructure, and every other path identified by the contribution boundary.
-The detailed and authoritative policy lives in [CONTRIBUTING.md](CONTRIBUTING.md).
+lifecycle & security infrastructure, & every other path identified by the contribution boundary.
+The detailed & authoritative policy lives in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## editable pages
 
@@ -55,13 +57,13 @@ The current canvas has three public pages:
 - `/random`
 - `/thoughts`
 
-Their rendered content is canvas-owned. Routing, the protected shell, and route configuration remain
+Their rendered content is canvas-owned. Routing, the protected shell, & route configuration remain
 protected platform infrastructure.
 
 ## technology
 
 - Astro
-- React and TypeScript
+- React & TypeScript
 - Firebase
 - GitHub Actions
 - plain CSS
@@ -73,4 +75,4 @@ Node.js 22.12 or newer is required.
 
 - [Platform architecture & maintainer operations](docs/PLATFORM.md)
 - [Production release guide](docs/PRODUCTION.md)
-- [Pre-merge contributor review and security](docs/PR_REVIEW.md)
+- [Pre-merge contributor review & security](docs/PR_REVIEW.md)

@@ -10,12 +10,12 @@ const funQuestions = [
   {
     question: 'what should i make?',
     answer:
-      'honestly whatever you want, as long as it fits the rules & the scope of one contribution. it can be useful, useless, weird, funny, beautiful, ugly, interactive, confusing, or something nobody would have thought to put there. that\'s kind of the point. i think we forget how fun developing can be once it just becomes something we do at our job. there was never a more fun time for me than when i participated in hackathons with my buddies. writing software can be a lot more fun as a social activity.',
+      'honestly whatever you want, as long as it fits the rules & the scope of one contribution. it can be useful, useless, weird, funny, beautiful, ugly, interactive, confusing, or something nobody would have thought to put there. that\'s kind of the point. we tend to forget how fun developing can be once it just becomes something we do at our job. there was never a more fun time for me than when i participated in hackathons with my buddies. writing software can be a lot more fun as a social activity.',
   },
   {
     question: 'do i have to be an amazing developer?',
     answer:
-      'nah. this isn\'t a coding competition. if you can follow the contributor instructions, make your change, & get the checks to pass, you\'re welcome to contribute. a simple idea can be just as interesting as a technically complicated one. people at different experience levels tend to bring completely different ideas to the table. juniors can have a ton of fresh creativity, while seniors can bring years of weird knowledge & perspective (i\'m a senior myself, so no senior slander here 😭). mixing ideas from developers of all backgrounds, experiences, & generations should make this even more fun. since it\'s all small contributions & no huge deliverables, i\'m hoping the mix turns into something dope.',
+      'nah. this isn\'t a coding competition. if you can follow the contributor instructions, make your change, & get the checks to pass, you\'re welcome to contribute. a simple idea can be just as interesting as a technically complicated one. people at different experience levels tend to bring completely different ideas to the table. juniors can have a ton of fresh creativity, while seniors can bring years of weird knowledge & perspective. mixing ideas from developers of all backgrounds, experiences, & generations should make this even more fun. since it\'s all small contributions & no huge deliverables, i\'m hoping the mix turns into something dope.',
   },
   {
     question: 'is there anything not allowed?',
