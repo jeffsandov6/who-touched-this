@@ -29,6 +29,8 @@ test('CONTRIBUTING remains the ordered active-turn manual', () => {
     'your turn is active',
     'Fork <https://github.com/jeffsandov6/who-touched-this>',
     'Clone **your fork**',
+    'gh repo fork JeffSandov6/who-touched-this --clone',
+    'GitHub CLI is not required',
     'npm run contributor:setup',
     'upstream',
     'contribution/SHORT-DESCRIPTION',
@@ -64,15 +66,20 @@ test('Join provides the journey and an active-turn launchpad without changing li
   assert.match(joinPage, /GitHub account connected\./);
   assert.match(joinPage, /participationStatus === 'active'/);
   for (const text of [
+    'get the code',
     'fork the repository',
     'clone your fork',
+    'make your change',
     'npm run contributor:setup',
     'npm run dev:contributor',
     'src/canvas/**',
-    'test your change',
-    'open your non-draft pull request',
+    'send it back',
+    'run the required checks & tests',
+    'open a non-draft pull request into',
+    'jeffsandov6/who-touched-this:main',
     'full contributor guide ↗',
   ]) assert.ok(joinPage.includes(text), text);
+  assert.equal((joinPage.match(/<h3>/g) ?? []).length, 3);
   assert.match(joinPage, /CANONICAL_REPOSITORY_URL = 'https:\/\/github\.com\/jeffsandov6\/who-touched-this'/);
   assert.match(joinPage, /<a href=\{CANONICAL_REPOSITORY_URL\}>fork the repository<\/a>/);
   assert.match(joinPage, /CONTRIBUTOR_GUIDE_URL = `\$\{CANONICAL_REPOSITORY_URL\}\/blob\/main\/CONTRIBUTING\.md`/);

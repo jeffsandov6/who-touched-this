@@ -41,6 +41,15 @@ cd who-touched-this
 npm run contributor:setup
 ```
 
+Already use GitHub CLI? You can optionally fork & clone in one step:
+
+```sh
+gh repo fork JeffSandov6/who-touched-this --clone
+```
+
+GitHub CLI is not required. The default flow remains **Fork** in GitHub, clone your fork, then run
+`npm run contributor:setup`.
+
 The setup command is safe to rerun. It:
 
 - refuses an `origin` that points to `jeffsandov6/who-touched-this` instead of your fork

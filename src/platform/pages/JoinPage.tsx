@@ -37,16 +37,31 @@ const CONTRIBUTOR_GUIDE_URL = `${CANONICAL_REPOSITORY_URL}/blob/main/CONTRIBUTIN
 
 function ActiveTurnGuide() {
   return (
-    <section className="notice" aria-labelledby="active-turn-heading">
+    <section className="notice active-turn-guide" aria-labelledby="active-turn-heading">
       <h2 id="active-turn-heading">your turn is active.</h2>
-      <ol>
-        <li><a href={CANONICAL_REPOSITORY_URL}>fork the repository</a></li>
-        <li>clone your fork</li>
-        <li>run <code>npm run contributor:setup</code></li>
-        <li>run <code>npm run dev:contributor</code></li>
-        <li>edit only <code>src/canvas/**</code></li>
-        <li>test your change</li>
-        <li>open your non-draft pull request</li>
+      <ol className="active-turn-phases">
+        <li>
+          <h3>get the code</h3>
+          <ul>
+            <li><a href={CANONICAL_REPOSITORY_URL}>fork the repository</a></li>
+            <li>clone your fork</li>
+          </ul>
+        </li>
+        <li>
+          <h3>make your change</h3>
+          <ul>
+            <li>run <code>npm run contributor:setup</code></li>
+            <li>run <code>npm run dev:contributor</code></li>
+            <li>edit only <code>src/canvas/**</code></li>
+          </ul>
+        </li>
+        <li>
+          <h3>send it back</h3>
+          <ul>
+            <li>run the required checks & tests</li>
+            <li>open a non-draft pull request into <code>jeffsandov6/who-touched-this:main</code></li>
+          </ul>
+        </li>
       </ol>
       <p>
         <strong>
