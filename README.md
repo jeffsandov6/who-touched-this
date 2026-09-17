@@ -1,6 +1,6 @@
 # who touched this
 
-one website, one contributor at a time.
+one website. one contributor at a time.
 
 take your turn, make a change, & become part of its history.
 

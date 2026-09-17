@@ -12,7 +12,7 @@ interface Props {
 
 const {
   title = 'who touched this',
-  description = 'a sequential social coding experiment.',
+  description = 'one website. one contributor at a time.',
 } = Astro.props;
 const pageTitle = title === 'who touched this' ? title : `${title} | who touched this`;
 const contributorPreview = import.meta.env.MODE === 'contributor'
@@ -26,6 +26,27 @@ const robots = robotsMetaContent(import.meta.env.PUBLIC_SITE_INDEXING_ENABLED);
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="who touched this" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={Astro.url.href} />
+    <meta
+      property="og:image"
+      content="https://whotouchedthis.website/brand/website-banner.png"
+    />
+    <meta
+      property="og:image:alt"
+      content="who touched this — one website. one contributor at a time."
+    />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta
+      name="twitter:image"
+      content="https://whotouchedthis.website/brand/website-banner.png"
+    />
     {robots && <meta name="robots" content={robots} />}
     <meta name="generator" content={Astro.generator} />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
