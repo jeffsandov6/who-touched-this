@@ -1,14 +1,15 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { after, before, beforeEach, test } from 'node:test';
 import { assertFails, assertSucceeds, initializeTestEnvironment } from '@firebase/rules-unit-testing';
+import { createServer } from 'vite';
 import {
   collection,
   deleteDoc,
   doc,
   getDoc,
   getDocs,
-  runTransaction,
   serverTimestamp,
   setDoc,
   Timestamp,
@@ -21,7 +22,10 @@ const rules = readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8
 const contributor = { uid: 'user-1', id: '1001', username: 'octocat-one' };
 const other = { uid: 'user-2', id: '2002', username: 'octocat-two' };
 const admin = { uid: 'admin-1', id: '9001' };
+const repositoryRoot = fileURLToPath(new URL('..', import.meta.url));
 let environment;
+let viteServer;
+let acceptInvitationWithClient;
 
 function claims(id) {
   return { firebase: { identities: { 'github.com': [id] }, sign_in_provider: 'github.com' } };
@@ -31,7 +35,12 @@ function firestoreFor(identity) {
   return environment.authenticatedContext(identity.uid, claims(identity.id)).firestore();
 }
 
-async function seed({ adminActive = true, secondContributor = false, totalContributions = 0 } = {}) {
+async function seed({
+  adminActive = true,
+  secondContributor = false,
+  totalContributions = 0,
+  includePublic = true,
+} = {}) {
   const now = Timestamp.now();
   await environment.withSecurityRulesDisabled(async (context) => {
     const firestore = context.firestore();
@@ -52,14 +61,16 @@ async function seed({ adminActive = true, secondContributor = false, totalContri
         githubUserId: contributor.id, season: 1, status: 'waiting', joinedAt: now,
         priority: 0, updatedAt: now,
       }),
-      setDoc(doc(firestore, 'site/public'), {
-        currentVersion: 0, totalContributions, turnStatus: 'none',
-        targetContributionNumber: null, currentContributor: null, dueAt: null, updatedAt: now,
-      }),
       setDoc(doc(firestore, 'site/admin'), {
         activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: now,
       }),
     ];
+    if (includePublic) {
+      writes.push(setDoc(doc(firestore, 'site/public'), {
+        currentVersion: 0, totalContributions, turnStatus: 'none',
+        targetContributionNumber: null, currentContributor: null, dueAt: null, updatedAt: now,
+      }));
+    }
     if (secondContributor) {
       writes.push(
         setDoc(doc(firestore, `contributors/${other.id}`), {
@@ -168,40 +179,6 @@ function acceptBatch(firestore, {
   return batch.commit();
 }
 
-function acceptTransaction(firestore) {
-  const dueAt = Timestamp.fromMillis(Date.now() + 168 * 60 * 60 * 1000);
-  return runTransaction(firestore, async (transaction) => {
-    await Promise.all([
-      transaction.get(doc(firestore, 'invitations/invitation-1')),
-      transaction.get(doc(firestore, `contributors/${contributor.id}`)),
-      transaction.get(doc(firestore, `participation/1_${contributor.id}`)),
-      transaction.get(doc(firestore, 'site/public')),
-    ]);
-    transaction.update(doc(firestore, 'invitations/invitation-1'), {
-      status: 'accepted', acceptedAt: serverTimestamp(), turnId: 'turn-1',
-      updatedAt: serverTimestamp(),
-    });
-    transaction.set(doc(firestore, 'turns/turn-1'), {
-      githubUserId: contributor.id, season: 1, status: 'active', targetContributionNumber: 1,
-      startedAt: serverTimestamp(), dueAt, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
-    });
-    transaction.update(doc(firestore, `participation/1_${contributor.id}`), {
-      status: 'active', updatedAt: serverTimestamp(),
-    });
-    transaction.update(doc(firestore, `queue/1_${contributor.id}`), {
-      status: 'active', updatedAt: serverTimestamp(),
-    });
-    transaction.set(doc(firestore, 'site/admin'), {
-      activeTurnId: 'turn-1', pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: serverTimestamp(),
-    });
-    transaction.set(doc(firestore, 'site/public'), {
-      currentVersion: 0, totalContributions: 0, turnStatus: 'active', targetContributionNumber: 1,
-      currentContributor: { githubUsername: contributor.username, displayName: 'Octo Contributor' },
-      dueAt, updatedAt: serverTimestamp(),
-    });
-  });
-}
-
 function expireBatch(firestore, { include = ['invitation','participation','queue','private'] } = {}) {
   const batch = writeBatch(firestore);
   if (include.includes('invitation')) batch.update(doc(firestore, 'invitations/invitation-1'), {
@@ -219,11 +196,55 @@ function expireBatch(firestore, { include = ['invitation','participation','queue
   return batch.commit();
 }
 
+async function assertPendingAcceptanceState({
+  activeTurnId = null,
+  pendingInvitationId = 'invitation-1',
+  pendingArchiveContributionNumber = null,
+  publicTurnStatus = null,
+  participationStatus = 'invited',
+  queueStatus = 'invited',
+} = {}) {
+  const adminFirestore = firestoreFor(admin);
+  const [invitation, participation, queue, privateSite, publicSite, turns] = await Promise.all([
+    getDoc(doc(adminFirestore, 'invitations/invitation-1')),
+    getDoc(doc(adminFirestore, `participation/1_${contributor.id}`)),
+    getDoc(doc(adminFirestore, `queue/1_${contributor.id}`)),
+    getDoc(doc(adminFirestore, 'site/admin')),
+    getDoc(doc(adminFirestore, 'site/public')),
+    getDocs(collection(adminFirestore, 'turns')),
+  ]);
+  assert.equal(invitation.data()?.status, 'pending');
+  assert.equal(participation.data()?.status, participationStatus);
+  assert.equal(queue.data()?.status, queueStatus);
+  assert.equal(privateSite.data()?.activeTurnId, activeTurnId);
+  assert.equal(privateSite.data()?.pendingInvitationId, pendingInvitationId);
+  assert.equal(
+    privateSite.data()?.pendingArchiveContributionNumber ?? null,
+    pendingArchiveContributionNumber,
+  );
+  assert.equal(publicSite.exists(), publicTurnStatus !== null);
+  if (publicTurnStatus !== null) assert.equal(publicSite.data()?.turnStatus, publicTurnStatus);
+  assert.equal(turns.empty, true);
+}
+
 before(async () => {
+  viteServer = await createServer({
+    root: repositoryRoot,
+    configFile: false,
+    server: { middlewareMode: true },
+    appType: 'custom',
+    logLevel: 'silent',
+  });
+  ({ acceptInvitation: acceptInvitationWithClient } = await viteServer.ssrLoadModule(
+    '/src/platform/firebase/invitations.ts',
+  ));
   environment = await initializeTestEnvironment({ projectId, firestore: { rules } });
 });
 beforeEach(async () => environment.clearFirestore());
-after(async () => environment?.cleanup());
+after(async () => {
+  await environment?.cleanup();
+  await viteServer?.close();
+});
 
 test('only an active admin can create a complete invitation transaction', async () => {
   await seed();
@@ -326,27 +347,136 @@ test('invitations are private and invited users can get only their own', async (
   await assertSucceeds(getDocs(collection(firestoreFor(admin), 'invitations')));
 });
 
-test('the invited GitHub identity can accept in one complete transaction', async () => {
-  await seed();
+test('the real client transaction accepts without reading private site state and initializes missing public state', async () => {
+  await seed({ includePublic: false });
   await seedPending();
   const firestore = firestoreFor(contributor);
-  await assertSucceeds(acceptTransaction(firestore));
-  const [invitation, turn, participation, queue, privateSite, publicSite] = await Promise.all([
+  await assertFails(getDoc(doc(firestore, 'site/admin')));
+  const turnId = await acceptInvitationWithClient(
+    contributor.id,
+    'invitation-1',
+    firestore,
+  );
+  const [invitation, turns, turn, participation, queue, privateSite, publicSite] = await Promise.all([
     getDoc(doc(firestoreFor(admin), 'invitations/invitation-1')),
-    getDoc(doc(firestoreFor(admin), 'turns/turn-1')),
+    getDocs(collection(firestoreFor(admin), 'turns')),
+    getDoc(doc(firestoreFor(admin), `turns/${turnId}`)),
     getDoc(doc(firestore, `participation/1_${contributor.id}`)),
     getDoc(doc(firestoreFor(admin), `queue/1_${contributor.id}`)),
     getDoc(doc(firestoreFor(admin), 'site/admin')),
     getDoc(doc(firestore, 'site/public')),
   ]);
-  if (invitation.data()?.status !== 'accepted' || invitation.data()?.turnId !== 'turn-1'
+  if (turns.size !== 1
+    || invitation.data()?.status !== 'accepted' || invitation.data()?.turnId !== turnId
     || turn.data()?.status !== 'active' || turn.data()?.targetContributionNumber !== 1
     || participation.data()?.status !== 'active' || queue.data()?.status !== 'active'
     || privateSite.data()?.pendingInvitationId !== null
-    || privateSite.data()?.activeTurnId !== 'turn-1'
+    || privateSite.data()?.activeTurnId !== turnId
+    || privateSite.data()?.pendingArchiveContributionNumber !== null
     || publicSite.data()?.currentVersion !== 0 || publicSite.data()?.totalContributions !== 0
-    || publicSite.data()?.turnStatus !== 'active') {
+    || publicSite.data()?.turnStatus !== 'active'
+    || publicSite.data()?.targetContributionNumber !== 1) {
     throw new Error('Acceptance state was inconsistent.');
+  }
+  await assertFails(getDoc(doc(firestore, 'site/admin')));
+});
+
+test('the real client transaction fails closed for invalid acceptance preconditions', async () => {
+  const scenarios = [
+    {
+      name: 'wrong GitHub identity',
+      seedOptions: { includePublic: false, secondContributor: true },
+      identity: other,
+    },
+    {
+      name: 'mismatched pending invitation',
+      seedOptions: { includePublic: false },
+      mutate: (firestore) => updateDoc(doc(firestore, 'site/admin'), {
+        pendingInvitationId: 'different-invitation',
+      }),
+      expected: { pendingInvitationId: 'different-invitation' },
+    },
+    {
+      name: 'existing active turn',
+      seedOptions: { includePublic: false },
+      mutate: (firestore) => updateDoc(doc(firestore, 'site/admin'), {
+        activeTurnId: 'existing-turn',
+      }),
+      expected: { activeTurnId: 'existing-turn' },
+    },
+    {
+      name: 'expired invitation',
+      seedOptions: { includePublic: false },
+      pendingOptions: { expired: true },
+    },
+    {
+      name: 'participation not invited',
+      seedOptions: { includePublic: false },
+      mutate: (firestore) => updateDoc(
+        doc(firestore, `participation/1_${contributor.id}`),
+        { status: 'waiting' },
+      ),
+      expectedParticipationStatus: 'waiting',
+    },
+    {
+      name: 'queue not invited',
+      seedOptions: { includePublic: false },
+      mutate: (firestore) => updateDoc(
+        doc(firestore, `queue/1_${contributor.id}`),
+        { status: 'waiting' },
+      ),
+      expectedQueueStatus: 'waiting',
+    },
+    {
+      name: 'pending archive lock',
+      seedOptions: { includePublic: false },
+      mutate: (firestore) => updateDoc(doc(firestore, 'site/admin'), {
+        pendingArchiveContributionNumber: 1,
+      }),
+      expected: { pendingArchiveContributionNumber: 1 },
+    },
+    {
+      name: 'inconsistent active public turn',
+      seedOptions: { includePublic: false },
+      mutate: (firestore) => setDoc(doc(firestore, 'site/public'), {
+        currentVersion: 0,
+        totalContributions: 0,
+        turnStatus: 'active',
+        targetContributionNumber: 1,
+        currentContributor: {
+          githubUsername: contributor.username,
+          displayName: 'Octo Contributor',
+        },
+        dueAt: Timestamp.fromMillis(Date.now() + 60 * 60 * 1000),
+        updatedAt: Timestamp.now(),
+      }),
+      expected: { publicTurnStatus: 'active' },
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    await environment.clearFirestore();
+    await seed(scenario.seedOptions);
+    await seedPending(scenario.pendingOptions);
+    if (scenario.mutate) {
+      await environment.withSecurityRulesDisabled((context) => scenario.mutate(context.firestore()));
+    }
+
+    const identity = scenario.identity ?? contributor;
+    await assert.rejects(
+      acceptInvitationWithClient(
+        identity.id,
+        'invitation-1',
+        firestoreFor(identity),
+      ),
+      scenario.name,
+    );
+
+    await assertPendingAcceptanceState({
+      ...scenario.expected,
+      participationStatus: scenario.expectedParticipationStatus ?? 'invited',
+      queueStatus: scenario.expectedQueueStatus ?? 'invited',
+    });
   }
 });
 

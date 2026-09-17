@@ -5,6 +5,7 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp,
+  type Firestore,
   type WithFieldValue,
 } from 'firebase/firestore';
 import { CURRENT_SEASON } from '../config/season';
@@ -291,8 +292,9 @@ export async function getOwnPendingInvitation(
 export async function acceptInvitation(
   githubUserId: string,
   invitationId: string,
+  firestoreOverride?: Firestore,
 ): Promise<string> {
-  const firestore = getPlatformFirestore();
+  const firestore = firestoreOverride ?? getPlatformFirestore();
   const invitationReference = doc(firestore, invitationDocumentPath(invitationId));
   const contributorReference = doc(firestore, contributorDocumentPath(githubUserId));
   const participationReference = doc(
@@ -306,11 +308,10 @@ export async function acceptInvitation(
 
   try {
     return await runTransaction(firestore, async (transaction) => {
-      const [invitationSnapshot, contributorSnapshot, participationSnapshot, privateSiteSnapshot, publicSiteSnapshot] =
+      const [invitationSnapshot, contributorSnapshot, participationSnapshot, publicSiteSnapshot] =
         await Promise.all([
           transaction.get(invitationReference), transaction.get(contributorReference),
-          transaction.get(participationReference), transaction.get(privateSiteReference),
-          transaction.get(publicSiteReference),
+          transaction.get(participationReference), transaction.get(publicSiteReference),
         ]);
       if (!invitationSnapshot.exists()) throw new InvitationError('your invitation is unavailable.');
       const invitation = parsePendingInvitation(invitationId, invitationSnapshot.data(), githubUserId);
@@ -319,12 +320,6 @@ export async function acceptInvitation(
       }
       if (!contributorSnapshot.exists()) throw new InvitationError('your contributor record is missing.');
       const contributor = parseAdminContributor(contributorSnapshot.data(), githubUserId);
-      const privateState = parsePrivateSiteState(privateSiteSnapshot.data());
-      if (!privateState || privateState.pendingInvitationId !== invitationId
-        || privateState.activeTurnId !== null
-        || privateState.pendingArchiveContributionNumber !== null) {
-        throw new InvitationError('the relay is not available for this invitation.');
-      }
       if (
         !participationSnapshot.exists() || participationSnapshot.data().githubUserId !== githubUserId ||
         participationSnapshot.data().season !== CURRENT_SEASON ||
