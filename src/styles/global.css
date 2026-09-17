@@ -171,6 +171,10 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 
 .join-page { max-width: 42rem; }
 .join-auth-panel, .join-form { margin-top: 2rem; }
+.active-turn-guide h2 { margin-block: 0; }
+.active-turn-phases { display: grid; gap: 1rem; margin-block: 1.25rem; padding-left: 1.5rem; }
+.active-turn-phases h3 { margin-block: 0 0.25rem; font-size: 1rem; }
+.active-turn-phases ul { margin: 0; padding-left: 1.25rem; }
 .invitation-acceptance {
   display: grid;
   gap: 0.75rem;
