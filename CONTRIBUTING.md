@@ -142,6 +142,8 @@ If your idea needs unusually large media, contact the maintainer before submitti
 can host the asset for you & give you a public URL to use from `src/canvas/**`.
 
 Do not commit huge files or choose an external host for unusually large assets without checking first.
+If the contribution validator rejects an asset because of its size, contact the maintainer rather than
+trying to work around the limit.
 
 ## 6. validate & test
 

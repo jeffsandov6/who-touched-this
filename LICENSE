@@ -1,0 +1,53 @@
+# Who Touched This — source & usage terms
+
+Copyright © 2026 Who Touched This. All rights reserved.
+
+For these terms, the **Project Owner** means the person or entity that owns & operates the canonical Who Touched This repository and `whotouchedthis.website`.
+
+## 1. this is source-visible, not open source
+
+The source code for Who Touched This is public so people can inspect the project, fork it, participate in contribution turns, & understand how the website evolves.
+
+Making this repository public does not grant unrestricted permission to use, copy, redistribute, deploy, sell, sublicense, or create derivative versions of the Who Touched This platform.
+
+Nothing in these terms limits rights that GitHub itself provides through its Terms of Service, including GitHub's public-repository viewing & forking functionality.
+
+## 2. permission to contribute
+
+You may view, fork, clone, modify, build, & test this repository as reasonably necessary to prepare a contribution to the canonical Who Touched This project.
+
+This permission is limited to participation in the project. It does not grant permission to deploy or operate your own copy of the platform, redistribute the project as another product or service, commercially exploit the platform code, or use the Who Touched This name, branding, or identity as your own.
+
+Any applicable copyright, attribution, & rights notices must be preserved in permitted copies or forks.
+
+## 3. contributor work
+
+You retain ownership of original code, media, writing, artwork, & other material you create.
+
+By submitting material through a pull request or other approved contribution process, you give the Project Owner permission to review, reproduce, build, test, & evaluate that material for purposes of reviewing your proposed contribution.
+
+If your contribution is accepted & merged, you grant the Project Owner a non-exclusive, worldwide, royalty-free, perpetual, irrevocable license to use, reproduce, display, perform, modify, adapt, archive, preserve, redistribute, publish, promote, & otherwise incorporate the accepted contribution as part of Who Touched This.
+
+That license includes permission to preserve the contribution in Git history, public History records, screenshots, archives, before-and-after records, promotional material, retrospectives, compilations, & other records of the project; to modify the contribution as the website continues to evolve; and to authorize future contributors, hosting providers, service providers, successors, & other parties reasonably necessary to operate, preserve, develop, or promote the project to exercise those rights on the Project Owner's behalf.
+
+The permanent license above applies only to contributions that are accepted & merged. A rejected, closed, or withdrawn contribution does not grant that permanent license.
+
+## 4. third-party material
+
+Third-party software, libraries, media, fonts, assets, & other material included in this repository remain subject to their own applicable licenses, terms, & rights.
+
+These terms do not grant rights that the Project Owner or a contributor does not have.
+
+Required third-party copyright, license, & attribution notices must be preserved where applicable.
+
+## 5. no implied permission
+
+Except for the permissions expressly stated above, no rights or licenses are granted.
+
+Permission for another use of the Who Touched This platform or source code must be obtained from the Project Owner.
+
+## 6. no warranty
+
+THE PROJECT, SOURCE CODE, WEBSITE, CONTRIBUTIONS, & RELATED MATERIALS ARE PROVIDED "AS IS" AND WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE, OR NON-INFRINGEMENT.
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE PROJECT OWNER & CONTRIBUTORS WILL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM OR RELATED TO THE PROJECT, THE SOURCE CODE, OR THEIR USE.
