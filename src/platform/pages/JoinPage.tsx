@@ -353,7 +353,7 @@ export default function JoinPage() {
                   }
                 />
                 <small>
-                  this email stays private. we'll use it for invitations, reminders, turn updates, & contribution status.
+                  this email stays private. we'll only use it for invitations, reminders, turn updates, & contribution status.
                 </small>
               </div>
 

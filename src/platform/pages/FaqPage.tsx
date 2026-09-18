@@ -20,8 +20,13 @@ const funQuestions = [
   {
     question: 'is there anything not allowed?',
     answer:
-      'of course. but i\'m not going to be the fun police. weird, political, dark, or mildly controversial humor is not automatically off limits. but use common sense. hate speech, targeted harassment, racist or dehumanizing content, threats, doxing, sexual exploitation or any sexual content involving minors, & content whose purpose is to make a person or group feel unwelcome will be rejected. when in doubt, ask first.',
+      'of course. but i\'m not going to be the fun police. weird, political, dark, or mildly controversial humor is not automatically off limits. but use common sense. hate speech, targeted harassment, racist or dehumanizing content, threats, doxing, sexual exploitation or any sexual content involving minors will be rejected. when in doubt, ask first.',
   },
+  {
+  question: 'can i promote something?',
+  answer:
+    'yes, within reason. you can link to or promote a project, product, business, social account, portfolio, or other outside thing as part of your contribution. promotional content still has to fit the normal rules & the site should not turn into one giant ad board. heavily commercial or primarily promotional contributions may require maintainer approval or payment. paid options help cover the cost of keeping who touched this online & running.',
+},
 ]
 
 const boringQuestions = [
@@ -64,7 +69,7 @@ const boringQuestions = [
   {
     question: 'can i add a new page?',
     answer:
-      'not as part of a normal contribution. ordinary turns can modify the existing editable pages at /, /random, & /thoughts. if your idea requires an entirely new page, reach out to the maintainer first.',
+      'yes, but not as part of a normal contribution. adding a brand-new page is a paid option. the maintainer creates the protected page & routing structure, then you can build out the editable content for that page during your turn. a new-page contribution can be much larger than a normal small contribution as long as the work stays focused on that new page. once merged, it becomes part of the shared site & follows the normal rules. reach out to the maintainer first if you want to do this.',
   },
   {
     question: 'how big can my contribution be?',
