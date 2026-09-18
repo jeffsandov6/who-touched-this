@@ -16,7 +16,7 @@ contribution per season.
 Then follow this path:
 
 1. Fork <https://github.com/jeffsandov6/who-touched-this> into your GitHub account.
-2. Clone **your fork**, not Jeff's repository.
+2. Clone **your fork**, not jeffsandov6's repository.
 3. Run the safe setup helper. It verifies your fork, adds the canonical `upstream`, checks Node.js/npm,
    & installs dependencies.
 4. Sync your fork's `main` with canonical `main`.
@@ -44,7 +44,7 @@ npm run contributor:setup
 Already use GitHub CLI? You can optionally fork & clone in one step:
 
 ```sh
-gh repo fork JeffSandov6/who-touched-this --clone
+gh repo fork jeffsandov6/who-touched-this --clone
 ```
 
 GitHub CLI is not required. The default flow remains **Fork** in GitHub, clone your fork, then run
@@ -107,10 +107,9 @@ npm run dev:contributor
 Open the local address printed by Astro, normally <http://localhost:4321>. You should see the protected
 shell, a clearly marked contributor-preview status, & the current canvas.
 
-Contributor preview requires no `.env`, Firebase configuration, emulator, Functions process, Storage
-credential, Resend key, webhook secret, or service account. It does not initialize the production
-Firebase-backed shell. Do not copy the owner's production configuration into your fork. Join, Admin,
-& other operational pages are not part of contributor preview.
+Contributor preview requires no production credentials, secrets, or private configuration. Do not
+copy production configuration into your fork. Join, Admin, & other operational pages are not part of
+contributor preview.
 
 ## 4. make one coherent contribution
 
@@ -120,22 +119,9 @@ The contributor-editable area is exactly:
 src/canvas/**
 ```
 
-Good contribution-sized ideas include:
-
-- improving one component or focused section
-- adding one visual interaction or animation
-- adding a small canvas feature
-- thoughtfully changing one part of an editable page
-
-Probably too large:
-
-- redesigning every canvas page
-- rebuilding the whole site
-- changing authentication, Admin, CI, Firebase, or platform infrastructure
-- adding an entirely new page as a normal contribution
-
-Scope is about one coherent main idea, not a strict line-count contest. Large generated diffs can
-still be difficult to review, so keep the implementation focused.
+Your contribution should revolve around one coherent main idea. It may touch multiple canvas files
+when the idea requires it, but it should not become a full-site overhaul or bundle several unrelated
+ideas into one turn. If the scope is too large, the maintainer may ask you to narrow it down.
 
 Everything outside `src/canvas/**` is protected. This includes the routing shell, platform UI,
 authentication, global styles, Firebase configuration, Functions, workflows, tests, package files,
@@ -150,13 +136,12 @@ The maintainer has final moderation authority.
 
 ## 5. media
 
-Normal images, GIFs, audio, & small video can live under `src/canvas/assets/**`. Each changed Git file
-may be at most 25 MiB; changed binary media may total at most 50 MiB.
+Images, GIFs, audio, & reasonably sized video can live under `src/canvas/assets/**`.
 
-For larger media, contact the maintainer before submitting. The maintainer can upload it through the
-protected Media manager & give you a public download URL. Use that URL directly from `src/canvas/**`.
-It requires no Firebase credentials or initialization. Contributors do not receive Storage upload
-access, & internal Storage paths are not the contributor-facing artifact.
+If your idea needs unusually large media, contact the maintainer before submitting. The maintainer
+can host the asset for you & give you a public URL to use from `src/canvas/**`.
+
+Do not commit huge files or choose an external host for unusually large assets without checking first.
 
 ## 6. validate & test
 
@@ -241,3 +226,30 @@ restart your turn. GitHub may require maintainer approval before a first-time co
 The owner merges manually if the contribution is accepted. After it is merged & recorded, it becomes
 permanent History, the site version advances, & your participation for the season is complete.
 Deployment timing is separate.
+
+## if you want to read more rules
+
+The practical stuff is above. These are a few extra things worth knowing:
+
+- This is a public GitHub project. Your pull request, commits, GitHub identity, code changes, & review
+  discussion may be publicly visible.
+- Do not add analytics, tracking pixels, persistent visitor tracking, or collect or transmit visitor
+  data without maintainer approval.
+- If your idea requires a secret, backend service, persistent server-side storage, paid external
+  service, or another change outside the editable canvas, ask the maintainer first.
+- Only submit code, media, & other material that you created or have the right to use.
+- If you discover a security vulnerability, report it privately rather than publishing exploit
+  details or testing against production without permission. See `SECURITY.md`.
+- If you accidentally commit a real secret or credential, treat it as exposed & contact the
+  maintainer immediately. Removing it in a later commit is not enough.
+
+### your contribution & ownership
+
+You keep ownership of the original work you create.
+
+If your contribution is accepted & merged, you give Who Touched This permanent permission to use,
+display, modify, archive, reproduce, redistribute, preserve, & promote it as part of the project.
+That includes preserving it in History & snapshots and allowing the site to keep evolving after your
+turn.
+
+Submitting a contribution means you agree to these contributor terms.
