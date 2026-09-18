@@ -12,8 +12,10 @@ const rules = [
   'every pull request is reviewed before it is accepted or merged.',
   'you get one submission pull request per turn. fixes & requested revisions should be pushed to that same pull request.',
   'do not include secrets, credentials, private contributor information, malicious code, destructive behavior, or intentionally unsafe content.',
-  'weird, political, dark, or mildly controversial humor is not automatically off limits, but hate speech, targeted harassment, racist or dehumanizing content, threats, doxing, sexual exploitation or any sexual content involving minors, & content primarily intended to intimidate or alienate others will be rejected.',
-  'work introduced by another contributor may not be intentionally removed, hidden, or substantially replaced until 5 later community contributions have been merged, except when a safety, security, compatibility, or platform fix requires it.',
+  'weird, political, dark, or mildly controversial humor is not automatically off limits, but hate speech, targeted harassment, racist or dehumanizing content, threats, doxing, sexual exploitation & any sexual content involving minors will be rejected.',
+  'reasonable promotion & external links are allowed, but promotional content may be limited or require maintainer approval.',
+  'do not add analytics, tracking pixels, persistent visitor tracking, or collect or transmit visitor data without maintainer approval.',
+  'work introduced by another contributor may not be intentionally removed, hidden, or substantially replaced until 5 later community contributions have been merged, except when a safety, security, legal, privacy, compatibility, or platform fix requires it.',
   'large media or unusual external dependencies must be discussed with the maintainer before submission.',
   'only include code, media, & other material that you created or have the right to use.',
   'if you cannot complete your turn, contact the maintainer rather than attempting to transfer the turn or access to another person.',
@@ -41,6 +43,10 @@ export default function RulesPage() {
         needed. rare creative founder interventions may also occur, but they will be clearly
         labeled, will not interrupt an active community contributor, & do not count as additional
         community contributions.
+      </p>
+      <p>
+        these rules may evolve as the project does. if people find new ways to break things, we may
+        have to write new ones.
       </p>
 
       <p>
