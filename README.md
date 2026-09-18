@@ -5,7 +5,7 @@ one website. one contributor at a time.
 take your turn, make a change, & become part of its history.
 
 who touched this is a social coding experiment where one public website is passed from contributor to contributor.
-each person gets one turn to make a small change, and every accepted contribution becomes part of the site's permanent history.
+each person gets one turn to make a small change, and every accepted contribution becomes part of the site's history.
 
 > **Pre-launch:** the repository & contribution queue are not public yet. This note can be removed
 > when public contributions open.
@@ -18,7 +18,7 @@ each person gets one turn to make a small change, and every accepted contributio
 4. Fork the repository.
 5. Make one small change to the editable canvas.
 6. Open a pull request.
-7. If accepted, your change goes live, becomes part of the site's permanent history, & the website passes to the next contributor.
+7. If accepted, your change goes live, becomes part of the site's history, & the website passes to the next contributor.
 
 ## want to contribute?
 
@@ -37,6 +37,10 @@ When your turn starts:
 Read the full [contributor guide](CONTRIBUTING.md) before opening your pull request. It is the
 authoritative setup, validation, scope, & review workflow.
 
+For the broader project rules & common questions, see
+[whotouchedthis.website/rules](https://whotouchedthis.website/rules) &
+[whotouchedthis.website/faq](https://whotouchedthis.website/faq).
+
 ## what can contributors edit?
 
 Editable:
@@ -47,7 +51,7 @@ src/canvas/**
 
 Protected areas include `src/platform/**`, `src/pages/**`, `src/styles/**`, platform configuration,
 lifecycle & security infrastructure, & every other path identified by the contribution boundary.
-The detailed & authoritative policy lives in [CONTRIBUTING.md](CONTRIBUTING.md).
+The detailed contributor workflow & technical boundaries live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## editable pages
 
@@ -71,8 +75,9 @@ protected platform infrastructure.
 
 Node.js 22.12 or newer is required.
 
-## maintainer documentation
+## source & usage
 
-- [Platform architecture & maintainer operations](docs/PLATFORM.md)
-- [Production release guide](docs/PRODUCTION.md)
-- [Pre-merge contributor review & security](docs/PR_REVIEW.md)
+this repository is public so people can see how the project works, fork it, & participate.
+
+public source does not mean the project is released for unrestricted reuse, redistribution, or
+deployment. see [LICENSE](LICENSE) for the repository's usage & rights terms.
