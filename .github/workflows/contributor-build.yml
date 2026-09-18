@@ -32,7 +32,7 @@ jobs:
     steps:
       - name: Check out trusted default-branch orchestrator
         # actions/checkout v6.0.3
-        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
 
@@ -64,7 +64,7 @@ jobs:
     steps:
       - name: Check out exact trusted base
         # actions/checkout v6.0.3
-        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: ${{ needs.validate-handoff.outputs.base_repository }}
           ref: ${{ needs.validate-handoff.outputs.base_sha }}
@@ -75,7 +75,7 @@ jobs:
       - name: Fetch only the exact PR canvas tree
         # This sparse checkout materializes only src/canvas. Trusted code checks HEAD and Git modes.
         # actions/checkout v6.0.3
-        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: ${{ needs.validate-handoff.outputs.base_repository }}
           ref: refs/pull/${{ needs.validate-handoff.outputs.pull_request_number }}/head
@@ -164,7 +164,7 @@ jobs:
     steps:
       - name: Check out exact trusted base
         # actions/checkout v6.0.3
-        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           repository: ${{ needs.validate-handoff.outputs.base_repository }}
           ref: ${{ needs.validate-handoff.outputs.base_sha }}
@@ -270,7 +270,7 @@ jobs:
     steps:
       - name: Check out trusted status reporter
         # actions/checkout v6.0.3
-        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           persist-credentials: false
 
