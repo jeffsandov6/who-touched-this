@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  DEFAULT_TURN_DURATION_HOURS,
   calculateTurnDueAtMillis,
   canExpireInvitation,
   formatTurnDuration,
@@ -8,6 +9,11 @@ import {
   validateTurnDurationHours,
 } from '../src/platform/invitation.ts';
 import { participationStatusMessage } from '../src/platform/join-status.ts';
+
+test('default active turn duration is 72 hours', () => {
+  assert.equal(DEFAULT_TURN_DURATION_HOURS, 72);
+  assert.equal(formatTurnDuration(DEFAULT_TURN_DURATION_HOURS), '3 days');
+});
 
 test('invitation deadlines must be future and reasonably bounded', () => {
   const now = 1_000_000;

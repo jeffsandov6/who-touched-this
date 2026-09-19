@@ -53,3 +53,8 @@ temp/
 
 # Local maintainer snapshot bundles
 .wtt/
+
+# Private maintainer/operator documentation
+docs/PLATFORM.md
+docs/PRODUCTION.md
+docs/PR_REVIEW.md

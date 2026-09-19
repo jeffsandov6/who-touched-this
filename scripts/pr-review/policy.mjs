@@ -16,7 +16,7 @@ export const REVIEW_LIMITS = Object.freeze({
 
 // Exact tool tags are retained for readability; OCI index digests make the executable images immutable.
 export const HOSTILE_NODE_IMAGE = 'node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3';
-export const HOSTILE_PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.55.0-noble@sha256:b27e719ecbfef153e13fd24e8341736733bf2658b229677eb21ff57ff5d7fb29';
+export const HOSTILE_PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.56.0-noble@sha256:35246d87a7c88ea9b771c65d33171b2611b02a8253b4b12ce6f94376c55f99f2';
 
 export function hostileContainerArguments({ image, workspace, workspaceReadonly = false, command, timeoutSeconds, outputMounts = [] }) {
   if (!Array.isArray(command) || command.length === 0) throw new Error('A bounded hostile container command is required.');

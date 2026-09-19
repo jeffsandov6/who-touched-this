@@ -47,7 +47,7 @@ for (let attempt = 0; attempt < 50; attempt += 1) {
 
 assert.equal(delivery?.data()?.status, 'sent');
 assert.equal(mailbox?.data()?.to, 'local-recipient@example.test');
-assert.equal(mailbox?.data()?.subject, 'Your turn on Who Touched This');
+assert.equal(mailbox?.data()?.subject, 'your turn on who touched this');
 assert.match(mailbox?.data()?.text ?? '', /localhost:4321\/join/);
 assert.match(mailbox?.data()?.text ?? '', /7 days/);
 assert.doesNotMatch(mailbox?.data()?.text ?? '', new RegExp(githubUserId));

@@ -9,7 +9,6 @@ const preview = await readFile(new URL('../scripts/pr-review/preview.mjs', impor
 const packageManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const packageLock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
 const statusReporter = await readFile(new URL('../scripts/report-review-status.mjs', import.meta.url), 'utf8');
-const reviewDocumentation = await readFile(new URL('../docs/PR_REVIEW.md', import.meta.url), 'utf8');
 const handoff = await readFile(new URL('../scripts/pr-review/handoff.mjs', import.meta.url), 'utf8');
 const handoffWriter = await readFile(new URL('../scripts/create-review-handoff.mjs', import.meta.url), 'utf8');
 const handoffVerifier = await readFile(new URL('../scripts/verify-review-handoff.mjs', import.meta.url), 'utf8');
@@ -128,7 +127,7 @@ test('preview resolves Playwright from lockfile-pinned trusted dependencies moun
   assert.ok(visualJob >= 0 && trustedCheckout < trustedInstall && trustedInstall < previewCapture);
   assert.match(install, /working-directory: \.wtt-ci\/trusted/);
   assert.match(install, /run: npm ci --ignore-scripts/);
-  assert.equal(packageManifest.devDependencies.playwright, '1.55.0');
+  assert.equal(packageManifest.devDependencies.playwright, '1.56.0');
   assert.equal(packageLock.packages[''].devDependencies.playwright, packageManifest.devDependencies.playwright);
   assert.match(preview, /from 'playwright'/);
   assert.match(capture, /--trusted \.wtt-ci\/trusted/);
@@ -187,13 +186,6 @@ test('reporter targets validated outputs and aggregates every required trusted j
   ]) assert.ok(reporter.includes(`${name}: \${{ ${expression} }}`));
   assert.match(statusReporter, /headSha: process\.env\.HEAD_SHA/);
   assert.match(statusReporter, /reportTrustedContributorReview/);
-});
-
-test('trusted review check name and expected GitHub Actions source are stable and documented', () => {
-  assert.match(reviewDocumentation, /`Trusted contributor review`/);
-  assert.match(reviewDocumentation, /select \*\*GitHub Actions\*\* as the expected source/);
-  assert.match(reviewDocumentation, /never select “any source\.”/);
-  assert.match(reviewDocumentation, /checks: write.*exclusive to this trusted reporter job/s);
 });
 
 test('hostile artifacts are sanitized before upload and after download', () => {
