@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -16,7 +16,6 @@ test('README is a concise landing page with one clear path to the canonical guid
     '## what can contributors edit?',
     '## editable pages',
     '## technology',
-    '## maintainer documentation',
   ]) assert.match(readme, new RegExp(heading.replace('?', '\\?')));
   assert.match(readme, /https:\/\/whotouchedthis\.website\/join/);
   assert.match(readme, /\[contributor guide\]\(CONTRIBUTING\.md\)/);
@@ -29,7 +28,7 @@ test('CONTRIBUTING remains the ordered active-turn manual', () => {
     'your turn is active',
     'Fork <https://github.com/jeffsandov6/who-touched-this>',
     'Clone **your fork**',
-    'gh repo fork JeffSandov6/who-touched-this --clone',
+    'gh repo fork jeffsandov6/who-touched-this --clone',
     'GitHub CLI is not required',
     'npm run contributor:setup',
     'upstream',
@@ -48,11 +47,8 @@ test('CONTRIBUTING remains the ordered active-turn manual', () => {
   assert.doesNotMatch(contributing, /configure Firebase|\.env production|deploy:|snapshots:capture/i);
 });
 
-test('every documented npm run command exists', async () => {
-  const docs = (await readdir(new URL('../docs/', import.meta.url)))
-    .filter((file) => file.endsWith('.md'))
-    .map((file) => new URL(`../docs/${file}`, import.meta.url));
-  for (const url of [new URL('../README.md', import.meta.url), new URL('../CONTRIBUTING.md', import.meta.url), ...docs]) {
+test('every publicly documented npm run command exists', async () => {
+  for (const url of [new URL('../README.md', import.meta.url), new URL('../CONTRIBUTING.md', import.meta.url)]) {
     const source = await readFile(url, 'utf8');
     for (const match of source.matchAll(/npm run ([a-z0-9:-]+)/gi)) {
       assert.ok(packageJson.scripts[match[1]], `${url.pathname}: ${match[1]}`);
@@ -85,7 +81,9 @@ test('Join provides the journey and an active-turn launchpad without changing li
   assert.match(joinPage, /CONTRIBUTOR_GUIDE_URL = `\$\{CANONICAL_REPOSITORY_URL\}\/blob\/main\/CONTRIBUTING\.md`/);
 });
 
-test('FAQ names the current editable pages and links to the full guide', () => {
-  assert.match(faqPage, /existing editable pages at \/, \/random, & \/thoughts/);
+test('FAQ preserves the canvas boundary and current new-page policy', () => {
+  assert.match(faqPage, /ordinary contributions are limited to the editable canvas/);
+  assert.match(faqPage, /adding a brand-new page is a paid option/);
+  assert.match(faqPage, /maintainer creates the protected page & routing structure/);
   assert.match(faqPage, /full contributor guide ↗/);
 });

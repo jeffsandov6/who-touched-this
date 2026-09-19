@@ -7,9 +7,6 @@ take your turn, make a change, & become part of its history.
 who touched this is a social coding experiment where one public website is passed from contributor to contributor.
 each person gets one turn to make a small change, and every accepted contribution becomes part of the site's history.
 
-> **Pre-launch:** the repository & contribution queue are not public yet. This note can be removed
-> when public contributions open.
-
 ## how it works
 
 1. Join the queue.

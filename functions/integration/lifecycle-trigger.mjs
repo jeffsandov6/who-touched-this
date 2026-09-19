@@ -54,7 +54,7 @@ await batch.commit();
 
 const completed = await waitForSent('contribution_completed_1');
 assert.equal(completed.to, 'lifecycle-recipient@example.test');
-assert.match(completed.subject, /Contribution #001/);
+assert.match(completed.subject, /contribution #001/);
 assert.match(completed.text, /\/history/);
 assert.equal((await firestore.doc(`turns/${turnId}`).get()).data()?.status, 'merged');
 console.log('Turn-started and completion triggers delivered once without changing lifecycle state.');
