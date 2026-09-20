@@ -57,8 +57,29 @@ export default function GameSection() {
   const [isTaunting, setIsTaunting] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isMouseInside, setIsMouseInside] = useState(true);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   const currentLevel = bugLevels[currentLevelIndex];
+
+  useEffect(() => {
+    setIsTouchDevice(window.matchMedia('(pointer: coarse)').matches);
+  }, []);
+
+  const mobileDifficulty = [
+    { size: 4.25, moveIntervalMs: null },
+    { size: 3.4, moveIntervalMs: 1200 },
+    { size: 2.6, moveIntervalMs: 750 },
+    { size: 2.0, moveIntervalMs: 475 },
+    { size: 2.0, moveIntervalMs: 460 },
+  ];
+
+  const bugSize = isTouchDevice
+    ? mobileDifficulty[currentLevelIndex].size
+    : currentLevel.size;
+
+  const moveIntervalMs = isTouchDevice
+    ? mobileDifficulty[currentLevelIndex].moveIntervalMs
+    : currentLevel.moveIntervalMs;
 
   useEffect(() => {
     if (isComplete || isTaunting || !isMouseInside) {
@@ -67,18 +88,23 @@ export default function GameSection() {
 
     setBugPosition(getRandomPosition());
 
-    if (!currentLevel.moveIntervalMs) {
+    if (!moveIntervalMs) {
       return;
     }
 
     const intervalId = window.setInterval(() => {
       setBugPosition(getRandomPosition());
-    }, currentLevel.moveIntervalMs);
-
+    }, moveIntervalMs);
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [currentLevel, isComplete, isTaunting, isMouseInside]);
+  }, [
+    currentLevel,
+    moveIntervalMs,
+    isComplete,
+    isTaunting,
+    isMouseInside,
+  ]);
 
   const startTaunt = () => {
     if (!hasStarted || isComplete || isTaunting) {
@@ -188,7 +214,7 @@ export default function GameSection() {
                 style={{
                   left: `${bugPosition.x}%`,
                   top: `${bugPosition.y}%`,
-                  fontSize: `${currentLevel.size}rem`,
+                  fontSize: `${bugSize}rem`,
                 }}
               >
                 🪲
