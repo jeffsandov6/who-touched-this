@@ -2,4 +2,6 @@
 import Home from '../canvas/pages/Home';
 import PlatformLayout from '../platform/layouts/PlatformLayout.astro';
 ---
-<PlatformLayout><Home /></PlatformLayout>
+<PlatformLayout>
+  <Home client:load />
+</PlatformLayout>
