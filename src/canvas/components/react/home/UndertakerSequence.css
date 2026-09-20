@@ -1,0 +1,91 @@
+.undertaker-sequence {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.undertaker-sequence-trigger {
+  appearance: none;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.45rem;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.undertaker-sequence-trigger:hover:not(:disabled) {
+  transform: rotate(2deg);
+}
+
+.undertaker-sequence-trigger:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.undertaker-sequence-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: hidden;
+
+  pointer-events: none;
+}
+
+.undertaker-sequence-overlay--flash {
+  background: white;
+}
+
+.undertaker-sequence-overlay--undertaker,
+.undertaker-sequence-overlay--sliding {
+  background: black;
+}
+
+.undertaker-sequence-image {
+  display: block;
+
+  width: auto;
+  height: min(82vh, 55rem);
+  max-width: 90vw;
+
+  object-fit: contain;
+
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/*
+ * The serious Undertaker entrance abruptly becomes a stupid downward slide.
+ */
+.undertaker-sequence-overlay--sliding .undertaker-sequence-image {
+  transform: translateY(125vh);
+  transition: transform 5.5s linear;
+}
+
+@media (max-width: 700px) {
+  .undertaker-sequence-image {
+    width: min(90vw, 30rem);
+    height: auto;
+    max-height: 78vh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .undertaker-sequence-overlay--sliding .undertaker-sequence-image {
+    transition-duration: 1s;
+  }
+}
+
+.undertaker-sequence-overlay--blackout,
+.undertaker-sequence-overlay--undertaker,
+.undertaker-sequence-overlay--sliding {
+  background: black;
+}

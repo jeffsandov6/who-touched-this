@@ -3,6 +3,7 @@
 import './Home.css';
 import DoNotClick from '../components/react/home/DoNotClick';
 import GameSection from '../components/react/home/GameSection';
+import UndertakerSequence from '../components/react/home/UndertakerSequence';
 
 import CanvasPageNavigation from '../components/react/CanvasPageNavigation';
 
@@ -30,9 +31,7 @@ export default function Home() {
         </section>
 
         <section className="canvas-home-undertaker">
-          <button type="button">
-            ?
-          </button>
+          <UndertakerSequence />
         </section>
 
         <section className="canvas-home-o2lift">
