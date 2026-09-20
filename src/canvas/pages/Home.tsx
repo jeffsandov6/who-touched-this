@@ -2,6 +2,7 @@
 
 import './Home.css';
 import DoNotClick from '../components/react/home/DoNotClick';
+import GameSection from '../components/react/home/GameSection';
 
 import CanvasPageNavigation from '../components/react/CanvasPageNavigation';
 
@@ -24,10 +25,8 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="canvas-home-fish">
-          <div className="canvas-home-placeholder">
-            catch the fish
-          </div>
+        <section className="canvas-home-game">
+          <GameSection />
         </section>
 
         <section className="canvas-home-undertaker">
