@@ -2,4 +2,6 @@
 import Random from '../canvas/pages/Random';
 import PlatformLayout from '../platform/layouts/PlatformLayout.astro';
 ---
-<PlatformLayout title="random"><Random /></PlatformLayout>
+<PlatformLayout title="random">
+  <Random client:load />
+</PlatformLayout>
