@@ -1,12 +1,47 @@
 /** @jsxImportSource react */
 
+import './Home.css';
+import DoNotClick from '../components/react/home/DoNotClick';
+
 import CanvasPageNavigation from '../components/react/CanvasPageNavigation';
 
-/** Intentionally empty until the PR #000 canvas is designed. */
+/** Founder Contribution #000 home canvas. */
 export default function Home() {
   return (
     <div className="canvas-home">
       <CanvasPageNavigation currentPath="/" />
+
+      <p className="canvas-home-desktop-note">
+        this is best experienced on a computer. get off your phone
+      </p>
+
+      <main className="canvas-home-content">
+        <section className="canvas-home-intro">
+          <DoNotClick/>
+
+          <div className="canvas-home-placeholder">
+            DON'T BUY THIS COIN
+          </div>
+        </section>
+
+        <section className="canvas-home-fish">
+          <div className="canvas-home-placeholder">
+            catch the fish
+          </div>
+        </section>
+
+        <section className="canvas-home-undertaker">
+          <button type="button">
+            ?
+          </button>
+        </section>
+
+        <section className="canvas-home-o2lift">
+          <div className="canvas-home-placeholder">
+            pls buy these inhalers pls
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

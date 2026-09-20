@@ -1,0 +1,83 @@
+.do-not-click {
+  position: relative;
+  min-height: 24rem;
+  overflow: hidden;
+  border: 1px solid currentColor;
+  isolation: isolate;
+}
+
+.do-not-click-content {
+  position: relative;
+  z-index: 1;
+  min-height: 24rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.do-not-click-title {
+  margin: 0;
+  max-width: 12ch;
+  font-size: clamp(2rem, 4vw, 4.5rem);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+}
+
+.do-not-click-button {
+  appearance: none;
+  border: 2px solid currentColor;
+  background: transparent;
+  color: inherit;
+  padding: 0.8rem 1.4rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.do-not-click-button:hover {
+  transform: rotate(-2deg);
+}
+
+.do-not-click-button:active {
+  transform: translateY(2px);
+}
+
+.do-not-click-result {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.do-not-click-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: clamp(9rem, 18vw, 15rem);
+  color: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: 10% 10%;
+  transition: opacity 120ms ease;
+  will-change: transform;
+}
+
+.do-not-click-cursor--visible {
+  opacity: 1;
+}
+
+.do-not-click-cursor svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (pointer: coarse) {
+  .do-not-click-cursor {
+    display: none;
+  }
+}

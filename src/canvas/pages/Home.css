@@ -1,0 +1,51 @@
+.canvas-home {
+  min-height: 100vh;
+}
+
+.canvas-home-desktop-note {
+  margin: 1rem 0 3rem;
+  text-align: center;
+}
+
+.canvas-home-content {
+  display: flex;
+  flex-direction: column;
+  gap: 5rem;
+}
+
+.canvas-home-intro {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.canvas-home-fish {
+  display: flex;
+  justify-content: center;
+}
+
+.canvas-home-undertaker {
+  display: flex;
+  justify-content: center;
+}
+
+.canvas-home-o2lift {
+  width: 100%;
+}
+
+.canvas-home-placeholder {
+  min-height: 18rem;
+  display: grid;
+  place-items: center;
+  border: 1px dashed currentColor;
+}
+
+@media (max-width: 800px) {
+  .canvas-home-intro {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-home-content {
+    gap: 3rem;
+  }
+}
