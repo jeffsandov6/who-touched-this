@@ -4,6 +4,7 @@ import './Home.css';
 import DoNotClick from '../components/react/home/DoNotClick';
 import GameSection from '../components/react/home/GameSection';
 import UndertakerSequence from '../components/react/home/UndertakerSequence';
+import O2LiftAd from '../components/react/home/O2LiftAd';
 
 import CanvasPageNavigation from '../components/react/CanvasPageNavigation';
 
@@ -35,9 +36,7 @@ export default function Home() {
         </section>
 
         <section className="canvas-home-o2lift">
-          <div className="canvas-home-placeholder">
-            pls buy these inhalers pls
-          </div>
+          <O2LiftAd />
         </section>
       </main>
     </div>
