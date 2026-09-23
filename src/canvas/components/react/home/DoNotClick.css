@@ -57,6 +57,63 @@
   position: fixed;
   inset: 0;
   z-index: 99998;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.do-not-click-brian {
+  position: absolute;
+  display: block;
+  height: auto;
+  opacity: 0;
+
+  transform:
+    translate(-50%, -50%)
+    scale(0.35);
+
+  transform-origin: center;
+
+  animation-name: do-not-click-brian-burst;
+  animation-timing-function: cubic-bezier(0.2, 0.72, 0.28, 1);
+  animation-fill-mode: forwards;
+
+  will-change: transform, opacity;
+}
+
+@keyframes do-not-click-brian-burst {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scale(0.35);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  75% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(
+        calc(-50% + var(--brian-x)),
+        calc(-50% + var(--brian-y))
+      )
+      rotate(var(--brian-rotation))
+      scale(var(--brian-scale));
+  }
+}
+
+/* brian swarm */
+
+.do-not-click-brian-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
 
   overflow: hidden;
 

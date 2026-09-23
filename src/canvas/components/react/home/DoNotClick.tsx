@@ -1,7 +1,5 @@
 /** @jsxImportSource react */
 
-/** @jsxImportSource react */
-
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
@@ -22,275 +20,298 @@ import brian12 from '../../../assets/home/do-not-click/brian/brian-12.png';
 import './DoNotClick.css';
 
 const brianFrames = [
-    brian01.src,
-    brian02.src,
-    brian03.src,
-    brian04.src,
-    brian05.src,
-    brian06.src,
-    brian07.src,
-    brian08.src,
-    brian09.src,
-    brian10.src,
-    brian11.src,
-    brian12.src,
+  brian01.src,
+  brian02.src,
+  brian03.src,
+  brian04.src,
+  brian05.src,
+  brian06.src,
+  brian07.src,
+  brian08.src,
+  brian09.src,
+  brian10.src,
+  brian11.src,
+  brian12.src,
 ];
 
-type BrianBurstItem = {
-    id: number;
-    src: string;
-    startX: number;
-    startY: number;
-    travelX: number;
-    travelY: number;
-    width: number;
-    duration: number;
-    delay: number;
-    rotation: number;
-    endScale: number;
+type BrianRunner = {
+  id: number;
+  startX: number;
+  startY: number;
+  travelX: number;
+  travelY: number;
+  width: number;
+  duration: number;
+  delay: number;
+  rotation: number;
+  endScale: number;
+  frameOffset: number;
 };
 
 type BrianStyle = CSSProperties & {
-    '--brian-x': string;
-    '--brian-y': string;
-    '--brian-rotation': string;
-    '--brian-scale': string;
+  '--brian-x': string;
+  '--brian-y': string;
+  '--brian-rotation': string;
+  '--brian-scale': string;
 };
 
 export default function DoNotClick() {
-    const panelRef = useRef<HTMLElement | null>(null);
-    const cursorRef = useRef<HTMLDivElement | null>(null);
-    const buttonRef = useRef<HTMLButtonElement | null>(null);
-    const brianTimeoutRef = useRef<number | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
+  const cursorRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
 
-    const targetPosition = useRef({ x: 0, y: 0 });
-    const currentPosition = useRef({ x: 0, y: 0 });
+  const animationIntervalRef = useRef<number | null>(null);
+  const clearSwarmTimeoutRef = useRef<number | null>(null);
 
-    const [isPointerInside, setIsPointerInside] = useState(false);
-    const [wasClicked, setWasClicked] = useState(false);
-    const [brianSwarm, setBrianSwarm] = useState<BrianBurstItem[]>([]);
+  const targetPosition = useRef({ x: 0, y: 0 });
+  const currentPosition = useRef({ x: 0, y: 0 });
 
-    useEffect(() => {
-        let animationFrameId = 0;
+  const [isPointerInside, setIsPointerInside] = useState(false);
+  const [wasClicked, setWasClicked] = useState(false);
+  const [brianSwarm, setBrianSwarm] = useState<BrianRunner[]>([]);
+  const [frameTick, setFrameTick] = useState(0);
 
-        const animate = () => {
-            const cursor = cursorRef.current;
+  useEffect(() => {
+    let animationFrameId = 0;
 
-            // Controls how quickly the giant cursor catches up to the real pointer.
-            // Lower = slower/more lag, higher = faster.
-            const followSpeed = 0.08;
+    const animate = () => {
+      const cursor = cursorRef.current;
 
-            if (cursor) {
-                currentPosition.current.x +=
-                    (targetPosition.current.x - currentPosition.current.x) * followSpeed;
+      // Controls how quickly the giant cursor catches up to the real pointer.
+      // Lower = slower/more lag, higher = faster.
+      const followSpeed = 0.08;
 
-                currentPosition.current.y +=
-                    (targetPosition.current.y - currentPosition.current.y) * followSpeed;
+      if (cursor) {
+        currentPosition.current.x +=
+          (targetPosition.current.x - currentPosition.current.x) * followSpeed;
 
-                cursor.style.transform = `translate3d(
+        currentPosition.current.y +=
+          (targetPosition.current.y - currentPosition.current.y) * followSpeed;
+
+        cursor.style.transform = `translate3d(
           ${currentPosition.current.x}px,
           ${currentPosition.current.y}px,
           0
         ) rotate(-18deg)`;
-            }
+      }
 
-            animationFrameId = window.requestAnimationFrame(animate);
-        };
-
-        animationFrameId = window.requestAnimationFrame(animate);
-
-        return () => {
-            window.cancelAnimationFrame(animationFrameId);
-        };
-    }, []);
-
-    useEffect(() => {
-        return () => {
-            if (brianTimeoutRef.current !== null) {
-                window.clearTimeout(brianTimeoutRef.current);
-            }
-        };
-    }, []);
-
-    const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
-        const panel = panelRef.current;
-
-        if (!panel) {
-            return;
-        }
-
-        const bounds = panel.getBoundingClientRect();
-
-        const position = {
-            x: event.clientX - bounds.left,
-            y: event.clientY - bounds.top,
-        };
-
-        if (!isPointerInside) {
-            currentPosition.current = position;
-            setIsPointerInside(true);
-        }
-
-        targetPosition.current = position;
+      animationFrameId = window.requestAnimationFrame(animate);
     };
 
-    const handlePointerEnter = (event: React.PointerEvent<HTMLElement>) => {
-        const panel = panelRef.current;
+    animationFrameId = window.requestAnimationFrame(animate);
 
-        if (!panel) {
-            return;
-        }
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
 
-        const bounds = panel.getBoundingClientRect();
+  useEffect(() => {
+    return () => {
+      if (animationIntervalRef.current !== null) {
+        window.clearInterval(animationIntervalRef.current);
+      }
 
-        const position = {
-            x: event.clientX - bounds.left,
-            y: event.clientY - bounds.top,
-        };
+      if (clearSwarmTimeoutRef.current !== null) {
+        window.clearTimeout(clearSwarmTimeoutRef.current);
+      }
+    };
+  }, []);
 
-        targetPosition.current = position;
-        currentPosition.current = position;
+  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    const panel = panelRef.current;
 
-        setIsPointerInside(true);
+    if (!panel) {
+      return;
+    }
+
+    const bounds = panel.getBoundingClientRect();
+
+    const position = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
     };
 
-    const handleButtonClick = () => {
-        if (wasClicked) {
-            return;
-        }
+    if (!isPointerInside) {
+      currentPosition.current = position;
+      setIsPointerInside(true);
+    }
 
-        setWasClicked(true);
+    targetPosition.current = position;
+  };
 
-        const button = buttonRef.current;
+  const handlePointerEnter = (event: React.PointerEvent<HTMLElement>) => {
+    const panel = panelRef.current;
 
-        if (!button) {
-            return;
-        }
+    if (!panel) {
+      return;
+    }
 
-        const bounds = button.getBoundingClientRect();
+    const bounds = panel.getBoundingClientRect();
 
-        const startX = bounds.left + bounds.width / 2;
-        const startY = bounds.top + bounds.height / 2;
-
-        const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
-
-        const brianCount = isTouchDevice ? 18 : 40;
-        const viewportDistance = Math.max(window.innerWidth, window.innerHeight);
-
-        const swarm = Array.from({ length: brianCount }, (_, index) => {
-            const angle = Math.random() * Math.PI * 2;
-
-            const distance =
-                viewportDistance * (0.35 + Math.random() * 0.55);
-
-            return {
-                id: index,
-                src: brianFrames[
-                    Math.floor(Math.random() * brianFrames.length)
-                ],
-                startX,
-                startY,
-                travelX: Math.cos(angle) * distance,
-                travelY: Math.sin(angle) * distance,
-                width: 60 + Math.random() * 55,
-                duration: 1800 + Math.random() * 1200,
-                delay: Math.random() * 250,
-                rotation: -18 + Math.random() * 36,
-                endScale: 2.2 + Math.random() * 2.3,
-            };
-        });
-
-        setBrianSwarm(swarm);
-
-        brianTimeoutRef.current = window.setTimeout(() => {
-            setBrianSwarm([]);
-        }, 2600);
+    const position = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top,
     };
 
-    return (
-        <>
-            <section
-                ref={panelRef}
-                className="do-not-click"
-                onPointerEnter={handlePointerEnter}
-                onPointerLeave={() => setIsPointerInside(false)}
-                onPointerMove={handlePointerMove}
-            >
-                <div className="do-not-click-content">
-                    <p className="do-not-click-title">
-                        DON'T CLICK THIS BUTTON
-                    </p>
+    targetPosition.current = position;
+    currentPosition.current = position;
 
-                    <button
-                        ref={buttonRef}
-                        type="button"
-                        className="do-not-click-button"
-                        onClick={handleButtonClick}
-                    >
-                        {wasClicked ? 'you clicked it' : "don't"}
-                    </button>
+    setIsPointerInside(true);
+  };
 
-                    {wasClicked && (
-                        <p className="do-not-click-result">
-                            i gave you one instruction
-                        </p>
-                    )}
-                </div>
+  const handleButtonClick = () => {
+    if (wasClicked) {
+      return;
+    }
 
-                <div
-                    ref={cursorRef}
-                    className={`do-not-click-cursor ${isPointerInside ? 'do-not-click-cursor--visible' : ''
-                        }`}
-                    aria-hidden="true"
-                >
-                    <svg
-                        viewBox="0 0 120 160"
-                        role="presentation"
-                    >
-                        <path
-                            d="M12 8 L105 87 L68 94 L91 143 L64 155 L42 105 L15 132 Z"
-                            fill="currentColor"
-                            stroke="currentColor"
-                            strokeWidth="8"
-                            strokeLinejoin="round"
-                        />
-                    </svg>
-                </div>
-            </section>
+    setWasClicked(true);
 
-            {typeof document !== 'undefined' &&
-                brianSwarm.length > 0 &&
-                createPortal(
-                    <div
-                        className="do-not-click-brian-layer"
-                        aria-hidden="true"
-                    >
-                        {brianSwarm.map((brian) => {
-                            const style: BrianStyle = {
-                                left: `${brian.startX}px`,
-                                top: `${brian.startY}px`,
-                                width: `${brian.width}px`,
-                                animationDuration: `${brian.duration}ms`,
-                                animationDelay: `${brian.delay}ms`,
-                                '--brian-x': `${brian.travelX}px`,
-                                '--brian-y': `${brian.travelY}px`,
-                                '--brian-rotation': `${brian.rotation}deg`,
-                                '--brian-scale': `${brian.endScale}`,
-                            };
+    const button = buttonRef.current;
 
-                            return (
-                                <img
-                                    key={brian.id}
-                                    src={brian.src}
-                                    alt=""
-                                    className="do-not-click-brian"
-                                    style={style}
-                                />
-                            );
-                        })}
-                    </div>,
-                    document.body,
-                )}
-        </>
-    );
+    if (!button) {
+      return;
+    }
+
+    const bounds = button.getBoundingClientRect();
+
+    const startX = bounds.left + bounds.width / 2;
+    const startY = bounds.top + bounds.height / 2;
+
+    const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+    const brianCount = isTouchDevice ? 14 : 28;
+    const viewportDistance = Math.max(window.innerWidth, window.innerHeight);
+
+    const swarm = Array.from({ length: brianCount }, (_, index) => {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = viewportDistance * (0.3 + Math.random() * 0.55);
+
+      return {
+        id: index,
+        startX,
+        startY,
+        travelX: Math.cos(angle) * distance,
+        travelY: Math.sin(angle) * distance,
+        width: 100 + Math.random() * 64,
+        duration: 3200 + Math.random() * 1800,
+        delay: Math.random() * 220,
+        rotation: -20 + Math.random() * 40,
+        endScale: 1.8 + Math.random() * 1.5,
+        frameOffset: Math.floor(Math.random() * brianFrames.length),
+      };
+    });
+
+    setFrameTick(0);
+    setBrianSwarm(swarm);
+
+    if (animationIntervalRef.current !== null) {
+      window.clearInterval(animationIntervalRef.current);
+    }
+
+    if (clearSwarmTimeoutRef.current !== null) {
+      window.clearTimeout(clearSwarmTimeoutRef.current);
+    }
+
+    animationIntervalRef.current = window.setInterval(() => {
+      setFrameTick((previousTick) => previousTick + 1);
+    }, 90);
+
+    clearSwarmTimeoutRef.current = window.setTimeout(() => {
+      if (animationIntervalRef.current !== null) {
+        window.clearInterval(animationIntervalRef.current);
+        animationIntervalRef.current = null;
+      }
+
+      setBrianSwarm([]);
+    }, 5500);
+  };
+
+  return (
+    <>
+      <section
+        ref={panelRef}
+        className="do-not-click"
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={() => setIsPointerInside(false)}
+        onPointerMove={handlePointerMove}
+      >
+        <div className="do-not-click-content">
+          <p className="do-not-click-title">
+            DON'T CLICK THIS BUTTON
+          </p>
+
+          <button
+            ref={buttonRef}
+            type="button"
+            className="do-not-click-button"
+            onClick={handleButtonClick}
+          >
+            {wasClicked ? 'you clicked it' : "don't"}
+          </button>
+
+          {wasClicked && (
+            <p className="do-not-click-result">
+              told you
+            </p>
+          )}
+        </div>
+
+        <div
+          ref={cursorRef}
+          className={`do-not-click-cursor ${isPointerInside ? 'do-not-click-cursor--visible' : ''
+            }`}
+          aria-hidden="true"
+        >
+          <svg
+            viewBox="0 0 120 160"
+            role="presentation"
+          >
+            <path
+              d="M12 8 L105 87 L68 94 L91 143 L64 155 L42 105 L15 132 Z"
+              fill="currentColor"
+              stroke="currentColor"
+              strokeWidth="8"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+      </section>
+
+      {typeof document !== 'undefined' &&
+        brianSwarm.length > 0 &&
+        createPortal(
+          <div
+            className="do-not-click-brian-layer"
+            aria-hidden="true"
+          >
+            {brianSwarm.map((brian) => {
+              const style: BrianStyle = {
+                left: `${brian.startX}px`,
+                top: `${brian.startY}px`,
+                width: `${brian.width}px`,
+                animationDuration: `${brian.duration}ms`,
+                animationDelay: `${brian.delay}ms`,
+                '--brian-x': `${brian.travelX}px`,
+                '--brian-y': `${brian.travelY}px`,
+                '--brian-rotation': `${brian.rotation}deg`,
+                '--brian-scale': `${brian.endScale}`,
+              };
+
+              const frameIndex =
+                (frameTick + brian.frameOffset) % brianFrames.length;
+
+              return (
+                <img
+                  key={brian.id}
+                  src={brianFrames[frameIndex]}
+                  alt=""
+                  className="do-not-click-brian"
+                  style={style}
+                />
+              );
+            })}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
 }
