@@ -2,6 +2,7 @@
 
 import './Home.css';
 import DoNotClick from '../components/react/home/DoNotClick';
+import WttCoin from '../components/react/home/WttCoin';
 import GameSection from '../components/react/home/GameSection';
 import UndertakerSequence from '../components/react/home/UndertakerSequence';
 import O2LiftAd from '../components/react/home/O2LiftAd';
@@ -21,10 +22,7 @@ export default function Home() {
       <main className="canvas-home-content">
         <section className="canvas-home-intro">
           <DoNotClick/>
-
-          <div className="canvas-home-placeholder">
-            DON'T BUY THIS COIN
-          </div>
+          <WttCoin />
         </section>
 
         <section className="canvas-home-game">

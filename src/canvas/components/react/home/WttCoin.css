@@ -1,0 +1,381 @@
+.wtt-coin {
+  display: flex;
+  flex-direction: column;
+
+  min-height: 24rem;
+
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+
+  background: #050505;
+  color: #f5f5f5;
+}
+
+.wtt-coin-header {
+  display: flex;
+  flex-direction: column;
+
+  gap: 1.5rem;
+}
+
+.wtt-coin-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 1rem;
+}
+
+.wtt-coin-warning {
+  margin: 0;
+
+  font-size: 0.72rem;
+  font-weight: 700;
+
+  letter-spacing: 0.12em;
+}
+
+.wtt-coin-chain {
+  border: 1px solid #333;
+
+  padding: 0.35rem 0.5rem;
+
+  color: #999;
+
+  font-size: 0.62rem;
+  font-weight: 700;
+
+  letter-spacing: 0.1em;
+}
+
+.wtt-coin-symbol {
+  margin: 0;
+
+  font-size: clamp(4rem, 8vw, 7rem);
+  font-weight: 900;
+
+  line-height: 0.8;
+  letter-spacing: -0.08em;
+}
+
+.wtt-coin-name {
+  margin: 0.5rem 0 0;
+
+  color: #a8a8a8;
+
+  font-size: 0.9rem;
+}
+
+/* mini price chart */
+.wtt-coin-chart {
+  margin-top: 2rem;
+}
+
+.wtt-coin-chart-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.wtt-coin-chart-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.wtt-coin-chart-header span {
+  color: #777;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.wtt-coin-chart-header strong {
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+
+  font-size: 1rem;
+}
+
+.wtt-coin-chart-range {
+  border: 1px solid #333;
+  padding: 0.3rem 0.45rem;
+}
+
+.wtt-coin-chart-plot {
+  position: relative;
+
+  height: 7rem;
+  overflow: hidden;
+
+  border: 1px solid rgba(82, 140, 102, 0.22);
+  background: #080808;
+}
+
+.wtt-coin-chart-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.wtt-coin-chart-grid {
+  stroke: rgba(98, 170, 120, 0.35);
+  stroke-width: 1;
+}
+
+.wtt-coin-chart-line {
+  stroke: #d8d8d8;
+  stroke-width: 2;
+}
+
+.wtt-coin-chart-point {
+  fill: #f5f5f5;
+}
+
+.wtt-coin-chart-value {
+  position: absolute;
+  right: 0.6rem;
+  top: 58%;
+
+  transform: translateY(-140%);
+
+  color: #8aa594;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+
+  font-size: 0.65rem;
+}
+
+.wtt-coin-chart-axis {
+  display: flex;
+  justify-content: space-between;
+
+  margin-top: 0.4rem;
+
+  color: #5d6a61;
+
+  font-size: 0.58rem;
+  text-transform: uppercase;
+}
+
+/* grouped stats */
+
+.wtt-coin-section {
+  margin-top: 1.9rem;
+}
+
+.wtt-coin-section-heading {
+  margin: 0 0 1rem;
+
+  color: #707070;
+
+  font-size: 0.62rem;
+  font-weight: 700;
+
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.wtt-coin-stats {
+  display: grid;
+
+  margin: 0;
+
+  gap: 1rem 1.5rem;
+}
+
+.wtt-coin-stats--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.wtt-coin-stats--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wtt-coin-stat {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 0;
+
+  gap: 0.45rem;
+}
+
+.wtt-coin-stat-label {
+  margin: 0;
+
+  color: #8a8a8a;
+
+  font-size: 0.72rem;
+  font-weight: 600;
+
+  line-height: 1.2;
+}
+
+.wtt-coin-stat-value {
+  margin: 0;
+
+  color: #f5f5f5;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+
+  font-size: clamp(1.3rem, 2.5vw, 1.8rem);
+  font-weight: 700;
+
+  line-height: 1;
+}
+
+/* market */
+
+.wtt-coin-market {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  gap: 1rem;
+
+  margin: 0;
+
+  padding: 1rem 0;
+
+  border-top: 1px solid #292929;
+  border-bottom: 1px solid #292929;
+}
+
+/*
+ * Market values stay smaller than reward/on-chain values because
+ * WTT's earning/claiming data is the more important information.
+ */
+.wtt-coin-market .wtt-coin-stat-value {
+  font-size: 0.9rem;
+}
+
+/* buy */
+
+.wtt-coin-buy-row {
+  margin: 1.25rem 0 1.75rem;
+}
+
+.wtt-coin-buy-button {
+  width: 100%;
+
+  border: 1px solid #f5f5f5;
+
+  background: #f5f5f5;
+  color: #050505;
+
+  padding: 0.85rem 1rem;
+
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+
+  letter-spacing: 0.08em;
+
+  cursor: pointer;
+}
+
+.wtt-coin-buy-button:hover {
+  background: transparent;
+  color: #f5f5f5;
+}
+
+.wtt-coin-buy-message {
+  margin: 0;
+
+  font-size: 0.82rem;
+  font-weight: 700;
+
+  line-height: 1.45;
+}
+
+/* footer */
+
+.wtt-coin-footer {
+  margin-top: auto;
+}
+
+.wtt-coin-mint {
+  display: flex;
+  flex-direction: column;
+
+  gap: 0.25rem;
+}
+
+.wtt-coin-mint code {
+  color: #bdbdbd;
+
+  font-size: 0.75rem;
+}
+
+.wtt-coin-links {
+  display: flex;
+  flex-wrap: wrap;
+
+  gap: 0.5rem;
+
+  margin-top: 1rem;
+}
+
+.wtt-coin-links a {
+  border: 1px solid #444;
+
+  padding: 0.5rem 0.65rem;
+
+  color: inherit;
+
+  font-size: 0.72rem;
+  text-decoration: none;
+}
+
+.wtt-coin-links a:hover {
+  background: #f5f5f5;
+  color: #050505;
+}
+
+@media (max-width: 800px) {
+  .wtt-coin-stats--three,
+  .wtt-coin-stats--two,
+  .wtt-coin-market {
+    grid-template-columns: 1fr;
+  }
+}
+
+.wtt-coin-earn-link {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.wtt-coin-earn-link:hover {
+  opacity: 0.7;
+}
+
+.wtt-coin-buy-aside {
+  display: inline-block;
+  margin-top: 0.3rem;
+
+  color: #777;
+
+  font-size: 0.68rem;
+  font-weight: 500;
+}
