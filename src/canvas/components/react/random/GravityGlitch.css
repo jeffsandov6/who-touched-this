@@ -1,0 +1,46 @@
+.gravity-glitch {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 19rem;
+  overflow: hidden;
+  border: 1px solid #b9b7ae;
+  background: #f4f1e8;
+  color: #22231f;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  isolation: isolate;
+}
+
+.gravity-glitch-copy {
+  max-width: 28ch;
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.55rem, 4vw, 3.2rem);
+  line-height: 1.18;
+  letter-spacing: -0.025em;
+}
+
+.gravity-glitch-word {
+  display: inline-block;
+}
+
+.gravity-glitch-letter {
+  display: inline-block;
+  transform-origin: 50% 100%;
+  transition:
+    transform var(--gravity-duration) cubic-bezier(0.42, 0, 0.88, 0.62) var(--gravity-delay),
+    opacity 120ms linear var(--gravity-delay);
+  will-change: transform;
+}
+
+.gravity-glitch-copy--dropped .gravity-glitch-letter {
+  transform:
+    translate3d(var(--gravity-x), var(--gravity-y), 0)
+    rotate(var(--gravity-rotation));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gravity-glitch-letter {
+    transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+}
