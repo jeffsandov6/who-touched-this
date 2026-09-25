@@ -5,7 +5,7 @@ import GravityGlitch from '../components/react/random/GravityGlitch';
 import LiveCodeBreakdown from '../components/react/random/LiveCodeBreakdown';
 import PokemonIntrusions from '../components/react/random/PokemonIntrusions';
 import RareAlternateReality from '../components/react/random/RareAlternateReality';
-import ViewMasterPeephole from '../components/react/random/ViewMasterPeephole';
+import ViewMasterPeephole from '../components/react/random/view-master/ViewMasterPeephole';
 import WrongPerspectiveObject from '../components/react/random/WrongPerspectiveObject';
 
 import './Random.css';

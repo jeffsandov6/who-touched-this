@@ -1,0 +1,143 @@
+.view-master-hotel-scene img {
+  object-position: center center;
+}
+
+/* hotel sequence */
+
+.view-master-hotel-scene img {
+  object-position: center center;
+
+  transition:
+    filter 180ms ease,
+    transform 400ms ease;
+}
+
+.view-master-hotel-darkness {
+  position: absolute;
+  inset: 0;
+
+  z-index: 2;
+
+  background: rgba(5, 6, 6, 0.72);
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  transition: opacity 180ms ease;
+}
+
+.view-master-hotel-twins {
+  position: absolute;
+
+  left: 50%;
+  top: 37%;
+
+  z-index: 3;
+
+  display: flex;
+  gap: 0.18rem;
+
+  transform:
+    translate(-50%, -50%) scale(0.7);
+
+  opacity: 0;
+
+  pointer-events: none;
+
+  transition:
+    opacity 220ms ease,
+    transform 300ms ease;
+}
+
+.view-master-hotel-twins span {
+  position: relative;
+
+  display: block;
+
+  width: 1.15rem;
+  height: 2rem;
+
+  background: #171919;
+
+  clip-path: polygon(38% 0,
+      62% 0,
+      68% 22%,
+      82% 56%,
+      68% 100%,
+      53% 100%,
+      50% 72%,
+      47% 100%,
+      32% 100%,
+      18% 56%,
+      32% 22%);
+}
+
+.view-master-hotel-twins span::before {
+  content: '';
+
+  position: absolute;
+
+  left: 50%;
+  top: -0.72rem;
+
+  width: 0.82rem;
+  height: 0.82rem;
+
+  border-radius: 50%;
+
+  background: #171919;
+
+  transform: translateX(-50%);
+}
+
+/* first light flicker */
+
+.view-master-hotel-scene--stage-1 img {
+  filter:
+    brightness(0.72) contrast(1.06);
+}
+
+/* harsher flicker */
+
+.view-master-hotel-scene--stage-2 img {
+  filter:
+    brightness(0.28) contrast(1.18) saturate(0.7);
+}
+
+.view-master-hotel-scene--stage-2 .view-master-hotel-darkness {
+  opacity: 0.22;
+}
+
+/* lights stay low */
+
+.view-master-hotel-scene--stage-3 img,
+.view-master-hotel-scene--stage-4 img {
+  filter:
+    brightness(0.38) contrast(1.14) saturate(0.72);
+}
+
+.view-master-hotel-scene--stage-3 .view-master-hotel-darkness,
+.view-master-hotel-scene--stage-4 .view-master-hotel-darkness {
+  opacity: 0.34;
+}
+
+/* twins */
+
+.view-master-hotel-scene--stage-4 .view-master-hotel-twins {
+  opacity: 0.88;
+
+  transform:
+    translate(-50%, -50%) scale(0.82);
+}
+
+/* return to normal */
+
+.view-master-hotel-scene--stage-5 img {
+  filter:
+    brightness(1) contrast(1) saturate(1);
+}
+
+.view-master-hotel-scene--stage-5 .view-master-hotel-darkness {
+  opacity: 0;
+}
