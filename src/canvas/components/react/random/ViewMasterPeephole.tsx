@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 
 import hotelHallway from '../../../assets/random/view-master/hotel/hotel-hallway-main.jpg';
-import pictureWindowPlaceholder from '../../../assets/random/view-master/picture-window/panorama-placeholder.svg';
+
+import calvinHobbesStars from '../../../assets/random/view-master/picture-window/calvin-hobbes-stars.jpeg';
 import cannotCenterPlaceholder from '../../../assets/random/view-master/cannot-center/panorama-placeholder.svg';
 import idyllicPlaceholder from '../../../assets/random/view-master/idyllic-decay/landscape-placeholder.svg';
 
@@ -26,6 +27,7 @@ type PannableSceneProps = {
   initialX: number;
   initialY?: number;
   resistCenter?: boolean;
+  sceneClassName?: string;
   children?: ReactNode;
 };
 
@@ -39,6 +41,7 @@ function PannableScene({
   initialX,
   initialY = 0.5,
   resistCenter = false,
+  sceneClassName,
   children,
 }: PannableSceneProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -143,7 +146,7 @@ function PannableScene({
     >
       <div
         ref={sceneRef}
-        className="view-master-pan-scene"
+        className={`view-master-pan-scene ${sceneClassName ?? ''}`}
         style={{ transform: `translate3d(${offset.x}px, ${offset.y}px, 0)` }}
       >
         <img src={src} alt={alt} draggable="false" onLoad={resetOffset} />
@@ -195,10 +198,11 @@ function HotelScene() {
 function PictureWindowScene() {
   return (
     <PannableScene
-      src={pictureWindowPlaceholder.src}
-      alt="A large abstract landscape seen through a small window"
-      initialX={0.24}
-      initialY={0.48}
+      src={calvinHobbesStars.src}
+      alt="A starry Calvin and Hobbes scene with a quote"
+      initialX={0.1}
+      initialY={0.18}
+      sceneClassName="view-master-pan-scene--picture-window"
     />
   );
 }

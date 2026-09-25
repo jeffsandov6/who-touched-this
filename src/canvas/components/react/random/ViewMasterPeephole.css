@@ -6,7 +6,9 @@
   font-family: Arial, sans-serif;
 }
 
-.view-master button { font: inherit; }
+.view-master button {
+  font: inherit;
+}
 
 .view-master-launcher {
   width: 3.4rem;
@@ -29,7 +31,9 @@
   box-shadow: inset 0.12rem 0.12rem 0 #0c0e10, inset -0.1rem -0.1rem 0 #77808a;
 }
 
-.view-master-launcher:hover { transform: rotate(-5deg); }
+.view-master-launcher:hover {
+  transform: rotate(-5deg);
+}
 
 .view-master-body {
   position: relative;
@@ -108,7 +112,9 @@
   background: #8c8579;
 }
 
-.view-master-advance:active { transform: rotate(6deg) translateY(0.1rem); }
+.view-master-advance:active {
+  transform: rotate(6deg) translateY(0.1rem);
+}
 
 .view-master-static-scene,
 .view-master-pan-viewport {
@@ -131,7 +137,9 @@
   user-select: none;
 }
 
-.view-master-pan-viewport--dragging { cursor: grabbing; }
+.view-master-pan-viewport--dragging {
+  cursor: grabbing;
+}
 
 .view-master-pan-scene {
   position: absolute;
@@ -142,13 +150,23 @@
   will-change: transform;
 }
 
-.view-master-pan-scene > img {
+.view-master-pan-scene--picture-window {
+  width: max(235%, 72rem);
+  height: auto;
+  aspect-ratio: 801 / 383;
+}
+
+.view-master-pan-scene>img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   pointer-events: none;
   user-select: none;
+}
+
+.view-master-pan-scene--picture-window > img {
+  object-fit: fill;
 }
 
 .view-master-hotel-scene img {
@@ -192,8 +210,7 @@
   gap: 0.18rem;
 
   transform:
-    translate(-50%, -50%)
-    scale(0.7);
+    translate(-50%, -50%) scale(0.7);
 
   opacity: 0;
 
@@ -214,19 +231,17 @@
 
   background: #171919;
 
-  clip-path: polygon(
-    38% 0,
-    62% 0,
-    68% 22%,
-    82% 56%,
-    68% 100%,
-    53% 100%,
-    50% 72%,
-    47% 100%,
-    32% 100%,
-    18% 56%,
-    32% 22%
-  );
+  clip-path: polygon(38% 0,
+      62% 0,
+      68% 22%,
+      82% 56%,
+      68% 100%,
+      53% 100%,
+      50% 72%,
+      47% 100%,
+      32% 100%,
+      18% 56%,
+      32% 22%);
 }
 
 .view-master-hotel-twins span::before {
@@ -251,21 +266,17 @@
 
 .view-master-hotel-scene--stage-1 img {
   filter:
-    brightness(0.72)
-    contrast(1.06);
+    brightness(0.72) contrast(1.06);
 }
 
 /* harsher flicker */
 
 .view-master-hotel-scene--stage-2 img {
   filter:
-    brightness(0.28)
-    contrast(1.18)
-    saturate(0.7);
+    brightness(0.28) contrast(1.18) saturate(0.7);
 }
 
-.view-master-hotel-scene--stage-2
-  .view-master-hotel-darkness {
+.view-master-hotel-scene--stage-2 .view-master-hotel-darkness {
   opacity: 0.22;
 }
 
@@ -274,40 +285,31 @@
 .view-master-hotel-scene--stage-3 img,
 .view-master-hotel-scene--stage-4 img {
   filter:
-    brightness(0.38)
-    contrast(1.14)
-    saturate(0.72);
+    brightness(0.38) contrast(1.14) saturate(0.72);
 }
 
-.view-master-hotel-scene--stage-3
-  .view-master-hotel-darkness,
-.view-master-hotel-scene--stage-4
-  .view-master-hotel-darkness {
+.view-master-hotel-scene--stage-3 .view-master-hotel-darkness,
+.view-master-hotel-scene--stage-4 .view-master-hotel-darkness {
   opacity: 0.34;
 }
 
 /* twins */
 
-.view-master-hotel-scene--stage-4
-  .view-master-hotel-twins {
+.view-master-hotel-scene--stage-4 .view-master-hotel-twins {
   opacity: 0.88;
 
   transform:
-    translate(-50%, -50%)
-    scale(0.82);
+    translate(-50%, -50%) scale(0.82);
 }
 
 /* return to normal */
 
 .view-master-hotel-scene--stage-5 img {
   filter:
-    brightness(1)
-    contrast(1)
-    saturate(1);
+    brightness(1) contrast(1) saturate(1);
 }
 
-.view-master-hotel-scene--stage-5
-  .view-master-hotel-darkness {
+.view-master-hotel-scene--stage-5 .view-master-hotel-darkness {
   opacity: 0;
 }
 
@@ -385,24 +387,51 @@
 .view-master-idyllic--stage-1 .view-master-idyllic-tree-copy,
 .view-master-idyllic--stage-2 .view-master-idyllic-tree-copy,
 .view-master-idyllic--stage-3 .view-master-idyllic-tree-copy,
-.view-master-idyllic--stage-4 .view-master-idyllic-tree-copy { opacity: 1; transform: translateX(0); }
+.view-master-idyllic--stage-4 .view-master-idyllic-tree-copy {
+  opacity: 1;
+  transform: translateX(0);
+}
 
 .view-master-idyllic--stage-2 .view-master-idyllic-second-sun,
 .view-master-idyllic--stage-3 .view-master-idyllic-second-sun,
-.view-master-idyllic--stage-4 .view-master-idyllic-second-sun { opacity: 1; }
+.view-master-idyllic--stage-4 .view-master-idyllic-second-sun {
+  opacity: 1;
+}
 
 .view-master-idyllic--stage-3 .view-master-idyllic-false-horizon,
-.view-master-idyllic--stage-4 .view-master-idyllic-false-horizon { opacity: 0.75; }
+.view-master-idyllic--stage-4 .view-master-idyllic-false-horizon {
+  opacity: 0.75;
+}
 
-.view-master-idyllic--stage-4 .view-master-idyllic-repeat { opacity: 1; }
+.view-master-idyllic--stage-4 .view-master-idyllic-repeat {
+  opacity: 1;
+}
 
 @media (max-width: 520px) {
-  .view-master { right: 0.5rem; bottom: 0.65rem; }
-  .view-master-body { width: calc(100vw - 1rem); height: min(31rem, calc(100vh - 6rem)); }
-  .view-master-pan-scene { width: max(215%, 48rem); }
+  .view-master {
+    right: 0.5rem;
+    bottom: 0.65rem;
+  }
+
+  .view-master-body {
+    width: calc(100vw - 1rem);
+    height: min(31rem, calc(100vh - 6rem));
+  }
+
+  .view-master-pan-scene {
+    width: max(215%, 48rem);
+  }
+
+  .view-master-pan-scene--picture-window {
+  width: max(255%, 58rem);
+  height: auto;
+}
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .view-master-aperture,
-  .view-master-idyllic span { transition-duration: 1ms; }
+  .view-master-idyllic span {
+    transition-duration: 1ms;
+  }
 }
