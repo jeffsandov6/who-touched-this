@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 900" role="img" aria-labelledby="title">
+  <title id="title">Replaceable wide picture placeholder</title>
+  <rect width="1800" height="900" fill="#aec8cf"/>
+  <circle cx="1390" cy="175" r="82" fill="#f6e7ae"/>
+  <path d="M0 520 250 255l206 202 250-330 260 345 262-240 300 294 272-206v580H0Z" fill="#6b7e7d"/>
+  <path d="M0 612 318 397l218 179 311-242 314 226 276-143 363 217v266H0Z" fill="#526966"/>
+  <path d="M0 684c250-70 428-65 651 8 248 81 477 62 710-19 179-62 301-65 439-36v263H0Z" fill="#b3a477"/>
+  <g fill="#354c3f"><path d="m250 595 47-145 47 145Z"/><path d="m1110 621 55-170 55 170Z"/><path d="m1540 585 44-136 44 136Z"/></g>
+  <text x="900" y="850" text-anchor="middle" font-family="sans-serif" font-size="28" fill="#3e504d">replaceable picture-window panorama</text>
+</svg>

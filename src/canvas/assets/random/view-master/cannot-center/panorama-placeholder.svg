@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 900" role="img" aria-labelledby="title">
+  <title id="title">Replaceable dim panorama placeholder</title>
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#293036"/><stop offset="1" stop-color="#68706d"/></linearGradient></defs>
+  <rect width="1800" height="900" fill="url(#sky)"/>
+  <path d="M0 520 200 395l170 64 210-173 226 176 245-233 210 237 213-114 326 190v358H0Z" fill="#39423f"/>
+  <path d="M0 690c260-99 497-89 741 2 280 104 544 58 1059-39v247H0Z" fill="#242b29"/>
+  <g fill="#171d1c" opacity=".82"><path d="m110 658 36-153 36 153Z"/><path d="m500 650 44-187 44 187Z"/><path d="m1460 646 46-194 46 194Z"/></g>
+  <text x="900" y="855" text-anchor="middle" font-family="sans-serif" font-size="28" fill="#9ca7a2">replaceable cannot-center panorama</text>
+</svg>
