@@ -124,9 +124,12 @@
  * It leaves a little eaten trail behind.
  */
 
-.live-code-line--eaten .live-code-line-content {
+.live-code-line--eaten .live-code-line-content,
+.live-code-line--eaten .live-code-line-content * {
   color: transparent;
+}
 
+.live-code-line--eaten .live-code-line-content {
   filter: blur(0.25px);
 }
 
