@@ -1,78 +1,28 @@
-.view-master-idyllic-tree-copy,
-.view-master-idyllic-second-sun,
-.view-master-idyllic-false-horizon,
-.view-master-idyllic-repeat {
+.view-master-static-scene .view-master-idyllic-image {
   position: absolute;
-  z-index: 2;
+  left: 50%;
+  top: 50%;
+
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 1;
+
+  transform: translate(-50%, -50%);
+
   opacity: 0;
-  transition: opacity 1.2s ease, transform 1.8s ease;
+  transition: opacity 900ms ease;
+
+  pointer-events: none;
+  user-select: none;
 }
 
-.view-master-idyllic-tree-copy {
-  left: 22%;
-  bottom: 19%;
-  width: 1.8rem;
-  height: 4.6rem;
-  border-radius: 60% 42% 48% 52%;
-  background: #365d3d;
-  box-shadow: 0 3.3rem 0 -0.72rem #684a31;
-  transform: translateX(1.6rem);
-}
-
-.view-master-idyllic-second-sun {
-  right: 19%;
-  top: 13%;
-  width: 3.1rem;
-  height: 3.1rem;
-  border-radius: 50%;
-  background: #ffe39a;
-  box-shadow: 0 0 1.4rem rgba(255, 227, 154, 0.8);
-}
-
-.view-master-idyllic-false-horizon {
-  left: -5%;
-  right: -5%;
-  top: 54%;
-  height: 0.35rem;
-  background: #536f77;
-  transform: rotate(-4deg);
-}
-
-.view-master-idyllic-repeat {
-  left: 48%;
-  bottom: 15%;
-  width: 5.4rem;
-  height: 1.6rem;
-  border-radius: 50%;
-  background: repeating-linear-gradient(90deg, #f6f0d7 0 0.75rem, #282827 0.75rem 0.9rem);
-  transform: scaleX(-1) rotate(7deg);
-}
-
-.view-master-idyllic--stage-1 .view-master-idyllic-tree-copy,
-.view-master-idyllic--stage-2 .view-master-idyllic-tree-copy,
-.view-master-idyllic--stage-3 .view-master-idyllic-tree-copy,
-.view-master-idyllic--stage-4 .view-master-idyllic-tree-copy {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.view-master-idyllic--stage-2 .view-master-idyllic-second-sun,
-.view-master-idyllic--stage-3 .view-master-idyllic-second-sun,
-.view-master-idyllic--stage-4 .view-master-idyllic-second-sun {
-  opacity: 1;
-}
-
-.view-master-idyllic--stage-3 .view-master-idyllic-false-horizon,
-.view-master-idyllic--stage-4 .view-master-idyllic-false-horizon {
-  opacity: 0.75;
-}
-
-.view-master-idyllic--stage-4 .view-master-idyllic-repeat {
+.view-master-static-scene .view-master-idyllic-image--active {
   opacity: 1;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .view-master-idyllic span {
+  .view-master-idyllic-image {
     transition-duration: 1ms;
   }
 }

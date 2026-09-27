@@ -2,30 +2,56 @@
 
 import { useEffect, useState } from 'react';
 
-import idyllicPlaceholder from '../../../../../assets/random/view-master/idyllic-decay/landscape-placeholder.svg';
+import stage0Clean from '../../../../../assets/random/view-master/idyllic-decay/stage-0-clean.png';
+import stage1TwoSuns from '../../../../../assets/random/view-master/idyllic-decay/stage-1-two-suns.png';
+import stage2RepeatedTrees from '../../../../../assets/random/view-master/idyllic-decay/stage-2-repeated-trees.png';
+import stage3OrangeSky from '../../../../../assets/random/view-master/idyllic-decay/stage-3-orange-sky.png';
+import stage4BrokenParadise from '../../../../../assets/random/view-master/idyllic-decay/stage-4-broken-paradise.png';
 
 import './IdyllicDecayScene.css';
 
 export const IDYLLIC_DECAY_STAGE_MS = 5200;
 
+const stages = [
+  stage0Clean,
+  stage1TwoSuns,
+  stage2RepeatedTrees,
+  stage3OrangeSky,
+  stage4BrokenParadise,
+];
+
 export default function IdyllicDecayScene() {
   const [stage, setStage] = useState(0);
 
   useEffect(() => {
-    const timers = [1, 2, 3, 4].map((nextStage) => window.setTimeout(
-      () => setStage(nextStage),
-      IDYLLIC_DECAY_STAGE_MS * nextStage,
-    ));
-    return () => timers.forEach((timerId) => window.clearTimeout(timerId));
+    const timers = stages.slice(1).map((_, index) => {
+      const nextStage = index + 1;
+
+      return window.setTimeout(
+        () => setStage(nextStage),
+        IDYLLIC_DECAY_STAGE_MS * nextStage,
+      );
+    });
+
+    return () => {
+      timers.forEach((timerId) => window.clearTimeout(timerId));
+    };
   }, []);
 
   return (
-    <div className={`view-master-static-scene view-master-idyllic view-master-idyllic--stage-${stage}`}>
-      <img src={idyllicPlaceholder.src} alt="A peaceful illustrated landscape" draggable="false" />
-      <span className="view-master-idyllic-tree-copy" aria-hidden="true" />
-      <span className="view-master-idyllic-second-sun" aria-hidden="true" />
-      <span className="view-master-idyllic-false-horizon" aria-hidden="true" />
-      <span className="view-master-idyllic-repeat" aria-hidden="true" />
+    <div className="view-master-static-scene view-master-idyllic">
+      {stages.map((image, index) => (
+        <img
+          key={image.src}
+          src={image.src}
+          alt={index === 0 ? 'A peaceful alpine lake beneath snowy mountains' : ''}
+          draggable="false"
+          aria-hidden={index === 0 ? undefined : true}
+          className={`view-master-idyllic-image ${
+            stage === index ? 'view-master-idyllic-image--active' : ''
+          }`}
+        />
+      ))}
     </div>
   );
 }

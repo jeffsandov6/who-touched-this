@@ -14,7 +14,7 @@
   overflow: visible;
 
   --peripheral-figure-width: 2.6rem;
-  --peripheral-figure-height: 6.5rem;
+  --peripheral-figure-height: 8.5rem;
   --peripheral-figure-y: 51%;
   --peripheral-figure-right-inset: -1.1rem;
   --peripheral-figure-left-inset: -1rem;
@@ -100,7 +100,7 @@
 
   .view-master-peripheral-scene {
     --peripheral-figure-width: 0.62rem;
-    --peripheral-figure-height: 3.15rem;
+    --peripheral-figure-height: 5.15rem;
     --peripheral-figure-y: 56%;
     --peripheral-figure-inset: -0.3rem;
   }
