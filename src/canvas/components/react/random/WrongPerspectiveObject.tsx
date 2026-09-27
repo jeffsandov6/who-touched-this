@@ -202,6 +202,9 @@ export default function WrongPerspectiveObject() {
         </g>
 
       </svg>
+      <p className="wrong-perspective-caption">
+        this was supposed to be escher-esque. couldn't figure it out so i gave up.
+      </p>
     </section>
   );
 }
