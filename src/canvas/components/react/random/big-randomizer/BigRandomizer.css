@@ -1,0 +1,188 @@
+.big-randomizer {
+  display: flex;
+  flex-direction: column;
+  min-height: 17rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+
+  border: 1px solid #b8b4aa;
+  background: #f6f3eb;
+
+  color: #24231f;
+
+  transition:
+    transform 350ms ease,
+    filter 350ms ease;
+}
+
+.big-randomizer-header {
+  margin-bottom: 1.5rem;
+}
+
+.big-randomizer-kicker {
+  margin: 0 0 0.35rem;
+
+  color: #777166;
+
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.big-randomizer h2 {
+  margin: 0;
+
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.big-randomizer-result {
+  display: grid;
+  flex: 1;
+  place-items: center;
+
+  min-height: 5rem;
+
+  padding: 1rem;
+
+  text-align: center;
+}
+
+.big-randomizer-result p {
+  margin: 0;
+}
+
+.big-randomizer-placeholder {
+  color: #8b8579;
+  font-size: 0.76rem;
+  letter-spacing: 0.02em;
+}
+
+.big-randomizer-button {
+  width: 100%;
+  min-height: 3.75rem;
+
+  border: 1px solid #302f2a;
+  border-radius: 0;
+
+  background: #302f2a;
+  color: #f6f3eb;
+
+  font: inherit;
+  font-size: 1rem;
+
+  cursor: pointer;
+
+  transition:
+    transform 120ms ease,
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.big-randomizer-button:hover {
+  transform: translateY(-2px);
+}
+
+.big-randomizer-button:active {
+  transform: translateY(1px);
+}
+
+
+/* outcome: slightly worse website */
+
+.big-randomizer--worse-website {
+  transform: rotate(1deg);
+}
+
+
+/* outcome: fish */
+
+.big-randomizer-fish {
+  font-family: ui-monospace, monospace;
+  font-size: clamp(1.2rem, 4vw, 2rem);
+}
+
+
+/* outcome: no */
+
+.big-randomizer--no .big-randomizer-button {
+  background: transparent;
+  color: #302f2a;
+}
+
+
+/* outcome: successful error */
+
+.big-randomizer-error {
+  display: grid;
+  width: min(100%, 18rem);
+
+  border: 1px solid #9a4038;
+
+  text-align: left;
+}
+
+.big-randomizer-error strong {
+  padding: 0.35rem 0.5rem;
+
+  background: #9a4038;
+  color: #fff;
+
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.big-randomizer-error span {
+  padding: 0.75rem;
+
+  font-size: 0.78rem;
+}
+
+
+/* outcome: thoughts */
+
+.big-randomizer-thoughts-link {
+  color: inherit;
+
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+
+/* outcome: nothing */
+
+.big-randomizer-nothing {
+  color: #918b80;
+
+  font-size: 0.72rem;
+}
+
+
+/* outcome: 1px */
+
+.big-randomizer-pixel-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+
+  font-size: 0.78rem;
+}
+
+.big-randomizer-pixel {
+  display: block;
+
+  width: 1px;
+  height: 1px;
+
+  background: #111;
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  .big-randomizer,
+  .big-randomizer-button {
+    transition: none;
+  }
+}
