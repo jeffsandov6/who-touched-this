@@ -19,3 +19,21 @@
     margin-bottom: 6rem;
   }
 }
+
+
+.canvas-random-toy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: stretch;
+}
+
+.canvas-random-toy-row > * {
+  min-width: 0;
+}
+
+@media (max-width: 48rem) {
+  .canvas-random-toy-row {
+    grid-template-columns: 1fr;
+  }
+}

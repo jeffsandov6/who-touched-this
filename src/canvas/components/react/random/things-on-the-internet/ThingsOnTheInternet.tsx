@@ -51,9 +51,9 @@ const THINGS: InternetThing[] = [
   {
     id: 'linux-announcement',
     title: 'linux, 1991',
-    caption: '"just a hobby, won’t be big and professional like gnu"',
+    caption: '"just a hobby, won’t be big and professional like gnu" - linus torvalds',
     image: linuxAnnouncementImage.src,
-    imageAlt: 'linus Ttorvalds announcing his new operating system project in 1991',
+    imageAlt: 'linus torvalds announcing his new operating system project in 1991',
     imageFit: 'contain',
     href: 'https://www.cs.cmu.edu/~awb/linux.history.html',
     linkLabel: 'read the post ↗',
@@ -61,7 +61,7 @@ const THINGS: InternetThing[] = [
   {
     id: 'window-swap',
     title: 'window swap',
-    caption: 'look out somebody else’s window for a while.',
+    caption: 'look out somebody else’s window for a while',
     image: windowSwapImage.src,
     imageAlt: 'a view through a window shared on WindowSwap',
     href: 'https://www.window-swap.com/Window',
@@ -129,7 +129,7 @@ const THINGS: InternetThing[] = [
   {
     id: 'bitcoin-announcement',
     title: 'bitcoin p2p e-cash paper',
-    caption: 'october 31, 2008. the announcement, before the speculation.',
+    caption: 'october 31, 2008. the announcement, before the speculation',
     image: btcAnnouncementImage.src,
     imageAlt: 'excerpt from Satoshi Nakamoto’s original 2008 bitcoin mailing-list announcement',
     imageFit: 'contain',
@@ -139,7 +139,7 @@ const THINGS: InternetThing[] = [
   {
     id: 'silk-road',
     title: 'silk road, 2011',
-    caption: 'one of the defining artifacts of the early darknet.',
+    caption: 'one of the defining artifacts of the early darknet',
     image: silkRoadImage.src,
     imageAlt: 'silk road anonymous marketplace shown in an old Opera browser with its onion address visible',
     imageFit: 'contain',
