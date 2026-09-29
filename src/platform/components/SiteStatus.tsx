@@ -4,12 +4,18 @@ import { useEffect, useState } from 'react';
 import { subscribeToPublicSiteState } from '../firebase/public-site';
 import { DEFAULT_PUBLIC_SITE_STATE } from '../turn-state';
 import { getPublicTurnPresentation } from '../turn-lifecycle';
+import { resolveWttClaimPreview } from '../wtt-claim-preview';
 import Countdown from './Countdown';
 
 export default function SiteStatus() {
   const [siteState, setSiteState] = useState(DEFAULT_PUBLIC_SITE_STATE);
+  const localWttPreview = import.meta.env.DEV
+    && typeof window !== 'undefined'
+    && window.location.pathname === '/wtt/claim'
+    && resolveWttClaimPreview(window.location.search, true) !== null;
 
   useEffect(() => {
+    if (localWttPreview) return undefined;
     let unsubscribe = () => {};
 
     try {
@@ -19,7 +25,7 @@ export default function SiteStatus() {
     }
 
     return unsubscribe;
-  }, []);
+  }, [localWttPreview]);
 
   const formattedVersion = String(siteState.currentVersion).padStart(3, '0');
   const formattedTarget = siteState.targetContributionNumber

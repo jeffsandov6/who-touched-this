@@ -1,7 +1,14 @@
 ---
 import PlatformLayout from '../../platform/layouts/PlatformLayout.astro';
 import WttClaimPage from '../../platform/pages/WttClaimPage';
+import { resolveWttClaimPreview } from '../../platform/wtt-claim-preview';
+
+const localPreview = resolveWttClaimPreview(Astro.url.search, import.meta.env.DEV);
 ---
-<PlatformLayout title="claim wtt" description="view WTT earned by your authenticated GitHub identity.">
+<PlatformLayout
+  title="claim wtt"
+  description="view WTT earned by your authenticated GitHub identity."
+  backendFreePreview={localPreview !== null}
+>
   <WttClaimPage client:load />
 </PlatformLayout>
