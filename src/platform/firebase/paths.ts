@@ -12,11 +12,13 @@ export const FIRESTORE_COLLECTIONS = {
   wttEntitlements: 'wttEntitlements',
   wttClaimChallenges: 'wttClaimChallenges',
   wttClaims: 'wttClaims',
+  publicWttStats: 'publicWttStats',
   site: 'site',
 } as const;
 
 export const PUBLIC_SITE_DOCUMENT_ID = 'public' as const;
 export const PRIVATE_SITE_DOCUMENT_ID = 'admin' as const;
+export const PUBLIC_WTT_STATS_DOCUMENT_ID = 'current' as const;
 
 function assertPathSegment(value: string, label: string): string {
   const normalized = value.trim();
@@ -115,6 +117,9 @@ export function wttClaimChallengeDocumentPath(challengeId: string): string {
 export function wttClaimDocumentPath(claimId: string): string {
   return `${FIRESTORE_COLLECTIONS.wttClaims}/${assertPathSegment(claimId, 'WTT claim id')}`;
 }
+
+export const PUBLIC_WTT_STATS_DOCUMENT_PATH =
+  `${FIRESTORE_COLLECTIONS.publicWttStats}/${PUBLIC_WTT_STATS_DOCUMENT_ID}` as const;
 
 export function historyEventDocumentPath(turnId: string): string {
   return `${FIRESTORE_COLLECTIONS.historyEvents}/${assertPathSegment(turnId, 'history event id')}`;

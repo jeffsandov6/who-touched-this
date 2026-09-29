@@ -4,7 +4,7 @@ import { FieldValue, getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
 import { HttpsError, onCall, onRequest } from 'firebase-functions/v2/https';
-import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import {
   configuredAppOrigin,
@@ -51,6 +51,9 @@ import { WttClaimError } from './wtt/claims.js';
 import { firestoreWttClaimStore } from './wtt/firestore-claims.js';
 import { GoogleKmsWttMessageSigner } from './wtt/kms-signer.js';
 import { MainnetWttSolanaGateway } from './wtt/solana-claims.js';
+import { MainnetWttSupplyReader } from './wtt/solana-supply.js';
+import { firestorePublicWttStatsStore } from './wtt/firestore-public-stats.js';
+import { refreshPublicWttStats as refreshPublicWttStatsRecord } from './wtt/public-stats.js';
 import {
   WTT_CLAIM_SERVICE_ACCOUNT,
   configuredWttSolanaRpcUrl,
@@ -180,6 +183,40 @@ export const grantWttContributionEntitlement = onDocumentCreated({
       sourceId: event.params.contributionNumber,
     });
     return;
+  }
+});
+
+export const refreshPublicWttStats = onDocumentWritten({
+  document: 'wttEntitlements/{entitlementId}', region: 'us-central1', retry: true,
+}, async (event) => {
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    logger.info('Public WTT aggregate refresh skipped in the emulator; unit tests use a mocked supply reader.', {
+      event: 'wtt_public_stats_emulator_skipped',
+    });
+    return;
+  }
+  try {
+    const sourceUpdatedAt = (event.data?.after.exists
+      ? event.data.after.updateTime?.toDate()
+      : event.data?.before.updateTime?.toDate()) ?? new Date(event.time);
+    const result = await refreshPublicWttStatsRecord(sourceUpdatedAt, {
+      store: firestorePublicWttStatsStore(getFirestore()),
+      supply: new MainnetWttSupplyReader(configuredWttSolanaRpcUrl()),
+    });
+    logger.info('Public WTT aggregate refreshed.', {
+      event: 'wtt_public_stats_refreshed',
+      write: result.write,
+      earned: result.values.earned,
+      claimed: result.values.claimed,
+      holders: result.values.holders,
+      supply: result.values.supply,
+    });
+  } catch (error) {
+    logger.error('Public WTT aggregate refresh failed; the last valid aggregate is preserved.', {
+      event: 'wtt_public_stats_refresh_failed',
+      failureCode: error instanceof Error ? error.name.slice(0, 64) : 'refresh_error',
+    });
+    throw error;
   }
 });
 

@@ -53,6 +53,9 @@ beforeEach(async () => {
       setDoc(doc(context.firestore(), 'wttClaims/server-created-claim'), {
         githubProviderId: owner.id, status: 'reserved', amount: 1,
       }),
+      setDoc(doc(context.firestore(), 'publicWttStats/current'), {
+        earned: 1, claimed: 0, holders: 0, supply: 0, updatedAt: Timestamp.now(),
+      }),
     ]);
   });
 });
@@ -121,6 +124,24 @@ test('WTT claims are server-only for every browser identity', async () => {
       githubProviderId: owner.id, status: 'confirmed', amount: 999,
     }));
     await assertFails(updateDoc(reference, { status: 'confirmed' }));
+    await assertFails(deleteDoc(reference));
+  }
+});
+
+test('the current WTT aggregate is public read-only without exposing private collections', async () => {
+  const unauthenticated = environment.unauthenticatedContext().firestore();
+  const authenticated = firestoreFor(owner);
+  await assertSucceeds(getDoc(doc(unauthenticated, 'publicWttStats/current')));
+  await assertSucceeds(getDoc(doc(authenticated, 'publicWttStats/current')));
+  await assertFails(getDoc(doc(unauthenticated, 'publicWttStats/other')));
+  await assertFails(getDocs(collection(unauthenticated, 'publicWttStats')));
+
+  for (const firestore of [unauthenticated, authenticated, firestoreFor(admin)]) {
+    const reference = doc(firestore, 'publicWttStats/current');
+    await assertFails(setDoc(reference, {
+      earned: 999, claimed: 999, holders: 999, supply: 999, updatedAt: Timestamp.now(),
+    }));
+    await assertFails(updateDoc(reference, { supply: 999 }));
     await assertFails(deleteDoc(reference));
   }
 });

@@ -864,6 +864,13 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Public aggregate only. It contains no contributor, entitlement, claim,
+    // or wallet relationship data and is written exclusively by trusted code.
+    match /publicWttStats/{statsId} {
+      allow get: if statsId == 'current';
+      allow list, create, update, delete: if false;
+    }
+
     // Private award ledger. Trusted Functions own every state transition.
     match /wttEntitlements/{entitlementId} {
       allow read: if hasGitHubIdentity()
