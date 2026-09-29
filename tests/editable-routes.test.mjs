@@ -25,7 +25,7 @@ test('canonical route registry rejects protected, external, and duplicate routes
 test('normal route validation handles roots, nested routes, and hostile values', () => {
   assert.equal(normalizeSnapshotRoute('/'), '/');
   assert.equal(normalizeSnapshotRoute('/some/future/page/'), '/some/future/page');
-  for (const route of ['//example.com', 'javascript:alert(1)', 'file:///tmp/a', 'data:text/plain,a', '/api/private']) {
+  for (const route of ['//example.com', 'javascript:alert(1)', 'file:///tmp/a', 'data:text/plain,a', '/api/private', '/wtt/claim']) {
     assert.throws(() => normalizeSnapshotRoute(route));
   }
 });
@@ -60,4 +60,3 @@ test('historical route resolution uses the AFTER commit, not the current checkou
     await rm(root, { recursive: true, force: true });
   }
 });
-

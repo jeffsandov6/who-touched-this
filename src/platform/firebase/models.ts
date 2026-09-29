@@ -66,6 +66,78 @@ export const PUBLIC_TURN_STATUSES = [
 
 export type PublicTurnStatus = (typeof PUBLIC_TURN_STATUSES)[number];
 
+export const WTT_ENTITLEMENT_SOURCE_TYPES = [
+  'contribution',
+  'easter_egg',
+  'game',
+  'season_bonus',
+  'admin_award',
+] as const;
+
+export type WttEntitlementSourceType = (typeof WTT_ENTITLEMENT_SOURCE_TYPES)[number];
+
+export const WTT_ENTITLEMENT_STATUSES = ['unclaimed', 'claiming', 'claimed'] as const;
+
+export type WttEntitlementStatus = (typeof WTT_ENTITLEMENT_STATUSES)[number];
+
+interface WttEntitlementBase {
+  sourceType: WttEntitlementSourceType;
+  sourceId: string;
+  /** Stable numeric GitHub provider identity, never a mutable username. */
+  githubProviderId: string;
+  /** Document ID of the matching contributors/{contributorId} record. */
+  contributorId: string;
+  amount: number;
+  earnedAt: Timestamp;
+}
+
+/** Private server-owned award ledger: wttEntitlements/{sourceType}:{sourceId}. */
+export type WttEntitlementRecord = WttEntitlementBase & ({
+  status: 'unclaimed';
+  claimId: null;
+  claimedAt: null;
+  claimedWallet?: null;
+  claimTransaction?: null;
+} | {
+  status: 'claiming';
+  claimId: string;
+  claimedAt: null;
+  claimedWallet?: null;
+  claimTransaction?: null;
+} | {
+  status: 'claimed';
+  claimId: string;
+  claimedAt: Timestamp;
+  claimedWallet: string;
+  claimTransaction: string;
+});
+
+export const WTT_CLAIM_STATUSES = [
+  'reserved', 'preparing', 'prepared', 'submitted', 'confirmed',
+] as const;
+export type WttClaimStatus = (typeof WTT_CLAIM_STATUSES)[number];
+
+export const WTT_CLAIM_CHALLENGE_STATUSES = ['issued', 'verified', 'consumed'] as const;
+export type WttClaimChallengeStatus = (typeof WTT_CLAIM_CHALLENGE_STATUSES)[number];
+
+/** Server-only wallet-ownership proof. Browser Firestore access is always denied. */
+export interface WttClaimChallengeRecord {
+  schemaVersion: 1;
+  githubProviderId: string;
+  walletAddress: string;
+  entitlementIds: string[];
+  amount: number;
+  /** Exact UTF-8 message issued by the server. */
+  message: string;
+  /** Cryptographically random base64url nonce. */
+  nonce: string;
+  status: WttClaimChallengeStatus;
+  issuedAt: Timestamp;
+  expiresAt: Timestamp;
+  verifiedAt: Timestamp | null;
+  consumedAt: Timestamp | null;
+}
+
 /** Private: contributors/{githubUserId} */
 export interface ContributorRecord {
   firebaseUid: string;

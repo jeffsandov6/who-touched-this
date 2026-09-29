@@ -73,7 +73,7 @@ test('indexing helpers produce pre-launch noindex/disallow and launch allow beha
 });
 
 test('smoke route set combines canonical editable and public platform routes', () => {
-  assert.deepEqual(smokeRoutes(), ['/', '/random', '/thoughts', '/history', '/faq', '/rules', '/join']);
+  assert.deepEqual(smokeRoutes(), ['/', '/random', '/thoughts', '/history', '/faq', '/rules', '/join', '/wtt/claim']);
   assert.throws(() => validateSmokeOrigin('https://example.com'), /must be/);
   assert.throws(() => validateSmokeOrigin('http://whotouchedthis.website'), /must be/);
   assert.equal(validateSmokeOrigin(RELEASE_CONFIG.origin), RELEASE_CONFIG.origin);
@@ -88,12 +88,12 @@ test('read-only smoke uses only GET, validates indexing, and fails HTTP errors',
     return new Response('<!doctype html><title>Who Touched This</title><meta name="robots" content="noindex, nofollow">', { status: 200, headers: { 'content-type': 'text/html' } });
   };
   const routes = await runReadOnlySmoke({ origin: 'http://127.0.0.1:4321', expectedIndexing: 'disabled', fetchImpl: okFetch, allowLocal: true });
-  assert.equal(routes.length, 7);
+  assert.equal(routes.length, 8);
   assert.deepEqual(new Set(methods), new Set(['GET']));
   await assert.rejects(runReadOnlySmoke({ origin: 'http://127.0.0.1:4321', expectedIndexing: 'disabled', allowLocal: true, fetchImpl: async () => new Response('no', { status: 500, headers: { 'content-type': 'text/html' } }) }), /HTTP 500/);
 });
 
-test('read-only smoke succeeds against a local static seven-route fixture', async () => {
+test('read-only smoke succeeds against a local static eight-route fixture', async () => {
   const root = await mkdtemp(join(tmpdir(), 'wtt-smoke-fixture-'));
   let server;
   try {

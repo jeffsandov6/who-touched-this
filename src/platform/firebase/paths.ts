@@ -9,6 +9,9 @@ export const FIRESTORE_COLLECTIONS = {
   contributions: 'contributions',
   historyEvents: 'historyEvents',
   contributionSnapshots: 'contributionSnapshots',
+  wttEntitlements: 'wttEntitlements',
+  wttClaimChallenges: 'wttClaimChallenges',
+  wttClaims: 'wttClaims',
   site: 'site',
 } as const;
 
@@ -95,6 +98,22 @@ export function contributionDocumentPath(contributionNumber: number): string {
 
 export function contributionSnapshotDocumentPath(contributionNumber: number): string {
   return `${FIRESTORE_COLLECTIONS.contributionSnapshots}/${assertContributionNumber(contributionNumber)}`;
+}
+
+export function wttContributionEntitlementDocumentId(contributionNumber: number): string {
+  return `contribution:${assertContributionNumber(contributionNumber)}`;
+}
+
+export function wttContributionEntitlementDocumentPath(contributionNumber: number): string {
+  return `${FIRESTORE_COLLECTIONS.wttEntitlements}/${wttContributionEntitlementDocumentId(contributionNumber)}`;
+}
+
+export function wttClaimChallengeDocumentPath(challengeId: string): string {
+  return `${FIRESTORE_COLLECTIONS.wttClaimChallenges}/${assertPathSegment(challengeId, 'WTT claim challenge id')}`;
+}
+
+export function wttClaimDocumentPath(claimId: string): string {
+  return `${FIRESTORE_COLLECTIONS.wttClaims}/${assertPathSegment(claimId, 'WTT claim id')}`;
 }
 
 export function historyEventDocumentPath(turnId: string): string {

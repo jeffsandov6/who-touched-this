@@ -11,6 +11,7 @@ const protectedLinks = [
   { href: '/faq', label: 'faq' },
   { href: '/rules', label: 'rules' },
   { href: '/join', label: 'join' },
+  { href: '/wtt/claim', label: 'wtt' },
 ] as const;
 
 export default function Navigation({ currentPath }: NavigationProps) {

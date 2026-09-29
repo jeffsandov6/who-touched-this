@@ -70,7 +70,7 @@ test('navbar order and dropdown expose only approved non-home editable routes', 
     const control = item.querySelector(':scope > a, :scope > button');
     return control?.textContent.trim();
   }));
-  assert.deepEqual(labels, ['home', 'pages', 'history', 'faq', 'rules', 'join']);
+  assert.deepEqual(labels, ['home', 'pages', 'history', 'faq', 'rules', 'join', 'wtt']);
 
   const hrefs = await page.locator('[data-pages-dropdown] a').evaluateAll((links) => links.map((link) => link.getAttribute('href')));
   assert.deepEqual(hrefs, ['/random', '/thoughts']);
@@ -92,6 +92,7 @@ test('home, editable pages, and protected pages retain exact active treatment', 
     { path: '/faq', top: 'faq', selected: null },
     { path: '/rules', top: 'rules', selected: null },
     { path: '/join', top: 'join', selected: null },
+    { path: '/wtt/claim', top: 'wtt', selected: null },
   ];
 
   for (const { path, top, selected } of cases) {

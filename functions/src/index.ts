@@ -30,6 +30,25 @@ import type { EmailProvider } from './email/types.js';
 import { handleGitHubWebhook } from './github/webhook.js';
 import { finalizeSnapshotArchiveRequest, SnapshotFinalizeError } from './snapshots/finalize.js';
 import { recordFounderSeedContribution, FounderSeedError } from './founder/record.js';
+import { grantContributionEntitlement } from './wtt/entitlements.js';
+import {
+  issueWttClaimChallenge as issueWttClaimChallengeRequest,
+  verifyWttClaimChallenge as verifyWttClaimChallengeRequest,
+  WttChallengeError,
+} from './wtt/challenges.js';
+import { firestoreWttChallengeDependencies } from './wtt/firestore-challenges.js';
+import {
+  executeWttClaim,
+  defaultWttClaimRandomBytes,
+} from './wtt/claim-service.js';
+import { WttClaimError } from './wtt/claims.js';
+import { firestoreWttClaimStore } from './wtt/firestore-claims.js';
+import { GoogleKmsWttMessageSigner } from './wtt/kms-signer.js';
+import { MainnetWttSolanaGateway } from './wtt/solana-claims.js';
+import {
+  WTT_CLAIM_SERVICE_ACCOUNT,
+  configuredWttSolanaRpcUrl,
+} from './wtt/config.js';
 
 if (getApps().length === 0) initializeApp();
 
@@ -129,6 +148,95 @@ export const sendContributionCompletedEmail = onDocumentUpdated({
   } catch (error) {
     safeLogFailure('Completion email delivery failed and may be retried.', event.params.turnId, error);
     throw error;
+  }
+});
+
+export const grantWttContributionEntitlement = onDocumentCreated({
+  document: 'contributions/{contributionNumber}', region: 'us-central1', retry: true,
+}, async (event) => {
+  const contribution = event.data?.data();
+  if (!contribution) return;
+  const firestore = getFirestore();
+  const result = await grantContributionEntitlement(
+    event.params.contributionNumber,
+    contribution,
+    {
+      createIfAbsent: (entitlementId, record) => firestore.runTransaction(async (transaction) => {
+        const reference = firestore.doc(`wttEntitlements/${entitlementId}`);
+        if ((await transaction.get(reference)).exists) return 'already_exists' as const;
+        transaction.create(reference, record);
+        return 'created' as const;
+      }),
+    },
+  );
+  if (result.status === 'ineligible') {
+    logger.error('Contribution was not eligible for a WTT entitlement.', {
+      sourceId: event.params.contributionNumber,
+    });
+  }
+});
+
+function mapWttChallengeError(error: unknown): never {
+  if (error instanceof WttChallengeError) {
+    throw new HttpsError(error.code, error.message);
+  }
+  safeLogFailure('WTT wallet challenge operation failed.', 'callable', error);
+  throw new HttpsError('internal', 'wallet verification could not be completed. try again later.');
+}
+
+export const issueWttClaimChallenge = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    return await issueWttClaimChallengeRequest(
+      request.auth?.token ?? null,
+      request.data,
+      firestoreWttChallengeDependencies(getFirestore(), configuredAppOrigin()),
+    );
+  } catch (error) {
+    return mapWttChallengeError(error);
+  }
+});
+
+export const verifyWttClaimChallenge = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    return await verifyWttClaimChallengeRequest(
+      request.auth?.token ?? null,
+      request.data,
+      firestoreWttChallengeDependencies(getFirestore(), configuredAppOrigin()),
+    );
+  } catch (error) {
+    return mapWttChallengeError(error);
+  }
+});
+
+export const claimWtt = onCall({
+  region: 'us-central1',
+  serviceAccount: WTT_CLAIM_SERVICE_ACCOUNT,
+  timeoutSeconds: 120,
+  memory: '512MiB',
+}, async (request) => {
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    throw new HttpsError(
+      'failed-precondition',
+      'production WTT claim execution is disabled in the local emulator; use mocked unit tests.',
+    );
+  }
+  try {
+    const firestore = getFirestore();
+    return await executeWttClaim(request.auth?.token ?? null, request.data, {
+      store: firestoreWttClaimStore(firestore),
+      solana: new MainnetWttSolanaGateway(
+        configuredWttSolanaRpcUrl(),
+        new GoogleKmsWttMessageSigner(),
+      ),
+      now: () => new Date(),
+      randomBytes: defaultWttClaimRandomBytes,
+    });
+  } catch (error) {
+    if (error instanceof WttClaimError) {
+      throw new HttpsError(error.code, error.message);
+    }
+    safeLogFailure('WTT claim execution failed.', 'callable', error);
+    throw new HttpsError('internal', 'WTT claim could not be completed. resume it later.');
   }
 });
 

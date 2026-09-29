@@ -11,6 +11,7 @@ const protectedLinks = [
   { href: '/faq', label: 'faq' },
   { href: '/rules', label: 'rules' },
   { href: '/join', label: 'join' },
+  { href: '/wtt/claim', label: 'wtt' },
 ] as const satisfies readonly NavigationLink[];
 
 function normalizePath(path: string): string {
@@ -51,4 +52,3 @@ export function isProtectedCurrentPath(currentPath: string, href: string): boole
   const normalized = normalizePath(currentPath);
   return normalized === href || normalized.startsWith(`${href}/`);
 }
-
