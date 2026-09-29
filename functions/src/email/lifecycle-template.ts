@@ -124,14 +124,39 @@ export function buildContributionCompletedEmail(input: ContributionInput): SendE
     || !/^\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/pull\/[1-9][0-9]*\/?$/.test(pr.pathname)) {
     throw new Error('PR URL is invalid.');
   }
-  return finish(input, emailDocument(
-    `contribution #${number} is now part of who touched this`, name,
-    [
-      `contribution #${number} is now a permanent part of who touched this.`,
-      `summary: ${summary}`,
-      `GitHub pull request: ${pr.toString()}`,
-      'thank you for contributing to the experiment.',
-    ],
-    applicationUrl(input.appOrigin, '/history'), 'view public history',
-  ));
+  const contributionUrl = applicationUrl(input.appOrigin, `/history/${input.contributionNumber}`);
+  const claimUrl = applicationUrl(input.appOrigin, '/wtt/claim');
+  const subject = `contribution #${number} is now part of who touched this`;
+  const text = [
+    `hello ${name},`, '', 'your contribution is live.', '',
+    `Contribution #${number}`, `summary: ${summary}`, `GitHub pull request: ${pr.toString()}`,
+    `view contribution: ${contributionUrl}`, '', 'you earned 1 WTT.', '',
+    'you touched the website.', 'unfortunately, you earned this.', '',
+    `claim your WTT: ${claimUrl}`, '', 'new to Solana wallets?',
+    "we'll walk you through it on the claim page.", '',
+    'you do not need SOL or crypto to participate in Who Touched This.',
+    'you only need a Solana wallet if you want to claim your WTT.', '',
+    'need help?', 'hello@whotouchedthis.website',
+  ].join('\n');
+  const html = `<!doctype html>
+<html lang="en">
+  <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#202124">
+    <main style="max-width:600px;margin:0 auto;padding:24px">
+      <h1 style="font-size:22px">who touched this</h1>
+      <p>hello ${escapeHtml(name)},</p>
+      <p>your contribution is live.</p>
+      <h2 style="font-size:18px">Contribution #${number}</h2>
+      <p>${escapeHtml(summary)}</p>
+      <p><a href="${escapeHtml(contributionUrl)}">view contribution</a></p>
+      <h2 style="font-size:18px">you earned 1 WTT.</h2>
+      <p>you touched the website.<br>unfortunately, you earned this.</p>
+      <p><a href="${escapeHtml(claimUrl)}">claim your WTT</a></p>
+      <p><strong>new to Solana wallets?</strong><br>we'll walk you through it on the claim page.</p>
+      <p>you do not need SOL or crypto to participate in Who Touched This.<br>
+      you only need a Solana wallet if you want to claim your WTT.</p>
+      <p>need help?<br><a href="mailto:hello@whotouchedthis.website">hello@whotouchedthis.website</a></p>
+    </main>
+  </body>
+</html>`;
+  return finish(input, { subject, text, html });
 }

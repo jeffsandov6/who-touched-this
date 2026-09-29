@@ -268,6 +268,16 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .notice-error { border-left-color: #a33a32; background: #f8e8e6; }
 .wtt-claim-page { max-width: 46rem; }
 .wtt-intro { font-size: 1.125rem; }
+.wtt-wallet-help {
+  margin-block: 1.5rem 2rem;
+  padding: 1rem;
+  border-left: 4px solid #8ab4e0;
+  background: #f6f9fc;
+}
+.wtt-wallet-help h2, .wtt-wallet-help p { margin-block: 0 0.75rem; }
+.wtt-wallet-help details { margin-block: 1rem; }
+.wtt-wallet-help summary { font-weight: 700; cursor: pointer; }
+.wtt-wallet-help ol { padding-left: 1.4rem; }
 .wtt-auth-panel { margin-top: 2rem; }
 .wtt-auth-panel h2, .empty-state h2 { margin-block: 0 0.5rem; }
 .wtt-auth-panel p, .empty-state p { margin-block: 0 1rem; }

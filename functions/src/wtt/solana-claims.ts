@@ -23,6 +23,7 @@ import {
   WTT_DECIMALS,
   WTT_MINT_ADDRESS,
   WTT_OPERATIONAL_AUTHORITY,
+  WTT_OPERATIONAL_MINIMUM_LAMPORTS,
   WTT_TOKEN_PROGRAM_ADDRESS,
 } from './config.js';
 import { WttClaimError, type WttClaimRecord, type WttPreparedAttempt } from './claims.js';
@@ -37,7 +38,7 @@ export interface WttKmsMessageSigner {
 export interface WttSolanaGateway {
   prepareAttempt(claim: WttClaimRecord, attemptNumber: number, preparedAt: Date): Promise<WttPreparedAttempt>;
   getAttemptStatus(transactionSignature: string): Promise<WttChainAttemptStatus>;
-  isBlockhashValid(blockhash: string): Promise<boolean>;
+  isAttemptExpired(attempt: WttPreparedAttempt): Promise<boolean>;
   submitPreparedAttempt(attempt: WttPreparedAttempt): Promise<void>;
 }
 
@@ -62,6 +63,20 @@ export interface WttTokenAccountState {
 const MINT = new PublicKey(WTT_MINT_ADDRESS);
 const AUTHORITY = new PublicKey(WTT_OPERATIONAL_AUTHORITY);
 const COMMITMENT: Commitment = 'confirmed';
+
+export type WttSolanaOperationalEvent =
+  | 'mint_invariant_failure'
+  | 'kms_signing_failure'
+  | 'insufficient_operational_sol';
+
+export function attemptIsDefinitivelyExpired(
+  blockhashIsValid: boolean,
+  currentBlockHeight: number,
+  lastValidBlockHeight: number,
+): boolean {
+  return !blockhashIsValid && Number.isSafeInteger(currentBlockHeight)
+    && currentBlockHeight > lastValidBlockHeight;
+}
 
 export function assertWttMintInvariants(mint: WttMintState): void {
   if (mint.address !== WTT_MINT_ADDRESS
@@ -199,7 +214,11 @@ function accountOwner(info: AccountInfo<Buffer>): string {
 export class MainnetWttSolanaGateway implements WttSolanaGateway {
   readonly #connection: Connection;
 
-  constructor(rpcUrl: string, private readonly signer: WttKmsMessageSigner) {
+  constructor(
+    rpcUrl: string,
+    private readonly signer: WttKmsMessageSigner,
+    private readonly observe: (event: WttSolanaOperationalEvent, fields: Record<string, unknown>) => void = () => {},
+  ) {
     this.#connection = new Connection(rpcUrl, COMMITMENT);
   }
 
@@ -254,17 +273,35 @@ export class MainnetWttSolanaGateway implements WttSolanaGateway {
     preparedAt: Date,
   ): Promise<WttPreparedAttempt> {
     wttClaimAmount(claim.amount);
-    await this.#inspectMint();
+    const balance = await this.#connection.getBalance(AUTHORITY, COMMITMENT);
+    if (balance < WTT_OPERATIONAL_MINIMUM_LAMPORTS) {
+      this.observe('insufficient_operational_sol', { attemptNumber, balanceLamports: balance });
+      throw new WttClaimError('failed-precondition', 'the WTT operational account needs more SOL before this claim can continue.');
+    }
+    try {
+      await this.#inspectMint();
+    } catch (error) {
+      if (error instanceof WttClaimError && error.code === 'failed-precondition') {
+        this.observe('mint_invariant_failure', { attemptNumber });
+      }
+      throw error;
+    }
     const ataState = await this.#inspectAta(claim.walletAddress);
     const { instructions } = createWttClaimInstructions(claim.walletAddress, claim.amount, ataState);
     const { blockhash, lastValidBlockHeight } = await this.#connection.getLatestBlockhash(COMMITMENT);
-    const signed = await buildExternallySignedTransaction({
-      authority: AUTHORITY,
-      instructions,
-      blockhash,
-      lastValidBlockHeight,
-      signer: this.signer,
-    });
+    let signed;
+    try {
+      signed = await buildExternallySignedTransaction({
+        authority: AUTHORITY,
+        instructions,
+        blockhash,
+        lastValidBlockHeight,
+        signer: this.signer,
+      });
+    } catch (error) {
+      this.observe('kms_signing_failure', { attemptNumber });
+      throw error;
+    }
     return {
       number: attemptNumber,
       transactionSignature: signed.transactionSignature,
@@ -287,8 +324,14 @@ export class MainnetWttSolanaGateway implements WttSolanaGateway {
     return status.confirmationStatus === 'finalized' ? 'confirmed' : 'pending';
   }
 
-  async isBlockhashValid(blockhash: string): Promise<boolean> {
-    return (await this.#connection.isBlockhashValid(blockhash, { commitment: COMMITMENT })).value;
+  async isAttemptExpired(attempt: WttPreparedAttempt): Promise<boolean> {
+    const [validity, currentBlockHeight] = await Promise.all([
+      this.#connection.isBlockhashValid(attempt.blockhash, { commitment: COMMITMENT }),
+      this.#connection.getBlockHeight(COMMITMENT),
+    ]);
+    return attemptIsDefinitivelyExpired(
+      validity.value, currentBlockHeight, attempt.lastValidBlockHeight,
+    );
   }
 
   async submitPreparedAttempt(attempt: WttPreparedAttempt): Promise<void> {

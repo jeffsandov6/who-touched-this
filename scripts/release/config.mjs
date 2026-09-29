@@ -12,6 +12,7 @@ export const RELEASE_CONFIG = Object.freeze({
   ]),
   functionsVariables: Object.freeze([
     'EMAIL_PROVIDER_MODE', 'APP_ORIGIN', 'GITHUB_REPOSITORY', 'GITHUB_BASE_BRANCH',
+    'WTT_SOLANA_RPC_URL',
   ]),
   secretNames: Object.freeze(['RESEND_API_KEY', 'GITHUB_WEBHOOK_SECRET']),
   platformSmokeRoutes: Object.freeze(['/history', '/faq', '/rules', '/join', '/wtt/claim']),

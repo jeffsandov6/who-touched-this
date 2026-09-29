@@ -24,7 +24,8 @@ export type EmailDeliveryType =
   | 'turn_24h_reminder'
   | 'turn_deadline_passed'
   | 'pr_submitted'
-  | 'contribution_completed';
+  | 'contribution_completed'
+  | 'contribution_completed_resend';
 
 export interface DeliveryClaim {
   kind: 'claimed' | 'already-sent' | 'busy';
@@ -36,6 +37,7 @@ export interface DeliveryIdentity {
   invitationId?: string;
   turnId?: string;
   contributionNumber?: number;
+  requestedByGithubUserId?: string;
   githubUserId: string;
   claimToken: string;
 }

@@ -172,7 +172,7 @@ class FakeSolana implements WttSolanaGateway {
   prepareCount = 0;
   submittedRaw: string[] = [];
   statuses = new Map<string, WttChainAttemptStatus[]>();
-  validBlockhash = true;
+  attemptExpired = false;
   failSubmit = 0;
   log: string[];
 
@@ -192,7 +192,7 @@ class FakeSolana implements WttSolanaGateway {
     return values.length > 1 ? values.shift()! : values[0]!;
   }
 
-  async isBlockhashValid() { return this.validBlockhash; }
+  async isAttemptExpired() { return this.attemptExpired; }
 
   async submitPreparedAttempt(value: WttPreparedAttempt) {
     this.log.push(`broadcast:${value.rawTransactionBase64}`);
@@ -290,7 +290,7 @@ test('absent expired or explicitly failed attempt is retired before one fresh st
     installAttempt(store);
     const solana = new FakeSolana(store.log);
     solana.statuses.set('signature-1', [priorStatus]);
-    solana.validBlockhash = priorStatus !== 'not_found';
+    solana.attemptExpired = priorStatus === 'not_found';
     solana.statuses.set('signature-2', ['not_found', 'pending']);
     const result = await executeWttClaim(AUTH, { challengeId: CLAIM_ID }, dependencies(store, solana));
     assert.equal(result.status, 'processing');
@@ -329,4 +329,17 @@ test('simultaneous calls preserve one logical claim and one prepared attempt', a
   assert.equal(solana.prepareCount, 1);
   assert.equal(store.claim?.attemptCount, 1);
   assert.equal(store.entitlements.get('contribution:12')?.claimId, CLAIM_ID);
+});
+
+test('structured lifecycle events omit signed transaction bytes and private identity data', async () => {
+  const store = new MemoryStore();
+  const solana = new FakeSolana(store.log);
+  const events: unknown[] = [];
+  await executeWttClaim(AUTH, { challengeId: CLAIM_ID }, {
+    ...dependencies(store, solana), observe: (event) => events.push(event),
+  });
+  assert.ok(events.some((value) => (value as { event: string }).event === 'claim_reserved'));
+  assert.ok(events.some((value) => (value as { event: string }).event === 'attempt_prepared'));
+  const serialized = JSON.stringify(events);
+  assert.doesNotMatch(serialized, /rawTransactionBase64|firebase|githubProviderId|walletAddress/);
 });

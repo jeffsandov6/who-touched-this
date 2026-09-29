@@ -142,6 +142,7 @@ export interface WttClaimStateStore {
 export interface ReservedWttClaim {
   claimId: string;
   claim: WttClaimRecord;
+  created: boolean;
 }
 
 export interface ConfirmedWttClaim {
@@ -304,7 +305,7 @@ export async function reserveWttClaim(
     if (!existingClaim) transaction.createClaim(claimId, claim);
     for (const entitlementId of idsToLock) transaction.lockEntitlement(entitlementId, claimId);
     if (challenge.status === 'verified') transaction.consumeChallenge(claimId, now);
-    return { claimId, claim };
+    return { claimId, claim, created: !existingClaim };
   });
 }
 

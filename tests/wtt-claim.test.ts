@@ -107,9 +107,33 @@ test('claim page presents signed-out, empty, totals, history, wallet, and all-cl
     'view confirmed transaction on Solscan',
     'nothing remains to claim',
     'entitlement.status',
+    'WTT is a fungible token on Solana',
+    'Claiming is optional, and earned WTT does not expire.',
+    'Who Touched This will NEVER ask for your recovery phrase or private key.',
+    'Do not paste a recovery phrase into this page.',
+    'not a crypto exchange deposit address',
+    'You do not need to buy SOL.',
+    'Who Touched This pays the network and token-account cost.',
+    'hello@whotouchedthis.website',
   ]) assert.ok(source.includes(text), text);
   assert.match(source, /entitlements\.map\(\(entitlement\)/);
   assert.match(source, /href=\{`\/history\/\$\{entitlement\.sourceId\}`\}/);
+});
+
+test('an expired pre-reservation challenge returns the page to wallet verification', async () => {
+  const source = await readFile(new URL('../src/platform/pages/WttClaimPage.tsx', import.meta.url), 'utf8');
+  assert.match(source, /includes\('challenge has expired'\)[\s\S]*clearVerifiedChallenge\(\)/);
+  assert.ok(source.includes('verify the wallet again'));
+});
+
+test('admin completion-email recovery calls the protected resend operation only', async () => {
+  const admin = await readFile(new URL('../src/platform/pages/AdminPage.tsx', import.meta.url), 'utf8');
+  const service = await readFile(new URL('../src/platform/firebase/email-deliveries.ts', import.meta.url), 'utf8');
+  assert.ok(admin.includes('completion email recovery'));
+  assert.ok(admin.includes('This does not create or change an entitlement.'));
+  assert.match(admin, /resendContributionCompletedEmail\(contributionNumber\)/);
+  assert.match(service, /'resendContributionCompletedEmail'/);
+  assert.doesNotMatch(service, /wttEntitlements|claimId|status:\s*'unclaimed'/);
 });
 
 test('claim page selection supports many unclaimed records but disables claimed history', async () => {

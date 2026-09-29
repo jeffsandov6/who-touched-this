@@ -104,7 +104,7 @@ npm run dev:contributor
 Open the local address printed by Astro, normally <http://localhost:4321>. You should see the protected
 shell, a clearly marked contributor-preview status, & the current canvas.
 
-Contributor preview requires no production credentials, secrets, or private configuration. Do not
+Contributor preview requires no `.env`, production credentials, secrets, or private configuration. Do not
 copy production configuration into your fork. Join, Admin, & other operational pages are not part of
 contributor preview.
 

@@ -144,8 +144,50 @@ export async function sendTurnNotification(
 
 export interface ContributionData {
   number: unknown;
+  githubUserId: unknown;
   summary: unknown;
   prUrl: unknown;
+}
+
+interface ContributionDeliveryOptions {
+  turnId?: string;
+  deliveryId?: string;
+  type?: 'contribution_completed' | 'contribution_completed_resend';
+  requestedByGithubUserId?: string;
+}
+
+export async function sendContributionCompletedFromContribution(
+  contributionId: string,
+  contribution: ContributionData,
+  claimToken: string,
+  dependencies: LifecycleDeliveryDependencies,
+  options: ContributionDeliveryOptions = {},
+): Promise<LifecycleDeliveryResult> {
+  if (!/^(0|[1-9][0-9]*)$/.test(contributionId)
+    || !Number.isSafeInteger(contribution.number)
+    || contribution.number !== Number(contributionId)
+    || !validGitHubId(contribution.githubUserId)
+    || typeof contribution.summary !== 'string' || !contribution.summary.trim()
+    || typeof contribution.prUrl !== 'string') {
+    return { kind: 'failed', code: 'malformed_contribution' };
+  }
+  const number = contribution.number as number;
+  const deliveryId = options.deliveryId ?? deliveryIds.contributionCompleted(number);
+  return deliverToContributor({
+    deliveryId,
+    type: options.type ?? 'contribution_completed',
+    ...(options.turnId ? { turnId: options.turnId } : {}),
+    contributionNumber: number,
+    githubUserId: contribution.githubUserId,
+    claimToken,
+    ...(options.requestedByGithubUserId
+      ? { requestedByGithubUserId: options.requestedByGithubUserId }
+      : {}),
+  }, dependencies, ({ email, displayName }) => buildContributionCompletedEmail({
+    to: email, displayName, contributionNumber: number,
+    summary: contribution.summary as string, prUrl: contribution.prUrl as string,
+    appOrigin: dependencies.appOrigin, idempotencyKey: deliveryId,
+  }));
 }
 
 export async function sendContributionCompleted(
@@ -157,18 +199,12 @@ export async function sendContributionCompleted(
 ): Promise<LifecycleDeliveryResult> {
   if (turn.status !== 'merged' || !validTurnData(turn)
     || !Number.isSafeInteger(contribution.number) || contribution.number !== turn.targetContributionNumber
+    || contribution.githubUserId !== turn.githubUserId
     || typeof contribution.summary !== 'string' || !contribution.summary.trim()
     || typeof contribution.prUrl !== 'string') {
     return { kind: 'failed', code: 'malformed_contribution' };
   }
-  const number = contribution.number as number;
-  const deliveryId = deliveryIds.contributionCompleted(number);
-  return deliverToContributor({
-    deliveryId, type: 'contribution_completed', turnId, contributionNumber: number,
-    githubUserId: turn.githubUserId, claimToken,
-  }, dependencies, ({ email, displayName }) => buildContributionCompletedEmail({
-    to: email, displayName, contributionNumber: number,
-    summary: contribution.summary as string, prUrl: contribution.prUrl as string,
-    appOrigin: dependencies.appOrigin, idempotencyKey: deliveryId,
-  }));
+  return sendContributionCompletedFromContribution(
+    String(contribution.number), contribution, claimToken, dependencies, { turnId },
+  );
 }

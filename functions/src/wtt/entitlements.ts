@@ -25,6 +25,10 @@ export type GrantContributionEntitlementResult =
   | { status: 'created' | 'already_exists'; entitlementId: string }
   | { status: 'ineligible' };
 
+export type ExistingContributionEntitlementResult =
+  | { valid: true; status: 'unclaimed' | 'claiming' | 'claimed' }
+  | { valid: false; reason: string };
+
 function validTimestamp(value: unknown): boolean {
   if (!value || typeof value !== 'object') return false;
   const toMillis = (value as { toMillis?: unknown }).toMillis;
@@ -34,6 +38,51 @@ function validTimestamp(value: unknown): boolean {
   } catch {
     return false;
   }
+}
+
+function timestampMillis(value: unknown): number | null {
+  if (!validTimestamp(value)) return null;
+  return (value as { toMillis(): number }).toMillis();
+}
+
+export function validateExistingContributionEntitlement(
+  expected: WttContributionEntitlementRecord,
+  value: unknown,
+): ExistingContributionEntitlementResult {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { valid: false, reason: 'entitlement is not an object' };
+  }
+  const record = value as Record<string, unknown>;
+  if (record.sourceType !== expected.sourceType || record.sourceId !== expected.sourceId
+    || record.githubProviderId !== expected.githubProviderId
+    || record.contributorId !== expected.contributorId || record.amount !== expected.amount
+    || timestampMillis(record.earnedAt) !== timestampMillis(expected.earnedAt)) {
+    return { valid: false, reason: 'immutable entitlement provenance does not match its contribution' };
+  }
+  if (record.status === 'unclaimed') {
+    return record.claimId === null && record.claimedAt === null
+      && (record.claimedWallet === null || record.claimedWallet === undefined)
+      && (record.claimTransaction === null || record.claimTransaction === undefined)
+      ? { valid: true, status: 'unclaimed' }
+      : { valid: false, reason: 'unclaimed entitlement lifecycle fields are inconsistent' };
+  }
+  if (record.status === 'claiming') {
+    return typeof record.claimId === 'string' && record.claimId.length > 0
+      && record.claimedAt === null
+      && (record.claimedWallet === null || record.claimedWallet === undefined)
+      && (record.claimTransaction === null || record.claimTransaction === undefined)
+      ? { valid: true, status: 'claiming' }
+      : { valid: false, reason: 'claiming entitlement lifecycle fields are inconsistent' };
+  }
+  if (record.status === 'claimed') {
+    return typeof record.claimId === 'string' && record.claimId.length > 0
+      && validTimestamp(record.claimedAt)
+      && typeof record.claimedWallet === 'string' && record.claimedWallet.length > 0
+      && typeof record.claimTransaction === 'string' && record.claimTransaction.length > 0
+      ? { valid: true, status: 'claimed' }
+      : { valid: false, reason: 'claimed entitlement lifecycle fields are inconsistent' };
+  }
+  return { valid: false, reason: 'entitlement status is unsupported' };
 }
 
 export function contributionEntitlementId(contributionNumber: number): string {

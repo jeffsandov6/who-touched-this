@@ -31,7 +31,10 @@ import {
   type AdminPendingInvitation,
 } from '../firebase/invitations';
 import { QUEUE_STATUSES, type AdminRole } from '../firebase/models';
-import { retryFailedInvitationEmail } from '../firebase/email-deliveries';
+import {
+  resendContributionCompletedEmail,
+  retryFailedInvitationEmail,
+} from '../firebase/email-deliveries';
 import {
   expireCurrentTurn,
   loadAdminCurrentTurn,
@@ -93,6 +96,9 @@ export default function AdminPage() {
   const [turnDurationHours, setTurnDurationHours] = useState(String(DEFAULT_TURN_DURATION_HOURS));
   const [turnBusy, setTurnBusy] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [completionEmailNumber, setCompletionEmailNumber] = useState('');
+  const [completionEmailBusy, setCompletionEmailBusy] = useState(false);
+  const [completionEmailMessage, setCompletionEmailMessage] = useState<string | null>(null);
 
   async function refreshAdminData(sequence = requestSequence.current) {
     setQueueLoading(true);
@@ -322,6 +328,29 @@ export default function AdminPage() {
     }
   }
 
+  async function handleCompletionEmailResend() {
+    const contributionNumber = Number(completionEmailNumber);
+    if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0
+      || String(contributionNumber) !== completionEmailNumber.trim().replace(/^0+(?=\d)/, '')) {
+      setErrorMessage('enter a valid contribution number.');
+      return;
+    }
+    if (!window.confirm(`resend the completion and WTT email for contribution #${String(contributionNumber).padStart(3, '0')}?`)) return;
+    setCompletionEmailBusy(true);
+    setCompletionEmailMessage(null);
+    setErrorMessage(null);
+    try {
+      const status = await resendContributionCompletedEmail(contributionNumber);
+      setCompletionEmailMessage(status === 'already-sent'
+        ? 'this resend was already delivered.'
+        : 'completion and WTT email resend processed.');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'the completion email could not be resent.');
+    } finally {
+      setCompletionEmailBusy(false);
+    }
+  }
+
   return (
     <section className="page-content admin-page" aria-labelledby="admin-heading">
       <h1 id="admin-heading">admin</h1>
@@ -501,6 +530,26 @@ export default function AdminPage() {
           <AdminMediaManager />
 
           <AdminFounderSeed isOwner={adminRole === 'owner'} />
+
+          <section className="admin-current-turn" aria-labelledby="completion-email-resend-heading">
+            <h2 id="completion-email-resend-heading">completion email recovery</h2>
+            <p>Resend the public completion notice and universal WTT claim link. This does not create or change an entitlement.</p>
+            <div className="wtt-wallet-connect">
+              <label htmlFor="completion-email-number">
+                contribution number
+                <input id="completion-email-number" type="number" min="0" step="1"
+                  value={completionEmailNumber}
+                  onChange={(event) => setCompletionEmailNumber(event.target.value)}
+                  disabled={completionEmailBusy} />
+              </label>
+              <button className="button button-secondary" type="button"
+                onClick={() => void handleCompletionEmailResend()}
+                disabled={completionEmailBusy || !completionEmailNumber.trim()}>
+                {completionEmailBusy ? 'resending…' : 'resend completion email'}
+              </button>
+            </div>
+            {completionEmailMessage && <p className="notice" role="status">{completionEmailMessage}</p>}
+          </section>
 
           <AdminSnapshotArchive pendingArchive={pendingArchive} onFinalized={() => refreshAdminData()} />
 

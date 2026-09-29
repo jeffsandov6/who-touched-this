@@ -287,6 +287,7 @@ export default function WttClaimPage() {
     if (!identity || claimBusy) return;
     setClaimBusy(true);
     setClaimMessage(null);
+    setClaimResult(null);
     try {
       const result = await claimWtt(claimId);
       setClaimResult(result);
@@ -298,9 +299,14 @@ export default function WttClaimPage() {
       }
       await loadAuthenticatedState(identity);
     } catch (error) {
-      setClaimMessage(error instanceof Error
+      const message = error instanceof Error
         ? error.message
-        : 'claim could not continue right now. it is safe to resume later.');
+        : 'claim could not continue right now. it is safe to resume later.';
+      if (message.toLowerCase().includes('challenge has expired')) {
+        clearVerifiedChallenge();
+        setWalletMessage('wallet verification expired before the claim started. verify the wallet again.');
+      }
+      setClaimMessage(message);
     } finally {
       setClaimBusy(false);
     }
@@ -313,6 +319,25 @@ export default function WttClaimPage() {
       <p>
         WTT earned here is a record of what the project owes you. nothing is sent to a wallet yet.
       </p>
+
+      <section className="wtt-wallet-help" aria-labelledby="wtt-about-heading">
+        <h2 id="wtt-about-heading">what is wtt?</h2>
+        <p>WTT is a fungible token on Solana: an artifact and reward for participating in Who Touched This.</p>
+        <p>WTT is not required to participate. Claiming is optional, and earned WTT does not expire.</p>
+        <details>
+          <summary>new to Solana wallets?</summary>
+          <p>If you already have a compatible wallet, connect it, sign the verification message, then explicitly claim your WTT. Message signing is not a transaction and costs no SOL.</p>
+          <ol>
+            <li>Install a compatible Solana wallet, such as Phantom.</li>
+            <li>Create a self-custody wallet you control—not a crypto exchange deposit address.</li>
+            <li>Securely back up its recovery phrase and never share it.</li>
+            <li>Return here, connect the wallet, verify it, and claim your WTT.</li>
+          </ol>
+          <p><strong>Who Touched This will NEVER ask for your recovery phrase or private key.</strong> Do not paste a recovery phrase into this page.</p>
+          <p>You do not need to buy SOL. Who Touched This pays the network and token-account cost.</p>
+        </details>
+        <p>need help? <a href="mailto:hello@whotouchedthis.website">hello@whotouchedthis.website</a></p>
+      </section>
 
       {errorMessage && <p className="notice notice-error" role="alert">{errorMessage}</p>}
 

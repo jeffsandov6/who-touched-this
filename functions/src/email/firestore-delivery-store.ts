@@ -32,6 +32,9 @@ export class FirestoreDeliveryStore implements DeliveryStore {
         ...(identity.contributionNumber !== undefined
           ? { contributionNumber: identity.contributionNumber }
           : {}),
+        ...(identity.requestedByGithubUserId
+          ? { requestedByGithubUserId: identity.requestedByGithubUserId }
+          : {}),
         githubUserId: identity.githubUserId,
         status: 'sending',
         attemptCount,

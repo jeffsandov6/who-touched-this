@@ -20,6 +20,7 @@ import {
 import {
   assertWttMintInvariants,
   assertWttTokenAccountInvariants,
+  attemptIsDefinitivelyExpired,
   buildExternallySignedTransaction,
   createWttClaimInstructions,
   validatePreparedTransaction,
@@ -109,6 +110,12 @@ test('claim amount is converted to bigint without floating point token math', ()
   for (const invalid of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
     expectPrecondition(() => wttClaimAmount(invalid));
   }
+});
+
+test('an attempt expires only when validity and recorded height agree conclusively', () => {
+  assert.equal(attemptIsDefinitivelyExpired(false, 102, 101), true);
+  assert.equal(attemptIsDefinitivelyExpired(false, 101, 101), false);
+  assert.equal(attemptIsDefinitivelyExpired(true, 102, 101), false);
 });
 
 test('external signer receives exact serialized message and authority is fee payer', async () => {

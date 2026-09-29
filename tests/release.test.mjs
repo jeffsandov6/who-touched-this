@@ -8,7 +8,7 @@ import { startStaticServer } from '../scripts/snapshots/capture.mjs';
 import { robotsMetaContent, robotsText } from '../src/platform/config/site-indexing.ts';
 import { scanProductionArtifact } from '../scripts/release/artifact-scan.mjs';
 import { firebaseDeployArguments, RELEASE_CONFIG } from '../scripts/release/config.mjs';
-import { normalizeOrigin, validateNodeVersion, validateProductionEnvironment } from '../scripts/release/environment.mjs';
+import { normalizeOrigin, validateNodeVersion, validateProductionEnvironment, validateProductionSolanaRpcUrl } from '../scripts/release/environment.mjs';
 import { runReleasePreflight, validateRepositoryState } from '../scripts/release/preflight.mjs';
 import { isAllowedRedirect, runReadOnlySmoke, smokeRoutes, validateSmokeOrigin } from '../scripts/release/smoke.mjs';
 
@@ -26,6 +26,7 @@ const browser = {
 const functionsConfig = {
   EMAIL_PROVIDER_MODE: 'resend', APP_ORIGIN: 'https://whotouchedthis.website',
   GITHUB_REPOSITORY: 'jeffsandov6/who-touched-this', GITHUB_BASE_BRANCH: 'main',
+  WTT_SOLANA_RPC_URL: 'https://api.mainnet-beta.solana.com',
 };
 
 test('production identity contract accepts only the intended project and HTTPS origin', () => {
@@ -51,6 +52,15 @@ test('repository and Node policies require clean main and Node 22.12+', () => {
   assert.equal(validateNodeVersion('22.99.1'), true);
   assert.throws(() => validateNodeVersion('v22.11.0'), /22\.12/);
   assert.throws(() => validateNodeVersion('v24.0.0'), /Node.js 22/);
+});
+
+test('production WTT RPC configuration rejects non-mainnet and local endpoints', () => {
+  assert.equal(validateProductionSolanaRpcUrl('https://api.mainnet-beta.solana.com'), 'https://api.mainnet-beta.solana.com/');
+  for (const value of [
+    'http://api.mainnet-beta.solana.com', 'https://api.devnet.solana.com',
+    'https://api.testnet.solana.com', 'https://localhost:8899',
+    'https://127.0.0.1:8899', 'https://user:secret@rpc.example.com',
+  ]) assert.throws(() => validateProductionSolanaRpcUrl(value), /mainnet|HTTPS/);
 });
 
 test('production artifact scan rejects emulator, localhost, preview, and server-secret markers', async () => {

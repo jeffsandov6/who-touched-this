@@ -61,7 +61,11 @@ export const deliveryIds = {
   turnDeadlinePassed: (id: string) => `turn_deadline_passed_${safeId(id, 'Turn ID')}`,
   prSubmitted: (id: string) => `pr_submitted_${safeId(id, 'Turn ID')}`,
   contributionCompleted: (number: number) => {
-    if (!Number.isSafeInteger(number) || number < 1) throw new Error('Contribution number is invalid.');
+    if (!Number.isSafeInteger(number) || number < 0) throw new Error('Contribution number is invalid.');
     return `contribution_completed_${number}`;
+  },
+  contributionCompletedResend: (number: number, requestId: string) => {
+    if (!Number.isSafeInteger(number) || number < 0) throw new Error('Contribution number is invalid.');
+    return `contribution_completed_resend_${number}_${safeId(requestId, 'Resend request ID')}`;
   },
 } as const;
