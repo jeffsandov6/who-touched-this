@@ -36,7 +36,7 @@ export const CONTRIBUTION_BOUNDARIES = {
     'build/**',
     'deploy/**',
   ],
-  reservedPublicRoutes: ['/history', '/join', '/faq', '/rules', '/admin', '/api', '/auth'],
+  reservedPublicRoutes: ['/history', '/join', '/faq', '/rules', '/wtt', '/admin', '/api', '/auth'],
 } as const satisfies ContributionBoundaries;
 
 export type EditableArea = (typeof CONTRIBUTION_BOUNDARIES.editableAreas)[number];

@@ -165,7 +165,7 @@ test('templates have correct subjects, CTAs, readable lines, UTC times, and esca
   assert.match(deadline.text, /remains technically open/);
 });
 
-test('completion template includes public contribution data and history link', () => {
+test('completion template includes public contribution data and universal WTT claim link', () => {
   const email = buildContributionCompletedEmail({
     to: 'private@example.test', displayName: 'Alice', contributionNumber: 1,
     summary: 'Added a button.', prUrl: 'https://github.com/example/repo/pull/27',
@@ -173,10 +173,24 @@ test('completion template includes public contribution data and history link', (
   });
   assert.equal(email.subject, 'contribution #001 is now part of who touched this');
   assert.match(email.text, /Added a button\./); assert.match(email.text, /\/history/);
+  assert.match(email.text, /you earned 1 WTT/);
+  assert.match(email.text, /https:\/\/whotouchedthis\.website\/wtt\/claim/);
+  assert.match(email.html, /new to Solana wallets/);
+  assert.doesNotMatch(email.text, /[?&](token|claim|secret)=/i);
   assert.throws(() => buildContributionCompletedEmail({
     to: 'x@y.test', displayName: 'Alice', contributionNumber: 1, summary: 'x',
     prUrl: 'https://user:password@github.com/example/repo/pull/27', appOrigin: 'https://example.com', idempotencyKey: 'x',
   }));
+});
+
+test('completion delivery refuses contributor identity mismatch', async () => {
+  const { provider, dependencies } = setup();
+  const result = await sendContributionCompleted('t1', turn('merged'), {
+    number: 1, githubUserId: '99999', summary: 'Wrong owner.',
+    prUrl: 'https://github.com/example/repo/pull/27',
+  }, 'claim-mismatch', dependencies);
+  assert.deepEqual(result, { kind: 'failed', code: 'malformed_contribution' });
+  assert.equal(provider.sends.length, 0);
 });
 
 test('turn-created and merged-turn delivery send once and duplicate events do not duplicate', async () => {
@@ -184,10 +198,10 @@ test('turn-created and merged-turn delivery send once and duplicate events do no
   await sendTurnNotification('turn_started', 't1', turn(), 'claim-1', dependencies);
   await sendTurnNotification('turn_started', 't1', turn(), 'claim-2', dependencies);
   await sendContributionCompleted('t1', turn('merged'), {
-    number: 1, summary: 'Made it permanent.', prUrl: 'https://github.com/example/repo/pull/27',
+    number: 1, githubUserId: '12345', summary: 'Made it permanent.', prUrl: 'https://github.com/example/repo/pull/27',
   }, 'claim-3', dependencies);
   await sendContributionCompleted('t1', turn('merged'), {
-    number: 1, summary: 'Made it permanent.', prUrl: 'https://github.com/example/repo/pull/27',
+    number: 1, githubUserId: '12345', summary: 'Made it permanent.', prUrl: 'https://github.com/example/repo/pull/27',
   }, 'claim-4', dependencies);
   assert.equal(provider.sends.length, 2);
   assert.match(provider.sends[0]!.subject, /started/); assert.match(provider.sends[1]!.subject, /#001/);

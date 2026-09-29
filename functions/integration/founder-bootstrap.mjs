@@ -16,6 +16,9 @@ const firestore = getFirestore();
 const now = Timestamp.now();
 await Promise.all([
   firestore.doc('admins/9001').set({ githubUserId: '9001', role: 'owner', active: true, createdAt: now }),
+  firestore.doc('contributors/9001').set({
+    githubUserId: '9001', displayName: 'Founder', email: 'founder@example.test',
+  }),
   firestore.doc('site/admin').set({ activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: now }),
   firestore.doc('site/public').set({
     currentVersion: 0, totalContributions: 0, turnStatus: 'none', targetContributionNumber: null,
@@ -43,11 +46,32 @@ const response = await fetch('http://127.0.0.1:5001/who-touched-this/us-central1
 });
 assert.equal(response.ok, true, await response.text());
 
-const [contribution, history, publicSite, queue, participation, invitations, turns, emails] = await Promise.all([
+async function waitForFounderWttDelivery() {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const [entitlement, delivery, mailbox] = await Promise.all([
+      firestore.doc('wttEntitlements/contribution:0').get(),
+      firestore.doc('emailDeliveries/contribution_completed_0').get(),
+      firestore.doc('devEmailSink/contribution_completed_0').get(),
+    ]);
+    if (entitlement.exists && delivery.data()?.status === 'sent' && mailbox.exists) {
+      return { entitlement: entitlement.data(), mailbox: mailbox.data() };
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error('Timed out waiting for Founder #000 entitlement and completion email.');
+}
+
+const founderWtt = await waitForFounderWttDelivery();
+assert.equal(founderWtt.entitlement.githubProviderId, '9001');
+assert.equal(founderWtt.entitlement.amount, 1);
+assert.equal(founderWtt.entitlement.status, 'unclaimed');
+assert.match(founderWtt.mailbox.text, /\/wtt\/claim/);
+
+const [contribution, history, publicSite, queue, participation, invitations, turns] = await Promise.all([
   firestore.doc('contributions/0').get(), firestore.doc('historyEvents/founder_seed_000').get(),
   firestore.doc('site/public').get(), firestore.collection('queue').get(),
   firestore.collection('participation').get(), firestore.collection('invitations').get(),
-  firestore.collection('turns').get(), firestore.collection('emailDeliveries').get(),
+  firestore.collection('turns').get(),
 ]);
 assert.equal(contribution.data()?.contributionKind, 'founder_seed');
 assert.equal(contribution.data()?.githubUserId, '9001');
@@ -58,7 +82,7 @@ assert.equal(history.data()?.contributionNumber, 0);
 assert.equal(publicSite.data()?.currentVersion, 0);
 assert.equal(publicSite.data()?.totalContributions, 1);
 assert.equal(publicSite.data()?.turnStatus, 'none');
-for (const snapshot of [queue, participation, invitations, turns, emails]) assert.equal(snapshot.empty, true);
+for (const snapshot of [queue, participation, invitations, turns]) assert.equal(snapshot.empty, true);
 
 const duplicate = await fetch('http://127.0.0.1:5001/who-touched-this/us-central1/recordFounderContributionZero', {
   method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },

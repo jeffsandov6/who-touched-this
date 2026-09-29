@@ -14,5 +14,6 @@ Before submitting, make sure:
 
 - [ ] I changed only contributor-editable files under `src/canvas/**`.
 - [ ] This pull request contains one coherent contribution.
+- [ ] This is my one ordinary contribution for this season.
 - [ ] I tested the site locally & ran the documented validation commands.
 - [ ] This PR is non-draft because I am ready to submit my turn for review.

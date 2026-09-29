@@ -29,7 +29,10 @@ export function invitationJoinUrl(appOrigin: string): string {
   return new URL('/join', origin).toString();
 }
 
-export function applicationUrl(appOrigin: string, pathname: '/join' | '/history' | '/admin'): string {
+export function applicationUrl(
+  appOrigin: string,
+  pathname: '/join' | '/history' | '/admin' | '/wtt/claim' | `/history/${number}`,
+): string {
   const origin = new URL(appOrigin);
   if (!['http:', 'https:'].includes(origin.protocol) || origin.username || origin.password) {
     throw new Error('APP_ORIGIN must be an HTTP(S) origin without credentials.');

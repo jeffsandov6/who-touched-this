@@ -8,7 +8,7 @@ import { startStaticServer } from '../scripts/snapshots/capture.mjs';
 import { robotsMetaContent, robotsText } from '../src/platform/config/site-indexing.ts';
 import { scanProductionArtifact } from '../scripts/release/artifact-scan.mjs';
 import { firebaseDeployArguments, RELEASE_CONFIG } from '../scripts/release/config.mjs';
-import { normalizeOrigin, validateNodeVersion, validateProductionEnvironment } from '../scripts/release/environment.mjs';
+import { normalizeOrigin, validateNodeVersion, validateProductionEnvironment, validateProductionSolanaRpcUrl } from '../scripts/release/environment.mjs';
 import { runReleasePreflight, validateRepositoryState } from '../scripts/release/preflight.mjs';
 import { isAllowedRedirect, runReadOnlySmoke, smokeRoutes, validateSmokeOrigin } from '../scripts/release/smoke.mjs';
 
@@ -26,6 +26,7 @@ const browser = {
 const functionsConfig = {
   EMAIL_PROVIDER_MODE: 'resend', APP_ORIGIN: 'https://whotouchedthis.website',
   GITHUB_REPOSITORY: 'jeffsandov6/who-touched-this', GITHUB_BASE_BRANCH: 'main',
+  WTT_SOLANA_RPC_URL: 'https://api.mainnet-beta.solana.com',
 };
 
 test('production identity contract accepts only the intended project and HTTPS origin', () => {
@@ -53,6 +54,15 @@ test('repository and Node policies require clean main and Node 22.12+', () => {
   assert.throws(() => validateNodeVersion('v24.0.0'), /Node.js 22/);
 });
 
+test('production WTT RPC configuration rejects non-mainnet and local endpoints', () => {
+  assert.equal(validateProductionSolanaRpcUrl('https://api.mainnet-beta.solana.com'), 'https://api.mainnet-beta.solana.com/');
+  for (const value of [
+    'http://api.mainnet-beta.solana.com', 'https://api.devnet.solana.com',
+    'https://api.testnet.solana.com', 'https://localhost:8899',
+    'https://127.0.0.1:8899', 'https://user:secret@rpc.example.com',
+  ]) assert.throws(() => validateProductionSolanaRpcUrl(value), /mainnet|HTTPS/);
+});
+
 test('production artifact scan rejects emulator, localhost, preview, and server-secret markers', async () => {
   const root = await mkdtemp(join(tmpdir(), 'wtt-release-artifact-'));
   try {
@@ -73,7 +83,7 @@ test('indexing helpers produce pre-launch noindex/disallow and launch allow beha
 });
 
 test('smoke route set combines canonical editable and public platform routes', () => {
-  assert.deepEqual(smokeRoutes(), ['/', '/random', '/thoughts', '/history', '/faq', '/rules', '/join']);
+  assert.deepEqual(smokeRoutes(), ['/', '/random', '/thoughts', '/history', '/faq', '/rules', '/join', '/wtt/claim']);
   assert.throws(() => validateSmokeOrigin('https://example.com'), /must be/);
   assert.throws(() => validateSmokeOrigin('http://whotouchedthis.website'), /must be/);
   assert.equal(validateSmokeOrigin(RELEASE_CONFIG.origin), RELEASE_CONFIG.origin);
@@ -88,12 +98,12 @@ test('read-only smoke uses only GET, validates indexing, and fails HTTP errors',
     return new Response('<!doctype html><title>Who Touched This</title><meta name="robots" content="noindex, nofollow">', { status: 200, headers: { 'content-type': 'text/html' } });
   };
   const routes = await runReadOnlySmoke({ origin: 'http://127.0.0.1:4321', expectedIndexing: 'disabled', fetchImpl: okFetch, allowLocal: true });
-  assert.equal(routes.length, 7);
+  assert.equal(routes.length, 8);
   assert.deepEqual(new Set(methods), new Set(['GET']));
   await assert.rejects(runReadOnlySmoke({ origin: 'http://127.0.0.1:4321', expectedIndexing: 'disabled', allowLocal: true, fetchImpl: async () => new Response('no', { status: 500, headers: { 'content-type': 'text/html' } }) }), /HTTP 500/);
 });
 
-test('read-only smoke succeeds against a local static seven-route fixture', async () => {
+test('read-only smoke succeeds against a local static eight-route fixture', async () => {
   const root = await mkdtemp(join(tmpdir(), 'wtt-smoke-fixture-'));
   let server;
   try {

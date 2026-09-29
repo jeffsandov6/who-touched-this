@@ -30,6 +30,21 @@ export function normalizeOrigin(value) {
   return url.origin;
 }
 
+export function validateProductionSolanaRpcUrl(value) {
+  let url;
+  try { url = new URL(value); } catch { throw new Error('WTT_SOLANA_RPC_URL must be a valid URL.'); }
+  const hostname = url.hostname.toLowerCase();
+  const endpoint = `${hostname}${url.pathname}${url.search}`.toLowerCase();
+  const privateIpv4 = /^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname);
+  if (url.protocol !== 'https:' || url.username || url.password || !hostname
+    || hostname === 'localhost' || hostname === '::1' || hostname === '[::1]'
+    || hostname.endsWith('.local') || endpoint.includes('devnet')
+    || endpoint.includes('testnet') || privateIpv4) {
+    throw new Error('WTT_SOLANA_RPC_URL must be a public HTTPS mainnet endpoint without embedded credentials.');
+  }
+  return url.toString();
+}
+
 function requireValue(environment, name) {
   const value = environment[name];
   if (typeof value !== 'string' || !value.trim()) throw new Error(`Missing required production value: ${name}`);
@@ -51,11 +66,12 @@ export function validateProductionEnvironment(browser, functionsConfig) {
   if (browser.PUBLIC_CONTRIBUTOR_PREVIEW === 'true' || browser.MODE === 'contributor') throw new Error('Contributor-preview mode is forbidden for production release.');
   if (normalizeOrigin(browser.APP_ORIGIN) !== 'https://whotouchedthis.website') throw new Error('Production APP_ORIGIN must be https://whotouchedthis.website.');
 
-  for (const name of ['EMAIL_PROVIDER_MODE', 'APP_ORIGIN', 'GITHUB_REPOSITORY', 'GITHUB_BASE_BRANCH']) requireValue(functionsConfig, name);
+  for (const name of ['EMAIL_PROVIDER_MODE', 'APP_ORIGIN', 'GITHUB_REPOSITORY', 'GITHUB_BASE_BRANCH', 'WTT_SOLANA_RPC_URL']) requireValue(functionsConfig, name);
   if (functionsConfig.EMAIL_PROVIDER_MODE !== 'resend') throw new Error('Production Functions must use EMAIL_PROVIDER_MODE=resend.');
   if (normalizeOrigin(functionsConfig.APP_ORIGIN) !== 'https://whotouchedthis.website') throw new Error('Functions APP_ORIGIN is incorrect.');
   if (functionsConfig.GITHUB_REPOSITORY !== 'jeffsandov6/who-touched-this') throw new Error('Functions canonical GitHub repository is incorrect.');
   if (functionsConfig.GITHUB_BASE_BRANCH !== 'main') throw new Error('Functions base branch must be main.');
+  validateProductionSolanaRpcUrl(functionsConfig.WTT_SOLANA_RPC_URL);
   return { indexingEnabled: browser.PUBLIC_SITE_INDEXING_ENABLED === 'true' };
 }
 

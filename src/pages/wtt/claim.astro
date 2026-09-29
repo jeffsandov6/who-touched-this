@@ -1,0 +1,7 @@
+---
+import PlatformLayout from '../../platform/layouts/PlatformLayout.astro';
+import WttClaimPage from '../../platform/pages/WttClaimPage';
+---
+<PlatformLayout title="claim wtt" description="view WTT earned by your authenticated GitHub identity.">
+  <WttClaimPage client:load />
+</PlatformLayout>

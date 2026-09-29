@@ -19,6 +19,7 @@ import { processAdminPrSubmission } from './email/admin-submission-delivery.js';
 import { processInvitationCreated } from './email/invitation-delivery.js';
 import {
   sendContributionCompleted,
+  sendContributionCompletedFromContribution,
   sendTurnNotification,
   type LifecycleDeliveryDependencies,
 } from './email/lifecycle-delivery.js';
@@ -26,10 +27,34 @@ import { FailingEmailProvider, LocalMailboxEmailProvider } from './email/local-p
 import { dispatchEligibleNotifications } from './email/reminder-dispatcher.js';
 import { ResendEmailProvider } from './email/resend-provider.js';
 import { retryInvitationDelivery, RetryInvitationError } from './email/retry-invitation.js';
+import {
+  resendContributionCompletedEmail as resendContributionCompletedEmailRequest,
+  ResendContributionError,
+} from './email/resend-contribution-completed.js';
+import { deliveryIds } from './email/notification-eligibility.js';
 import type { EmailProvider } from './email/types.js';
 import { handleGitHubWebhook } from './github/webhook.js';
 import { finalizeSnapshotArchiveRequest, SnapshotFinalizeError } from './snapshots/finalize.js';
 import { recordFounderSeedContribution, FounderSeedError } from './founder/record.js';
+import { ensureFirestoreContributionEntitlement } from './wtt/firestore-entitlements.js';
+import {
+  issueWttClaimChallenge as issueWttClaimChallengeRequest,
+  verifyWttClaimChallenge as verifyWttClaimChallengeRequest,
+  WttChallengeError,
+} from './wtt/challenges.js';
+import { firestoreWttChallengeDependencies } from './wtt/firestore-challenges.js';
+import {
+  executeWttClaim,
+  defaultWttClaimRandomBytes,
+} from './wtt/claim-service.js';
+import { WttClaimError } from './wtt/claims.js';
+import { firestoreWttClaimStore } from './wtt/firestore-claims.js';
+import { GoogleKmsWttMessageSigner } from './wtt/kms-signer.js';
+import { MainnetWttSolanaGateway } from './wtt/solana-claims.js';
+import {
+  WTT_CLAIM_SERVICE_ACCOUNT,
+  configuredWttSolanaRpcUrl,
+} from './wtt/config.js';
 
 if (getApps().length === 0) initializeApp();
 
@@ -122,13 +147,191 @@ export const sendContributionCompletedEmail = onDocumentUpdated({
     return;
   }
   try {
-    await sendContributionCompleted(
+    const entitlement = await ensureFirestoreContributionEntitlement(
+      getFirestore(), String(number), contribution.data() as Record<string, unknown>,
+    );
+    if (entitlement.status === 'ineligible') {
+      logger.error('Completion email withheld because its contribution is not WTT-eligible.', {
+        sourceId: event.params.turnId,
+      });
+      return;
+    }
+    const result = await sendContributionCompleted(
       event.params.turnId, after as never, contribution.data() as never,
       randomUUID(), dependencies(),
     );
+    if (result.kind === 'failed') throw new Error(result.code);
   } catch (error) {
     safeLogFailure('Completion email delivery failed and may be retried.', event.params.turnId, error);
     throw error;
+  }
+});
+
+export const grantWttContributionEntitlement = onDocumentCreated({
+  document: 'contributions/{contributionNumber}', region: 'us-central1', retry: true,
+}, async (event) => {
+  const contribution = event.data?.data();
+  if (!contribution) return;
+  const result = await ensureFirestoreContributionEntitlement(
+    getFirestore(), event.params.contributionNumber, contribution,
+  );
+  if (result.status === 'ineligible') {
+    logger.error('Contribution was not eligible for a WTT entitlement.', {
+      sourceId: event.params.contributionNumber,
+    });
+    return;
+  }
+});
+
+export const sendFounderContributionCompletedEmail = onDocumentCreated({
+  document: 'contributions/{contributionNumber}', region: 'us-central1', retry: true,
+  secrets: [resendApiKey],
+}, async (event) => {
+  if (event.params.contributionNumber !== '0') return;
+  const contribution = event.data?.data();
+  if (!contribution) return;
+  try {
+    const entitlement = await ensureFirestoreContributionEntitlement(
+      getFirestore(), '0', contribution,
+    );
+    if (entitlement.status === 'ineligible') {
+      logger.error('Founder completion email withheld because contribution #000 is not WTT-eligible.', {
+        sourceId: '0',
+      });
+      return;
+    }
+    const result = await sendContributionCompletedFromContribution(
+      '0', contribution as never, randomUUID(), dependencies(),
+    );
+    if (result.kind === 'failed') throw new Error(result.code);
+  } catch (error) {
+    safeLogFailure('Founder completion email delivery failed and may be retried.', '0', error);
+    throw error;
+  }
+});
+
+export const resendContributionCompletedEmail = onCall({
+  region: 'us-central1', secrets: [resendApiKey],
+}, async (request) => {
+  const firestore = getFirestore();
+  try {
+    return await resendContributionCompletedEmailRequest(
+      request.auth?.token ?? null,
+      request.data,
+      {
+        async loadAdmin(id) {
+          const snapshot = await firestore.doc(`admins/${id}`).get();
+          return snapshot.exists ? snapshot.data() ?? null : null;
+        },
+        async loadContribution(id) {
+          const snapshot = await firestore.doc(`contributions/${id}`).get();
+          return snapshot.exists ? snapshot.data() ?? null : null;
+        },
+        async loadEntitlement(id) {
+          const snapshot = await firestore.doc(`wttEntitlements/${id}`).get();
+          return snapshot.exists ? snapshot.data() ?? null : null;
+        },
+        async resend(contributionId, contribution, requestedByGithubUserId) {
+          const requestId = randomUUID();
+          const deliveryId = deliveryIds.contributionCompletedResend(
+            Number(contributionId), requestId,
+          );
+          const result = await sendContributionCompletedFromContribution(
+            contributionId, contribution as never, requestId, dependencies(), {
+              deliveryId,
+              type: 'contribution_completed_resend',
+              requestedByGithubUserId,
+            },
+          );
+          logger.info('WTT completion email resend processed.', {
+            event: 'wtt_completion_email_resent',
+            contributionNumber: Number(contributionId),
+            deliveryId,
+            result: result.kind,
+          });
+          return result;
+        },
+      },
+    );
+  } catch (error) {
+    if (error instanceof ResendContributionError) {
+      throw new HttpsError(error.code, error.message);
+    }
+    safeLogFailure('Admin WTT completion-email resend failed.', 'callable', error);
+    throw new HttpsError('unavailable', 'completion email could not be resent. try again later.');
+  }
+});
+
+function mapWttChallengeError(error: unknown): never {
+  if (error instanceof WttChallengeError) {
+    throw new HttpsError(error.code, error.message);
+  }
+  safeLogFailure('WTT wallet challenge operation failed.', 'callable', error);
+  throw new HttpsError('internal', 'wallet verification could not be completed. try again later.');
+}
+
+export const issueWttClaimChallenge = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    return await issueWttClaimChallengeRequest(
+      request.auth?.token ?? null,
+      request.data,
+      firestoreWttChallengeDependencies(getFirestore(), configuredAppOrigin()),
+    );
+  } catch (error) {
+    return mapWttChallengeError(error);
+  }
+});
+
+export const verifyWttClaimChallenge = onCall({ region: 'us-central1' }, async (request) => {
+  try {
+    return await verifyWttClaimChallengeRequest(
+      request.auth?.token ?? null,
+      request.data,
+      firestoreWttChallengeDependencies(getFirestore(), configuredAppOrigin()),
+    );
+  } catch (error) {
+    return mapWttChallengeError(error);
+  }
+});
+
+export const claimWtt = onCall({
+  region: 'us-central1',
+  serviceAccount: WTT_CLAIM_SERVICE_ACCOUNT,
+  timeoutSeconds: 120,
+  memory: '512MiB',
+}, async (request) => {
+  if (process.env.FUNCTIONS_EMULATOR === 'true') {
+    throw new HttpsError(
+      'failed-precondition',
+      'production WTT claim execution is disabled in the local emulator; use mocked unit tests.',
+    );
+  }
+  try {
+    const firestore = getFirestore();
+    return await executeWttClaim(request.auth?.token ?? null, request.data, {
+      store: firestoreWttClaimStore(firestore),
+      solana: new MainnetWttSolanaGateway(
+        configuredWttSolanaRpcUrl(),
+        new GoogleKmsWttMessageSigner(),
+        (event, fields) => logger.warn('WTT Solana operational check failed.', {
+          event: `wtt_${event}`,
+          ...fields,
+        }),
+      ),
+      now: () => new Date(),
+      randomBytes: defaultWttClaimRandomBytes,
+      observe: (event) => {
+        const level = ['transaction_failed', 'attempt_expired'].includes(event.event)
+          ? logger.warn : logger.info;
+        level('WTT claim lifecycle event.', { ...event, event: `wtt_${event.event}` });
+      },
+    });
+  } catch (error) {
+    if (error instanceof WttClaimError) {
+      throw new HttpsError(error.code, error.message);
+    }
+    safeLogFailure('WTT claim execution failed.', 'callable', error);
+    throw new HttpsError('internal', 'WTT claim could not be completed. resume it later.');
   }
 });
 

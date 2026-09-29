@@ -60,3 +60,31 @@ export async function retryFailedInvitationEmail(invitationId: string): Promise<
     throw new Error('the invitation email could not be retried. try again later.');
   }
 }
+
+export async function resendContributionCompletedEmail(contributionNumber: number): Promise<string> {
+  if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) {
+    throw new Error('contribution number is invalid.');
+  }
+  const functions = getFunctions(getFirebaseApp(), 'us-central1');
+  if (import.meta.env.DEV && import.meta.env.PUBLIC_USE_FIREBASE_EMULATORS === 'true') {
+    connectFirebaseEmulatorOnce('functions', () =>
+      connectFunctionsEmulator(functions, '127.0.0.1', 5001),
+    );
+  }
+  try {
+    const result = await httpsCallable<
+      { contributionNumber: number }, { status: string }
+    >(functions, 'resendContributionCompletedEmail')({ contributionNumber });
+    return result.data.status;
+  } catch (error) {
+    if (error instanceof FirebaseError) {
+      if (error.code === 'functions/permission-denied' || error.code === 'functions/unauthenticated') {
+        throw new Error('admin authorization could not be verified.');
+      }
+      if (error.code === 'functions/failed-precondition') {
+        throw new Error('the contribution or its WTT entitlement is missing or inconsistent.');
+      }
+    }
+    throw new Error('the completion email could not be resent. try again later.');
+  }
+}

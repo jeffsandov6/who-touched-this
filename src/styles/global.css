@@ -266,6 +266,85 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
   cursor: pointer;
 }
 .notice-error { border-left-color: #a33a32; background: #f8e8e6; }
+.wtt-claim-page { max-width: 46rem; }
+.wtt-intro { font-size: 1.125rem; }
+.wtt-wallet-help {
+  margin-block: 1.5rem 2rem;
+  padding: 1rem;
+  border-left: 4px solid #8ab4e0;
+  background: #f6f9fc;
+}
+.wtt-wallet-help h2, .wtt-wallet-help p { margin-block: 0 0.75rem; }
+.wtt-wallet-help details { margin-block: 1rem; }
+.wtt-wallet-help summary { font-weight: 700; cursor: pointer; }
+.wtt-wallet-help ol { padding-left: 1.4rem; }
+.wtt-auth-panel { margin-top: 2rem; }
+.wtt-auth-panel h2, .empty-state h2 { margin-block: 0 0.5rem; }
+.wtt-auth-panel p, .empty-state p { margin-block: 0 1rem; }
+.wtt-provider-id { color: #6a6d72; font-size: 0.8rem; }
+.wtt-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-block: 1rem 1.5rem;
+}
+.wtt-totals > div { padding: 1rem; border: 1px solid #d9d9d4; background: #fff; }
+.wtt-totals dt { color: #50535a; font-size: 0.85rem; font-weight: 650; }
+.wtt-totals dd { margin: 0.15rem 0 0; font-size: 1.75rem; font-weight: 700; line-height: 1.2; }
+.wtt-wallet-panel {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #d9d9d4;
+  background: #fff;
+}
+.wtt-wallet-panel h3, .wtt-wallet-panel p { margin: 0; }
+.wtt-wallet-connect { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
+.wtt-wallet-connect label { display: grid; gap: 0.3rem; font-weight: 650; }
+.wtt-wallet-connect select {
+  min-width: 12rem;
+  padding: 0.6rem;
+  border: 1px solid #858781;
+  border-radius: 0.2rem;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+}
+.wtt-connected-wallet { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.75rem; }
+.wtt-verified { color: #25643b; font-weight: 700; }
+.wtt-claim-progress {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid #c7b66a;
+  background: #fffbed;
+}
+.wtt-claim-progress h3, .wtt-claim-progress p { margin: 0; }
+.wtt-selection-actions { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-bottom: 0.75rem; }
+.wtt-entitlements { margin-top: 2.5rem; }
+.wtt-entitlements > h2 { margin-bottom: 1rem; }
+.wtt-entitlements ul { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+.wtt-entitlements li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #d9d9d4;
+  background: #fff;
+}
+.wtt-entitlements li > input { flex: 0 0 auto; margin-top: 0.2rem; }
+.wtt-entitlements h3, .wtt-entitlements p { margin: 0; }
+.wtt-entitlements h3 { font-size: 1rem; }
+.wtt-entitlements p { margin-top: 0.2rem; color: #50535a; }
+.wtt-status { font-size: 0.8rem; text-transform: lowercase; }
+.wtt-status-claimed { color: #50535a; }
+@media (max-width: 32rem) {
+  .wtt-totals { grid-template-columns: 1fr; }
+  .wtt-entitlements li { align-items: flex-start; flex-direction: column; }
+}
 .visually-hidden {
   position: absolute;
   width: 1px;

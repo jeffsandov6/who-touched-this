@@ -36,13 +36,23 @@ async function waitForSent(deliveryId) {
   throw new Error(`Timed out waiting for ${deliveryId}.`);
 }
 
+async function waitForEntitlement(entitlementId) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const entitlement = await firestore.doc(`wttEntitlements/${entitlementId}`).get();
+    if (entitlement.exists) return entitlement.data();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  throw new Error(`Timed out waiting for ${entitlementId}.`);
+}
+
 const started = await waitForSent(`turn_started_${turnId}`);
 assert.equal(started.to, 'lifecycle-recipient@example.test');
 assert.match(started.subject, /turn has started/);
 
 const batch = firestore.batch();
 batch.set(firestore.doc('contributions/1'), {
-  number: 1, season: 1, displayName: 'Lifecycle Email Contributor', githubUsername: 'lifecycle-check',
+  number: 1, season: 1, githubUserId,
+  displayName: 'Lifecycle Email Contributor', githubUsername: 'lifecycle-check',
   summary: 'Added an emulator lifecycle check.', prNumber: 27,
   prUrl: 'https://github.com/example/repo/pull/27', mergedAt: now, createdAt: now,
 });
@@ -56,5 +66,14 @@ const completed = await waitForSent('contribution_completed_1');
 assert.equal(completed.to, 'lifecycle-recipient@example.test');
 assert.match(completed.subject, /contribution #001/);
 assert.match(completed.text, /\/history/);
+assert.match(completed.text, /\/wtt\/claim/);
 assert.equal((await firestore.doc(`turns/${turnId}`).get()).data()?.status, 'merged');
-console.log('Turn-started and completion triggers delivered once without changing lifecycle state.');
+const entitlementSnapshotAtDelivery = await firestore.doc('wttEntitlements/contribution:1').get();
+assert.equal(entitlementSnapshotAtDelivery.exists, true, 'email must not be visible before entitlement');
+const entitlement = entitlementSnapshotAtDelivery.data() ?? await waitForEntitlement('contribution:1');
+assert.equal(entitlement.githubProviderId, githubUserId);
+assert.equal(entitlement.amount, 1);
+assert.equal(entitlement.status, 'unclaimed');
+assert.equal(entitlement.claimId, null);
+assert.equal(entitlement.claimedAt, null);
+console.log('Turn-started, completion-email, and WTT entitlement triggers completed once.');

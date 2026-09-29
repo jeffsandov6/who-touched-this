@@ -864,6 +864,27 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Private award ledger. Trusted Functions own every state transition.
+    match /wttEntitlements/{entitlementId} {
+      allow read: if hasGitHubIdentity()
+        && resource.data.githubProviderId == githubUserId();
+      allow create, update, delete: if false;
+    }
+
+    // Wallet-ownership challenges contain nonces and authoritative claim inputs.
+    // Only trusted Functions may inspect or mutate them.
+    match /wttClaimChallenges/{challengeId} {
+      allow read, write: if false;
+    }
+
+    // Claims and any future attempt subdocuments are operational audit state.
+    match /wttClaims/{claimId} {
+      allow read, write: if false;
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
     match /site/public {
       allow read: if true;
       allow create: if hasGitHubIdentity() && validPublicSiteActivation();
