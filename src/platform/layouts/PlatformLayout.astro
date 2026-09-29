@@ -8,11 +8,13 @@ import '../../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
+  backendFreePreview?: boolean;
 }
 
 const {
   title = 'who touched this',
   description = 'one website. one contributor at a time.',
+  backendFreePreview = false,
 } = Astro.props;
 const pageTitle = title === 'who touched this' ? title : `${title} | who touched this`;
 const contributorPreview = import.meta.env.MODE === 'contributor'
@@ -58,7 +60,7 @@ const robots = robotsMetaContent(import.meta.env.PUBLIC_SITE_INDEXING_ENABLED);
     <a class="skip-link" href="#main-content">skip to content</a>
     <header class="platform-header">
       <Navigation currentPath={Astro.url.pathname} />
-      {contributorPreview ? <ContributorSiteStatus /> : <SiteStatus client:load />}
+      {contributorPreview || backendFreePreview ? <ContributorSiteStatus /> : <SiteStatus client:load />}
     </header>
     <main id="main-content"><slot /></main>
     <script>

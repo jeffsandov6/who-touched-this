@@ -30,6 +30,12 @@ import {
   type ParsedWttEntitlement,
 } from '../wtt-entitlements';
 import {
+  createWttClaimPreview,
+  resolveWttClaimPreview,
+  WTT_PREVIEW_WALLET,
+  type WttClaimPreviewKind,
+} from '../wtt-claim-preview';
+import {
   availableMessageSigningWallets,
   connectSolanaWallet,
   shortenSolanaAddress,
@@ -53,18 +59,129 @@ function EntitlementSource({ entitlement }: { entitlement: ParsedWttEntitlement 
   ) : label;
 }
 
+type ClaimStepState = 'complete' | 'current' | 'pending';
+
+function ClaimProgress({
+  hasClaimableWtt,
+  walletConnected,
+  walletVerified,
+  claimInProgress,
+  allClaimed,
+}: {
+  hasClaimableWtt: boolean;
+  walletConnected: boolean;
+  walletVerified: boolean;
+  claimInProgress: boolean;
+  allClaimed: boolean;
+}) {
+  const walletComplete = walletConnected || walletVerified || claimInProgress || allClaimed;
+  const verificationComplete = walletVerified || claimInProgress || allClaimed;
+  const steps: Array<{ label: string; state: ClaimStepState }> = [
+    { label: 'find your wtt', state: 'complete' },
+    {
+      label: 'connect wallet',
+      state: walletComplete ? 'complete' : hasClaimableWtt ? 'current' : 'pending',
+    },
+    {
+      label: 'verify wallet',
+      state: verificationComplete
+        ? 'complete'
+        : hasClaimableWtt && walletConnected ? 'current' : 'pending',
+    },
+    {
+      label: 'claim',
+      state: allClaimed ? 'complete' : claimInProgress || walletVerified ? 'current' : 'pending',
+    },
+  ];
+
+  return (
+    <nav aria-label="WTT claim progress">
+      <ol className="wtt-claim-steps">
+        {steps.map((step, index) => (
+          <li key={step.label} data-state={step.state} aria-current={step.state === 'current' ? 'step' : undefined}>
+            <span className="wtt-step-marker" aria-hidden="true">
+              {step.state === 'complete' ? '✓' : index + 1}
+            </span>
+            <span>
+              <span className="visually-hidden">{step.state}: </span>
+              {step.label}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+function WalletSetupHelp() {
+  return (
+    <details className="wtt-wallet-help">
+      <summary>set up a wallet</summary>
+      <div className="wtt-wallet-help-content">
+        <h4>new to wallets?</h4>
+        <p>A wallet is an app that lets you receive and hold WTT.</p>
+        <ol>
+          <li>
+            <h5>get a Solana wallet</h5>
+            <p>Phantom is an easy option for beginners. Other compatible Solana wallets work too.</p>
+            <p>On desktop, Phantom installs as a browser extension. On mobile, it's an app.</p>
+            <a className="button button-secondary" href="https://phantom.com/download" target="_blank" rel="noreferrer">
+              get Phantom <span className="visually-hidden">(opens in a new tab)</span>
+            </a>
+          </li>
+          <li>
+            <h5>create a wallet</h5>
+            <p>Follow the wallet provider's setup process. Use a self-custody wallet you control, not a crypto exchange deposit address.</p>
+          </li>
+          <li>
+            <h5>back it up safely</h5>
+            <p><strong>Who Touched This will NEVER ask for your recovery phrase or private key.</strong></p>
+            <p>Store any recovery phrase safely and never share it. Never paste a recovery phrase into this page.</p>
+          </li>
+          <li>
+            <h5>return to Who Touched This</h5>
+            <p>Come back to this page and click <strong>connect wallet</strong>.</p>
+          </li>
+          <li>
+            <h5>verify the wallet</h5>
+            <p>Your wallet will ask you to sign a message. This is NOT a transaction, costs no SOL, does not send WTT, and does not give Who Touched This control of your wallet.</p>
+          </li>
+          <li>
+            <h5>claim wtt</h5>
+            <p>You explicitly click claim afterward. You do not need to buy SOL; Who Touched This pays the Solana network and token-account cost.</p>
+          </li>
+        </ol>
+        <p>need help? <a href="mailto:hello@whotouchedthis.website">hello@whotouchedthis.website</a></p>
+      </div>
+    </details>
+  );
+}
+
 export default function WttClaimPage() {
+  const [previewKind, setPreviewKind] = useState<WttClaimPreviewKind | null>(() => {
+    if (!import.meta.env.DEV || typeof window === 'undefined') return null;
+    return resolveWttClaimPreview(window.location.search, true);
+  });
+  const previewState = useMemo(
+    () => import.meta.env.DEV && previewKind ? createWttClaimPreview(previewKind) : null,
+    [previewKind],
+  );
+  const previewActive = import.meta.env.DEV && previewState !== null;
   const requestSequence = useRef(0);
   const verificationSequence = useRef(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!previewState);
   const [busy, setBusy] = useState(false);
-  const [identity, setIdentity] = useState<GitHubIdentity | null>(null);
-  const [entitlements, setEntitlements] = useState<ParsedWttEntitlement[]>([]);
+  const [identity, setIdentity] = useState<GitHubIdentity | null>(previewState?.identity ?? null);
+  const [entitlements, setEntitlements] = useState<ParsedWttEntitlement[]>(previewState?.entitlements ?? []);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [wallets, setWallets] = useState<readonly MessageSigningWallet[]>(() => availableMessageSigningWallets());
+  const [wallets, setWallets] = useState<readonly MessageSigningWallet[]>(() => (
+    previewState ? [] : availableMessageSigningWallets()
+  ));
   const [selectedWalletName, setSelectedWalletName] = useState('');
   const [connection, setConnection] = useState<ConnectedSolanaWallet | null>(null);
-  const [selectedEntitlementIds, setSelectedEntitlementIds] = useState<Set<string>>(new Set());
+  const [selectedEntitlementIds, setSelectedEntitlementIds] = useState<Set<string>>(() => new Set(
+    previewState?.entitlements.filter((record) => record.status === 'unclaimed').map((record) => record.id) ?? [],
+  ));
   const [walletBusy, setWalletBusy] = useState(false);
   const [walletMessage, setWalletMessage] = useState<string | null>(null);
   const [verifiedChallenge, setVerifiedChallenge] = useState<VerifiedWttClaimChallenge | null>(null);
@@ -78,6 +195,7 @@ export default function WttClaimPage() {
   }
 
   async function loadAuthenticatedState(nextIdentity: GitHubIdentity) {
+    if (previewActive) return;
     const request = ++requestSequence.current;
     setLoading(true);
     setErrorMessage(null);
@@ -102,6 +220,7 @@ export default function WttClaimPage() {
   }
 
   useEffect(() => {
+    if (previewActive) return undefined;
     let active = true;
     let unsubscribe = () => { };
     try {
@@ -142,14 +261,18 @@ export default function WttClaimPage() {
       ++requestSequence.current;
       unsubscribe();
     };
-  }, []);
-
-  useEffect(() => watchMessageSigningWallets((nextWallets) => {
-    setWallets(nextWallets);
-    setSelectedWalletName((current) => current || nextWallets[0]?.name || '');
-  }), []);
+  }, [previewActive]);
 
   useEffect(() => {
+    if (previewActive) return undefined;
+    return watchMessageSigningWallets((nextWallets) => {
+      setWallets(nextWallets);
+      setSelectedWalletName((current) => current || nextWallets[0]?.name || '');
+    });
+  }, [previewActive]);
+
+  useEffect(() => {
+    if (previewActive) return undefined;
     if (!connection) return undefined;
     return watchConnectedWallet(connection, (account) => {
       if (!account) {
@@ -161,9 +284,10 @@ export default function WttClaimPage() {
       }
       clearVerifiedChallenge();
     });
-  }, [connection]);
+  }, [connection, previewActive]);
 
   async function handleSignIn() {
+    if (previewActive) return;
     setBusy(true);
     setErrorMessage(null);
     try {
@@ -177,6 +301,7 @@ export default function WttClaimPage() {
   }
 
   async function handleSignOut() {
+    if (previewActive) return;
     setBusy(true);
     setErrorMessage(null);
     ++requestSequence.current;
@@ -213,6 +338,19 @@ export default function WttClaimPage() {
     }
     return [...claims.entries()].map(([claimId, value]) => ({ claimId, ...value }));
   }, [entitlements]);
+  const claimInProgress = claimBusy || inProgressClaims.length > 0;
+  const allEntitlementsClaimed = entitlements.length > 0 && totals.unclaimed === 0;
+  const displayedWalletAddress = connection?.account.address ?? previewState?.walletAddress ?? null;
+  const displayedVerifiedChallenge = verifiedChallenge ?? (
+    previewActive && previewKind === 'verified' ? {
+      challengeId: 'local-preview-challenge',
+      status: 'verified' as const,
+      walletAddress: WTT_PREVIEW_WALLET,
+      entitlementIds: [...selectedEntitlementIds].sort(),
+      amount: selectedAmount,
+      verifiedAt: '2026-01-01T00:05:00.000Z',
+    } : null
+  );
 
   function changeSelection(entitlementId: string, selected: boolean) {
     setSelectedEntitlementIds((current) => {
@@ -221,11 +359,17 @@ export default function WttClaimPage() {
       else next.delete(entitlementId);
       return next;
     });
+    if (previewActive && previewKind === 'verified') setPreviewKind('connected');
     clearVerifiedChallenge();
     setWalletMessage(null);
   }
 
   async function handleConnectWallet() {
+    if (previewActive) {
+      setPreviewKind('connected');
+      setWalletMessage('local preview wallet connected. no wallet API was called.');
+      return;
+    }
     const wallet = wallets.find((candidate) => candidate.name === selectedWalletName);
     if (!wallet) {
       setWalletMessage('no compatible Solana wallet was found in this browser.');
@@ -245,6 +389,12 @@ export default function WttClaimPage() {
   }
 
   async function handleVerifyWallet() {
+    if (previewActive) {
+      if (selectedEntitlementIds.size === 0) return;
+      setPreviewKind('verified');
+      setWalletMessage('wallet ownership verified. nothing has been minted yet.');
+      return;
+    }
     if (!connection || selectedEntitlementIds.size === 0) return;
     const verificationRequest = ++verificationSequence.current;
     setWalletBusy(true);
@@ -284,6 +434,10 @@ export default function WttClaimPage() {
   }
 
   async function handleClaim(claimId: string) {
+    if (previewActive) {
+      setClaimMessage(`local preview only. ${claimId} was not submitted.`);
+      return;
+    }
     if (!identity || claimBusy) return;
     setClaimBusy(true);
     setClaimMessage(null);
@@ -315,28 +469,13 @@ export default function WttClaimPage() {
   return (
     <section className="page-content wtt-claim-page" aria-labelledby="wtt-claim-heading">
       <h1 id="wtt-claim-heading">claim wtt</h1>
+      {previewActive && <p className="wtt-preview-label">local preview — no real wallet or wtt</p>}
       <p className="wtt-intro">you touched the website. unfortunately, you may have earned WTT.</p>
-      <p>
-        WTT earned here is a record of what the project owes you. nothing is sent to a wallet yet.
-      </p>
-
-      <section className="wtt-wallet-help" aria-labelledby="wtt-about-heading">
+      <section className="wtt-about" aria-labelledby="wtt-about-heading">
         <h2 id="wtt-about-heading">what is wtt?</h2>
-        <p>WTT is a fungible token on Solana: an artifact and reward for participating in Who Touched This.</p>
-        <p>WTT is not required to participate. Claiming is optional, and earned WTT does not expire.</p>
-        <details>
-          <summary>new to Solana wallets?</summary>
-          <p>If you already have a compatible wallet, connect it, sign the verification message, then explicitly claim your WTT. Message signing is not a transaction and costs no SOL.</p>
-          <ol>
-            <li>Install a compatible Solana wallet, such as Phantom.</li>
-            <li>Create a self-custody wallet you control—not a crypto exchange deposit address.</li>
-            <li>Securely back up its recovery phrase and never share it.</li>
-            <li>Return here, connect the wallet, verify it, and claim your WTT.</li>
-          </ol>
-          <p><strong>Who Touched This will NEVER ask for your recovery phrase or private key.</strong> Do not paste a recovery phrase into this page.</p>
-          <p>You do not need to buy SOL. Who Touched This pays the network and token-account cost.</p>
-        </details>
-        <p>need help? <a href="mailto:hello@whotouchedthis.website">hello@whotouchedthis.website</a></p>
+        <p>WTT is a crypto token on Solana. think of it like a little digital coin: an artifact & reward for participating in Who Touched This.</p>
+        <p>WTT is not required to participate. claiming your wtt is optional & free. you don't need to buy SOL or pay anything to claim it. we cover the Solana fees, & earned wtt does not expire.</p>
+        <p>we first use GitHub to find the WTT you earned. then you choose a wallet to receive it.</p>
       </section>
 
       {errorMessage && <p className="notice notice-error" role="alert">{errorMessage}</p>}
@@ -350,6 +489,10 @@ export default function WttClaimPage() {
           <button className="button" type="button" onClick={handleSignIn} disabled={busy}>
             {busy ? 'opening GitHub…' : 'continue with GitHub'}
           </button>
+          <p className="wtt-auth-reassurance">
+            you don't need a crypto wallet yet.<br />
+            if you have WTT to claim, we'll walk you through it.
+          </p>
         </section>
       ) : (
         <>
@@ -359,17 +502,26 @@ export default function WttClaimPage() {
               {identity.githubUsername ? (
                 <p><a href={identity.profileUrl ?? undefined} rel="noreferrer">@{identity.githubUsername}</a></p>
               ) : <p>GitHub account connected.</p>}
-              <p className="wtt-provider-id">GitHub account ID {identity.githubUserId}</p>
             </div>
             {identity.avatarUrl && (
               <img className="github-avatar" src={identity.avatarUrl} alt="" width="64" height="64" referrerPolicy="no-referrer" />
             )}
           </section>
 
+          <ClaimProgress
+            hasClaimableWtt={unclaimedIds.length > 0}
+            walletConnected={Boolean(displayedWalletAddress)}
+            walletVerified={Boolean(displayedVerifiedChallenge)}
+            claimInProgress={claimInProgress}
+            allClaimed={allEntitlementsClaimed}
+          />
+
           {!errorMessage && (entitlements.length === 0 ? (
             <section className="empty-state" aria-labelledby="wtt-empty-heading">
               <h2 id="wtt-empty-heading">no wtt waiting for you</h2>
-              <p>WTT appears here after an eligible contribution or award.</p>
+              <p>there is currently no WTT waiting for this GitHub account.</p>
+              <p>Eligible contributions and awards will appear here. Earned WTT does not expire.</p>
+              <p>You don't need to set up a wallet unless WTT appears here to claim.</p>
             </section>
           ) : (
             <>
@@ -381,79 +533,13 @@ export default function WttClaimPage() {
                   <div><dt>claimed</dt><dd>{totals.claimed}</dd></div>
                 </dl>
                 {totals.unclaimed === 0 ? (
-                  <p className="notice">nothing remains to claim. your earned WTT history stays below.</p>
-                ) : unclaimedIds.length > 0 ? (
-                  <section className="wtt-wallet-panel" aria-labelledby="wtt-wallet-heading">
-                    <h3 id="wtt-wallet-heading">verify a Solana wallet</h3>
-                    <p>choose the WTT records below, then connect the wallet you want to use later.</p>
-                    <p><strong>Signing this message does not send a transaction and does not cost SOL.</strong></p>
-                    {!connection ? (
-                      <div className="wtt-wallet-connect">
-                        {wallets.length > 0 ? (
-                          <label>
-                            wallet
-                            <select value={selectedWalletName} onChange={(event) => {
-                              setSelectedWalletName(event.target.value);
-                              clearVerifiedChallenge();
-                            }} disabled={walletBusy}>
-                              {wallets.map((wallet) => <option key={wallet.name} value={wallet.name}>{wallet.name}</option>)}
-                            </select>
-                          </label>
-                        ) : (
-                          <p>No compatible Solana wallet was found. Phantom and other Wallet Standard wallets are supported.</p>
-                        )}
-                        <button className="button" type="button" onClick={handleConnectWallet} disabled={walletBusy || wallets.length === 0}>
-                          {walletBusy ? 'connecting…' : 'connect wallet'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="wtt-connected-wallet">
-                        <p>wallet</p>
-                        <strong title={connection.account.address}>{shortenSolanaAddress(connection.account.address)}</strong>
-                        {verifiedChallenge && <span className="wtt-verified">✓ verified</span>}
-                        <button className="button-link" type="button" disabled={walletBusy} onClick={() => {
-                          setConnection(null);
-                          clearVerifiedChallenge();
-                          setWalletMessage(null);
-                        }}>change wallet</button>
-                      </div>
-                    )}
-                    <p>{selectedAmount} WTT selected</p>
-                    {connection && !verifiedChallenge && (
-                      <button className="button" type="button" onClick={handleVerifyWallet}
-                        disabled={walletBusy || selectedEntitlementIds.size === 0}>
-                        {walletBusy ? 'waiting for wallet…' : 'verify wallet'}
-                      </button>
-                    )}
-                    {connection && verifiedChallenge && (
-                      <button className="button" type="button"
-                        onClick={() => handleClaim(verifiedChallenge.challengeId)} disabled={claimBusy}>
-                        {claimBusy ? 'claiming…' : `claim ${verifiedChallenge.amount} wtt`}
-                      </button>
-                    )}
-                    {walletMessage && <p className={verifiedChallenge ? 'notice' : 'notice notice-error'} role="status">{walletMessage}</p>}
-                  </section>
+                  <p className="notice">all caught up. your wtt history is below.</p>
                 ) : null}
-                {inProgressClaims.map((claim) => (
-                  <section className="wtt-claim-progress" key={claim.claimId} aria-label="WTT claim in progress">
-                    <h3>claim in progress</h3>
-                    <p>{claim.amount} WTT is reserved. resuming uses the same claim and cannot create a second logical claim.</p>
-                    <button className="button" type="button" onClick={() => handleClaim(claim.claimId)} disabled={claimBusy}>
-                      {claimBusy ? 'checking claim…' : 'resume claim'}
-                    </button>
-                  </section>
-                ))}
-                {claimMessage && <p className={claimResult ? 'notice' : 'notice notice-error'} role="status">{claimMessage}</p>}
-                {claimResult?.status === 'confirmed' && (
-                  <p>
-                    <a href={`https://solscan.io/tx/${encodeURIComponent(claimResult.transactionSignature)}`}
-                      target="_blank" rel="noreferrer">view confirmed transaction on Solscan</a>
-                  </p>
-                )}
               </section>
+
               <section className="wtt-entitlements" aria-labelledby="wtt-entitlements-heading">
-                <h2 id="wtt-entitlements-heading">earned wtt</h2>
-                {totals.unclaimed > 0 && (
+                <h2 id="wtt-entitlements-heading">your wtt</h2>
+                {unclaimedIds.length > 1 && (
                   <div className="wtt-selection-actions">
                     <button className="button-link" type="button" onClick={() => {
                       setSelectedEntitlementIds(new Set(unclaimedIds));
@@ -468,13 +554,14 @@ export default function WttClaimPage() {
                 <ul>
                   {entitlements.map((entitlement) => (
                     <li key={entitlement.id}>
-                      <input
-                        type="checkbox"
-                        aria-label={`Select ${wttEntitlementSourceLabel(entitlement)}`}
-                        checked={entitlement.status === 'unclaimed' && selectedEntitlementIds.has(entitlement.id)}
-                        disabled={entitlement.status !== 'unclaimed'}
-                        onChange={(event) => changeSelection(entitlement.id, event.target.checked)}
-                      />
+                      {entitlement.status === 'unclaimed' && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${wttEntitlementSourceLabel(entitlement)}`}
+                          checked={selectedEntitlementIds.has(entitlement.id)}
+                          onChange={(event) => changeSelection(entitlement.id, event.target.checked)}
+                        />
+                      )}
                       <div>
                         <h3><EntitlementSource entitlement={entitlement} /></h3>
                         <p>{entitlement.amount} WTT</p>
@@ -483,7 +570,7 @@ export default function WttClaimPage() {
                             sent to <span title={entitlement.claimedWallet}>{shortenSolanaAddress(entitlement.claimedWallet)}</span>
                             {' · '}
                             <a href={`https://solscan.io/tx/${encodeURIComponent(entitlement.claimTransaction)}`}
-                              target="_blank" rel="noreferrer">transaction</a>
+                              target="_blank" rel="noreferrer">view transaction</a>
                           </p>
                         )}
                       </div>
@@ -494,10 +581,94 @@ export default function WttClaimPage() {
                   ))}
                 </ul>
               </section>
+
+              {unclaimedIds.length > 0 && (
+                <section className="wtt-wallet-panel" aria-labelledby="wtt-wallet-heading">
+                  <h3 id="wtt-wallet-heading">where should we send it?</h3>
+                  <p>WTT lives on Solana, so you'll need a compatible Solana wallet to receive it.</p>
+                  <p className="wtt-selected-amount"><strong>{selectedAmount} WTT selected</strong></p>
+                  {!displayedWalletAddress ? (
+                    <>
+                      <div className="wtt-wallet-connect">
+                        {previewActive ? (
+                          <p>an obviously fake compatible wallet is available for this local preview.</p>
+                        ) : wallets.length > 0 ? (
+                          <label>
+                            wallet
+                            <select value={selectedWalletName} onChange={(event) => {
+                              setSelectedWalletName(event.target.value);
+                              clearVerifiedChallenge();
+                            }} disabled={walletBusy}>
+                              {wallets.map((wallet) => <option key={wallet.name} value={wallet.name}>{wallet.name}</option>)}
+                            </select>
+                          </label>
+                        ) : (
+                          <p>No compatible Solana wallet was found in this browser. Phantom and other Wallet Standard wallets are supported.</p>
+                        )}
+                        <button className="button" type="button" onClick={handleConnectWallet}
+                          disabled={walletBusy || (!previewActive && wallets.length === 0)}>
+                          {walletBusy ? 'connecting…' : 'connect wallet'}
+                        </button>
+                      </div>
+                      <div className="wtt-wallet-setup-prompt">
+                        <span>don't have one?</span>
+                        <WalletSetupHelp />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="wtt-connected-wallet">
+                        <p>wallet</p>
+                        <strong title={displayedWalletAddress}>{shortenSolanaAddress(displayedWalletAddress)}</strong>
+                        {displayedVerifiedChallenge && <span className="wtt-verified">✓ verified</span>}
+                        <button className="button-link" type="button" disabled={walletBusy} onClick={() => {
+                          if (previewActive) setPreviewKind('unclaimed');
+                          else setConnection(null);
+                          clearVerifiedChallenge();
+                          setWalletMessage(null);
+                        }}>change wallet</button>
+                      </div>
+                      {!displayedVerifiedChallenge && (
+                        <p><strong>Signing this message is not a transaction and costs no SOL.</strong> It does not send WTT or give Who Touched This control of your wallet.</p>
+                      )}
+                    </>
+                  )}
+                  {displayedWalletAddress && !displayedVerifiedChallenge && (
+                    <button className="button" type="button" onClick={handleVerifyWallet}
+                      disabled={walletBusy || selectedEntitlementIds.size === 0}>
+                      {walletBusy ? 'waiting for wallet…' : 'verify wallet'}
+                    </button>
+                  )}
+                  {displayedWalletAddress && displayedVerifiedChallenge && (
+                    <button className="button" type="button"
+                      onClick={() => handleClaim(displayedVerifiedChallenge.challengeId)} disabled={claimBusy}>
+                      {claimBusy ? 'claiming…' : `claim ${displayedVerifiedChallenge.amount} wtt`}
+                    </button>
+                  )}
+                  {walletMessage && <p className={displayedVerifiedChallenge ? 'notice' : 'notice notice-error'} role="status">{walletMessage}</p>}
+                </section>
+              )}
+
+              {inProgressClaims.map((claim) => (
+                <section className="wtt-claim-progress" key={claim.claimId} aria-label="WTT claim in progress">
+                  <h3>claim in progress</h3>
+                  <p>{claim.amount} WTT is reserved. resuming uses the same claim and cannot create a second logical claim.</p>
+                  <button className="button" type="button" onClick={() => handleClaim(claim.claimId)} disabled={claimBusy}>
+                    {claimBusy ? 'checking claim…' : 'resume claim'}
+                  </button>
+                </section>
+              ))}
+              {claimMessage && <p className={claimResult ? 'notice' : 'notice notice-error'} role="status">{claimMessage}</p>}
+              {claimResult?.status === 'confirmed' && (
+                <p>
+                  <a href={`https://solscan.io/tx/${encodeURIComponent(claimResult.transactionSignature)}`}
+                    target="_blank" rel="noreferrer">view confirmed transaction on Solscan</a>
+                </p>
+              )}
             </>
           ))}
 
-          <button className="button-link" type="button" onClick={handleSignOut} disabled={busy}>
+          <button className="button-link" type="button" onClick={handleSignOut} disabled={busy || previewActive}>
             {busy ? 'signing out…' : 'sign out'}
           </button>
         </>

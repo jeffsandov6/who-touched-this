@@ -268,20 +268,54 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .notice-error { border-left-color: #a33a32; background: #f8e8e6; }
 .wtt-claim-page { max-width: 46rem; }
 .wtt-intro { font-size: 1.125rem; }
-.wtt-wallet-help {
-  margin-block: 1.5rem 2rem;
-  padding: 1rem;
-  border-left: 4px solid #8ab4e0;
-  background: #f6f9fc;
+.wtt-preview-label {
+  width: fit-content;
+  margin-block: -0.4rem 1rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid #c7b66a;
+  color: #66581d;
+  background: #fffbed;
+  font-size: 0.75rem;
 }
-.wtt-wallet-help h2, .wtt-wallet-help p { margin-block: 0 0.75rem; }
-.wtt-wallet-help details { margin-block: 1rem; }
-.wtt-wallet-help summary { font-weight: 700; cursor: pointer; }
-.wtt-wallet-help ol { padding-left: 1.4rem; }
+.wtt-about { max-width: 40rem; margin-block: 1.25rem 2rem; }
+.wtt-about h2 { margin-block: 0 0.5rem; font-size: 1rem; }
+.wtt-about p { margin-block: 0 0.5rem; }
 .wtt-auth-panel { margin-top: 2rem; }
 .wtt-auth-panel h2, .empty-state h2 { margin-block: 0 0.5rem; }
 .wtt-auth-panel p, .empty-state p { margin-block: 0 1rem; }
-.wtt-provider-id { color: #6a6d72; font-size: 0.8rem; }
+.wtt-auth-reassurance { margin-top: 1rem !important; color: #50535a; font-size: 0.9rem; }
+.wtt-claim-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-block: 1.5rem 2rem;
+  padding: 0;
+  list-style: none;
+}
+.wtt-claim-steps li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  padding-top: 0.55rem;
+  border-top: 2px solid #d9d9d4;
+  color: #6a6d72;
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+.wtt-claim-steps li[data-state="complete"] { border-color: #6d8f74; color: #315a3a; }
+.wtt-claim-steps li[data-state="current"] { border-color: #244d78; color: #1e4267; }
+.wtt-step-marker {
+  display: inline-grid;
+  flex: 0 0 1.35rem;
+  width: 1.35rem;
+  height: 1.35rem;
+  place-items: center;
+  border: 1px solid currentcolor;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  line-height: 1;
+}
 .wtt-totals {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -294,12 +328,13 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .wtt-wallet-panel {
   display: grid;
   gap: 0.8rem;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
   padding: 1rem;
   border: 1px solid #d9d9d4;
   background: #fff;
 }
 .wtt-wallet-panel h3, .wtt-wallet-panel p { margin: 0; }
+.wtt-selected-amount { color: #244d78; }
 .wtt-wallet-connect { display: flex; flex-wrap: wrap; align-items: end; gap: 0.75rem; }
 .wtt-wallet-connect label { display: grid; gap: 0.3rem; font-weight: 650; }
 .wtt-wallet-connect select {
@@ -311,6 +346,32 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
   color: inherit;
   font: inherit;
 }
+.wtt-wallet-connect select:focus-visible,
+.wtt-wallet-help summary:focus-visible {
+  outline: 3px solid #8ab4e0;
+  outline-offset: 3px;
+}
+.wtt-wallet-setup-prompt { margin-top: 0.25rem; }
+.wtt-wallet-setup-prompt > span { color: #50535a; font-size: 0.9rem; }
+.wtt-wallet-help { margin-top: 0.35rem; }
+.wtt-wallet-help summary {
+  width: fit-content;
+  color: #244d78;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.wtt-wallet-help-content {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border-left: 4px solid #8ab4e0;
+  background: #f6f9fc;
+}
+.wtt-wallet-help-content h4,
+.wtt-wallet-help-content h5,
+.wtt-wallet-help-content p { margin-block: 0 0.5rem; }
+.wtt-wallet-help-content ol { display: grid; gap: 1rem; margin-block: 1rem; padding-left: 1.4rem; }
+.wtt-wallet-help-content .button { display: inline-block; margin-top: 0.25rem; text-decoration: none; }
 .wtt-connected-wallet { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem 0.75rem; }
 .wtt-verified { color: #25643b; font-weight: 700; }
 .wtt-claim-progress {
@@ -343,6 +404,10 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .wtt-status-claimed { color: #50535a; }
 @media (max-width: 32rem) {
   .wtt-totals { grid-template-columns: 1fr; }
+  .wtt-claim-steps { grid-template-columns: 1fr; gap: 0.25rem; }
+  .wtt-claim-steps li { padding-block: 0.35rem; padding-top: 0.35rem; border-top: 0; border-left: 2px solid #d9d9d4; padding-left: 0.6rem; }
+  .wtt-claim-steps li[data-state="complete"] { border-left-color: #6d8f74; }
+  .wtt-claim-steps li[data-state="current"] { border-left-color: #244d78; }
   .wtt-entitlements li { align-items: flex-start; flex-direction: column; }
 }
 .visually-hidden {
