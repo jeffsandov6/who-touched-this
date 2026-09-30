@@ -182,8 +182,10 @@ test('preview resolves Playwright from lockfile-pinned trusted dependencies moun
   assert.ok(visualJob >= 0 && trustedCheckout < trustedInstall && trustedInstall < previewCapture);
   assert.match(install, /working-directory: \.wtt-ci\/trusted/);
   assert.match(install, /run: npm ci --ignore-scripts/);
-  assert.equal(packageManifest.devDependencies.playwright, '1.56.0');
-  assert.equal(packageLock.packages[''].devDependencies.playwright, packageManifest.devDependencies.playwright);
+  const playwrightVersion = packageManifest.devDependencies.playwright;
+  assert.match(playwrightVersion, /^\d+\.\d+\.\d+$/);
+  assert.equal(packageLock.packages[''].devDependencies.playwright, playwrightVersion);
+  assert.equal(packageLock.packages['node_modules/playwright'].version, playwrightVersion);
   assert.match(preview, /from 'playwright'/);
   assert.match(capture, /--trusted \.wtt-ci\/trusted/);
   assert.match(sandboxRunner, /workspaceReadonly: true/);
