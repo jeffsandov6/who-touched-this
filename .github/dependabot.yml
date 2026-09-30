@@ -9,6 +9,9 @@ updates:
     groups:
       root-minor-and-patch:
         applies-to: version-updates
+        # Playwright must move atomically with the digest-pinned hostile preview image.
+        exclude-patterns:
+          - "playwright"
         update-types:
           - "minor"
           - "patch"
