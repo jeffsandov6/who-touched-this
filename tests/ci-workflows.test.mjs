@@ -14,6 +14,7 @@ const statusReporter = await readFile(new URL('../scripts/report-review-status.m
 const handoff = await readFile(new URL('../scripts/pr-review/handoff.mjs', import.meta.url), 'utf8');
 const handoffWriter = await readFile(new URL('../scripts/create-review-handoff.mjs', import.meta.url), 'utf8');
 const handoffVerifier = await readFile(new URL('../scripts/verify-review-handoff.mjs', import.meta.url), 'utf8');
+const reviewPolicy = await readFile(new URL('../scripts/pr-review/policy.mjs', import.meta.url), 'utf8');
 const workflows = `${boundary}\n${review}\n${maintenance}`;
 
 function workflowTrigger(workflow) {
@@ -107,11 +108,22 @@ test('maintenance validation is unprivileged, exact-revision, and runs actual pr
   ]) assert.ok(maintenance.includes(command), command);
 });
 
+test('maintenance installs only lockfile-matched Chromium before Playwright-backed tests', () => {
+  const rootInstall = maintenance.indexOf('Install root dependencies exactly');
+  const browserInstall = maintenance.indexOf('Install lockfile-matched Playwright Chromium');
+  const reviewTests = maintenance.indexOf('npm run test:pr-review');
+  assert.ok(rootInstall >= 0 && rootInstall < browserInstall && browserInstall < reviewTests);
+  const step = namedStep(maintenance, 'Install lockfile-matched Playwright Chromium');
+  assert.match(step, /\.\/node_modules\/\.bin\/playwright install --with-deps chromium/);
+  assert.doesNotMatch(step, /playwright@|v\d+\.\d+\.\d+|install (?:firefox|webkit)/);
+});
+
 test('Dependabot version updates are grouped by ecosystem without grouping security updates', () => {
   assert.equal((dependabot.match(/interval: "weekly"/g) ?? []).length, 3);
   assert.equal((dependabot.match(/open-pull-requests-limit: 5/g) ?? []).length, 3);
   assert.equal((dependabot.match(/applies-to: version-updates/g) ?? []).length, 3);
   assert.match(dependabot, /root-minor-and-patch:[\s\S]*?update-types:[\s\S]*?"minor"[\s\S]*?"patch"/);
+  assert.match(dependabot, /root-minor-and-patch:[\s\S]*?exclude-patterns:[\s\S]*?- "playwright"/);
   assert.match(dependabot, /functions-minor-and-patch:[\s\S]*?update-types:[\s\S]*?"minor"[\s\S]*?"patch"/);
   assert.match(dependabot, /routine-actions:[\s\S]*?patterns:[\s\S]*?- "\*"/);
   assert.doesNotMatch(dependabot, /applies-to: security-updates/);
@@ -186,6 +198,7 @@ test('preview resolves Playwright from lockfile-pinned trusted dependencies moun
   assert.match(playwrightVersion, /^\d+\.\d+\.\d+$/);
   assert.equal(packageLock.packages[''].devDependencies.playwright, playwrightVersion);
   assert.equal(packageLock.packages['node_modules/playwright'].version, playwrightVersion);
+  assert.match(reviewPolicy, new RegExp(`HOSTILE_PLAYWRIGHT_IMAGE = 'mcr\\.microsoft\\.com/playwright:v${playwrightVersion.replaceAll('.', '\\.')}\\-noble@sha256:[0-9a-f]{64}'`));
   assert.match(preview, /from 'playwright'/);
   assert.match(capture, /--trusted \.wtt-ci\/trusted/);
   assert.match(sandboxRunner, /workspaceReadonly: true/);

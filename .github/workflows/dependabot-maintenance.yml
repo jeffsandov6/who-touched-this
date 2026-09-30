@@ -59,6 +59,9 @@ jobs:
       - name: Install root dependencies exactly
         run: npm ci
 
+      - name: Install lockfile-matched Playwright Chromium
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+
       - name: Install Functions dependencies exactly
         run: npm --prefix functions ci
 
