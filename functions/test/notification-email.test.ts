@@ -9,8 +9,10 @@ import {
 } from '../src/email/lifecycle-template.js';
 import {
   sendContributionCompleted,
+  sendContributionCompletedFromContribution,
   sendTurnNotification,
 } from '../src/email/lifecycle-delivery.js';
+import { contributorJourneyImage } from '../src/email/email-shell.js';
 import {
   deliveryIds,
   isInvitationReminderEligible,
@@ -91,6 +93,23 @@ test('notification IDs are deterministic and scoped to their logical notificatio
   assert.equal(deliveryIds.contributionCompleted(1), 'contribution_completed_1');
 });
 
+test('contributor journey image states map to fixed production assets and alt text', () => {
+  assert.deepEqual(contributorJourneyImage('https://whotouchedthis.website', 'invited'), {
+    path: '/email/journey/journey-invited@2x.jpg',
+    url: 'https://whotouchedthis.website/email/journey/journey-invited@2x.jpg',
+    alt: 'pirate beginning the journey with a treasure map and ship waiting',
+  });
+  assert.equal(contributorJourneyImage('https://whotouchedthis.website', 'turn').alt,
+    'pirate sailing through a dangerous voyage');
+  assert.deepEqual(contributorJourneyImage('https://preview.example', 'missed'), {
+    path: '/email/journey/journey-missed@2x.jpg',
+    url: 'https://preview.example/email/journey/journey-missed@2x.jpg',
+    alt: 'pirate stranded after a shipwreck',
+  });
+  assert.equal(contributorJourneyImage('https://whotouchedthis.website', 'complete').alt,
+    'pirate reaching the end of the journey for one tiny treasure');
+});
+
 test('invitation reminder eligibility requires pending, a meaningful original window, and future <=6h', () => {
   const eligible = { status: 'pending', invitedAt: new Date(now.getTime() - 20 * HOUR), acceptBy: new Date(now.getTime() + 4 * HOUR) };
   assert.equal(isInvitationReminderEligible(eligible, now), true);
@@ -148,12 +167,13 @@ test('deadline notice begins exactly at dueAt and every reminder rejects non-act
 test('templates have correct subjects, CTAs, readable lines, UTC times, and escaped HTML', () => {
   const base = { to: 'private@example.test', displayName: 'Alice <script>', appOrigin: 'https://whotouchedthis.website' };
   const invitation = buildInvitationReminderEmail({ ...base, acceptBy: now, turnDurationHours: 168, idempotencyKey: 'a' });
-  const started = buildTurnStartedEmail({ ...base, targetContributionNumber: 1, dueAt: now, idempotencyKey: 'b' });
-  const seventy = buildTurnReminderEmail({ ...base, targetContributionNumber: 1, dueAt: now, idempotencyKey: 'c' }, 72);
-  const twenty = buildTurnReminderEmail({ ...base, targetContributionNumber: 1, dueAt: now, idempotencyKey: 'd' }, 24);
-  const deadline = buildDeadlinePassedEmail({ ...base, targetContributionNumber: 1, dueAt: now, idempotencyKey: 'e' });
+  const turnBase = { ...base, targetContributionNumber: 1, dueAt: now, turnDurationHours: 72 };
+  const started = buildTurnStartedEmail({ ...turnBase, idempotencyKey: 'b' });
+  const seventy = buildTurnReminderEmail({ ...turnBase, turnDurationHours: 168, idempotencyKey: 'c' }, 72);
+  const twenty = buildTurnReminderEmail({ ...turnBase, idempotencyKey: 'd' }, 24);
+  const deadline = buildDeadlinePassedEmail({ ...turnBase, idempotencyKey: 'e' });
   assert.equal(invitation.subject, 'your who touched this invitation expires soon');
-  assert.equal(started.subject, 'your who touched this turn has started');
+  assert.equal(started.subject, "it's your turn on who touched this");
   assert.equal(seventy.subject, '3 days left on your who touched this turn');
   assert.equal(twenty.subject, '24 hours left on your who touched this turn');
   assert.equal(deadline.subject, 'your who touched this deadline has passed');
@@ -162,7 +182,22 @@ test('templates have correct subjects, CTAs, readable lines, UTC times, and esca
     assert.doesNotMatch(email.html, /<script>/); assert.match(email.html, /&lt;script&gt;/);
     assert.doesNotMatch(email.text, /12345|queue position|Firebase UID/i);
   }
-  assert.match(deadline.text, /remains technically open/);
+  assert.match(invitation.text, /still want it\?/);
+  assert.match(invitation.html, /journey-invited@2x\.jpg/);
+  assert.match(invitation.html, /pirate beginning the journey with a treasure map and ship waiting/);
+  assert.match(started.text, /okay\. don't break it\./);
+  assert.match(seventy.text, /clock's ticking\./);
+  assert.match(twenty.html, /mailto:hello@whotouchedthis\.website/i);
+  assert.match(deadline.text, /well\.\.\. time's up\./);
+  assert.match(deadline.text, /want another shot later\? email hello@whotouchedthis\.website/);
+  assert.doesNotMatch(deadline.text, /remains technically open/);
+  for (const email of [started, seventy, twenty]) {
+    assert.match(email.html, /journey-turn@2x\.jpg/);
+    assert.match(email.html, /pirate sailing through a dangerous voyage/);
+  }
+  assert.match(deadline.html, /journey-missed@2x\.jpg/);
+  assert.match(deadline.html, /pirate stranded after a shipwreck/);
+  assert.doesNotMatch(deadline.html, /journey-turn@2x\.jpg/);
 });
 
 test('completion template includes public contribution data and universal WTT claim link', () => {
@@ -171,11 +206,15 @@ test('completion template includes public contribution data and universal WTT cl
     summary: 'Added a button.', prUrl: 'https://github.com/example/repo/pull/27',
     appOrigin: 'https://whotouchedthis.website', idempotencyKey: 'complete_1',
   });
-  assert.equal(email.subject, 'contribution #001 is now part of who touched this');
+  assert.equal(email.subject, 'Contribution #001 is live on who touched this');
   assert.match(email.text, /Added a button\./); assert.match(email.text, /\/history/);
-  assert.match(email.text, /you earned 1 WTT/);
+  assert.match(email.text, /unfortunately, you earned 1 wtt\./);
+  assert.match(email.text, /you actually did it\./);
+  assert.match(email.text, /GitHub pull request: https:\/\/github\.com\/example\/repo\/pull\/27/);
   assert.match(email.text, /https:\/\/whotouchedthis\.website\/wtt\/claim/);
   assert.match(email.html, /new to Solana wallets/);
+  assert.match(email.html, /journey-complete@2x\.jpg/);
+  assert.match(email.html, /pirate reaching the end of the journey for one tiny treasure/);
   assert.doesNotMatch(email.text, /[?&](token|claim|secret)=/i);
   assert.throws(() => buildContributionCompletedEmail({
     to: 'x@y.test', displayName: 'Alice', contributionNumber: 1, summary: 'x',
@@ -204,7 +243,54 @@ test('turn-created and merged-turn delivery send once and duplicate events do no
     number: 1, githubUserId: '12345', summary: 'Made it permanent.', prUrl: 'https://github.com/example/repo/pull/27',
   }, 'claim-4', dependencies);
   assert.equal(provider.sends.length, 2);
-  assert.match(provider.sends[0]!.subject, /started/); assert.match(provider.sends[1]!.subject, /#001/);
+  assert.equal(provider.sends[0]!.subject, "it's your turn on who touched this");
+  assert.match(provider.sends[1]!.subject, /#001/);
+});
+
+test('completion escapes hostile names and summaries while preserving plain text facts', () => {
+  const email = buildContributionCompletedEmail({
+    to: 'private@example.test', displayName: '<img src=x onerror=alert(1)>', contributionNumber: 42,
+    summary: '<script>alert("summary")</script> & a suspiciously large red button',
+    prUrl: 'https://github.com/example/repo/pull/42', appOrigin: 'https://whotouchedthis.website',
+    idempotencyKey: 'hostile',
+  });
+  assert.doesNotMatch(email.html, /<script>|<img src=x/);
+  assert.match(email.html, /&lt;script&gt;/);
+  assert.match(email.html, /&amp; a suspiciously large red button/);
+  assert.match(email.text, /<script>alert\("summary"\)<\/script>/);
+});
+
+test('Founder #000 and community completion use the same renderer and universal claim destination', () => {
+  const base = {
+    to: 'private@example.test', displayName: 'A'.repeat(50), summary: 'x'.repeat(160),
+    prUrl: 'https://github.com/example/repo/pull/27', appOrigin: 'https://whotouchedthis.website',
+  };
+  const founder = buildContributionCompletedEmail({ ...base, contributionNumber: 0, idempotencyKey: 'founder' });
+  const community = buildContributionCompletedEmail({ ...base, contributionNumber: 42, idempotencyKey: 'community' });
+  assert.equal(founder.subject, 'Contribution #000 is live on who touched this');
+  assert.equal(community.subject, 'Contribution #042 is live on who touched this');
+  for (const email of [founder, community]) {
+    assert.match(email.text, /claim your wtt: https:\/\/whotouchedthis\.website\/wtt\/claim/);
+    assert.doesNotMatch(email.text, /wtt\/claim\?/);
+  }
+});
+
+test('normal completion and completion resend use identical rendered content', async () => {
+  const contribution = {
+    number: 42, githubUserId: '12345', summary: 'Made it permanent.',
+    prUrl: 'https://github.com/example/repo/pull/42',
+  };
+  const normal = setup();
+  const resend = setup();
+  await sendContributionCompletedFromContribution('42', contribution, 'claim-normal', normal.dependencies);
+  await sendContributionCompletedFromContribution('42', contribution, 'claim-resend', resend.dependencies, {
+    deliveryId: 'contribution_completed_resend_42_request',
+    type: 'contribution_completed_resend',
+    requestedByGithubUserId: '999',
+  });
+  assert.equal(normal.provider.sends[0]?.subject, resend.provider.sends[0]?.subject);
+  assert.equal(normal.provider.sends[0]?.html, resend.provider.sends[0]?.html);
+  assert.equal(normal.provider.sends[0]?.text, resend.provider.sends[0]?.text);
 });
 
 test('hourly dispatcher sends eligible reminder types once and skips non-active turns', async () => {

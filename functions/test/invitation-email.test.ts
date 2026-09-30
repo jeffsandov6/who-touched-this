@@ -93,18 +93,23 @@ function setup(options: { contributor?: { email: unknown; displayName: unknown }
   return { store, provider, dependencies };
 }
 
-test('invitation template has the expected subject, UTC deadline, duration, and join CTA', () => {
+test('invitation template has approved copy, journey state, UTC deadline, duration, and join CTA', () => {
   const email = buildInvitationEmail({
     to: 'private@example.test', displayName: 'Alice', acceptBy: deadline,
     turnDurationHours: 168, appOrigin: 'https://whotouchedthis.website',
     idempotencyKey: 'invitation_abc',
   });
   assert.equal(email.subject, INVITATION_EMAIL_SUBJECT);
+  assert.equal(email.subject, "you're next on who touched this");
+  assert.match(email.text, /invited\nyou're up next\./);
+  assert.match(email.text, /thanks for taking part in who touched this\. seriously, we appreciate it :\)/);
   assert.match(email.text, /June 2, 2030/);
   assert.match(email.text, /6:30:00 PM UTC/);
-  assert.match(email.text, /7 days/);
+  assert.match(email.text, /168-hour clock won't start/);
   assert.match(email.text, /https:\/\/whotouchedthis\.website\/join/);
   assert.match(email.html, /accept your turn/);
+  assert.match(email.html, /journey-invited@2x\.jpg/);
+  assert.match(email.html, /pirate beginning the journey with a treasure map and ship waiting/);
 });
 
 test('HTML escapes contributor-controlled presentation values', () => {
@@ -115,6 +120,17 @@ test('HTML escapes contributor-controlled presentation values', () => {
   });
   assert.doesNotMatch(email.html, /<script>/);
   assert.match(email.html, /&lt;script&gt;/);
+});
+
+test('journey artwork keeps responsive three-to-one dimensions without carrying essential copy', () => {
+  const email = buildInvitationEmail({
+    to: 'preview@example.test', displayName: 'JeffExample', acceptBy: deadline,
+    turnDurationHours: 72, appOrigin: 'https://whotouchedthis.website',
+    idempotencyKey: 'preview',
+  });
+  assert.match(email.html, /width="600" height="200"/);
+  assert.match(email.html, /width:100%;max-width:600px;height:auto/);
+  assert.match(email.text, /you've been invited to take the next turn/);
 });
 
 test('join URL generation replaces any origin path and rejects credentials', () => {
@@ -138,7 +154,7 @@ test('a pending invitation sends once to the private contributor email', async (
   assert.equal(store.status, 'sent');
   assert.equal(store.messageId, 'provider-message-1');
   assert.match(provider.sends[0]?.text ?? '', /June 2, 2030/);
-  assert.match(provider.sends[0]?.text ?? '', /7 days/);
+  assert.match(provider.sends[0]?.text ?? '', /168-hour/);
   assert.match(provider.sends[0]?.text ?? '', /localhost:4321\/join/);
   assert.doesNotMatch(provider.sends[0]?.text ?? '', /123456|queue position/i);
 });

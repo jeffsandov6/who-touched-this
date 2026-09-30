@@ -131,9 +131,16 @@ export async function sendTurnNotification(
   return deliverToContributor({
     deliveryId, type, turnId, githubUserId: data.githubUserId, claimToken,
   }, dependencies, ({ email, displayName }) => {
+    const turnDurationHours = Math.round(
+      (data.dueAt.toDate().getTime() - data.startedAt.toDate().getTime()) / (60 * 60 * 1_000),
+    );
+    if (!Number.isSafeInteger(turnDurationHours) || turnDurationHours < 1 || turnDurationHours > 720) {
+      throw new Error('Contribution duration is invalid.');
+    }
     const base = {
       to: email, displayName, targetContributionNumber: data.targetContributionNumber,
-      dueAt: data.dueAt.toDate(), appOrigin: dependencies.appOrigin, idempotencyKey: deliveryId,
+      dueAt: data.dueAt.toDate(), turnDurationHours,
+      appOrigin: dependencies.appOrigin, idempotencyKey: deliveryId,
     };
     if (type === 'turn_started') return buildTurnStartedEmail(base);
     if (type === 'turn_72h_reminder') return buildTurnReminderEmail(base, 72);

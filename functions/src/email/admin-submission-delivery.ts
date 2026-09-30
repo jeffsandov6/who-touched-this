@@ -1,6 +1,7 @@
 import { deliverNotification, type NotificationDeliveryResult } from './notification-delivery.js';
 import { deliveryIds } from './notification-eligibility.js';
-import { applicationUrl, escapeHtml, formatInvitationDate } from './template.js';
+import { applicationUrl, formatInvitationDate } from './template.js';
+import { copy, renderAdminEmail } from './email-shell.js';
 import type { DeliveryIdentity, DeliveryStore, EmailProvider, SendEmailInput } from './types.js';
 
 export const ADMIN_NOTIFICATION_EMAIL = 'hello@whotouchedthis.website';
@@ -102,26 +103,24 @@ export function buildAdminPrSubmittedEmail(input: {
     `Review PR: ${prUrl}`,
     `Open Admin: ${adminUrl}`,
   ];
-  const htmlIdentity = identity ? `<p>${escapeHtml(identity)}</p>` : '';
-  return {
+  return renderAdminEmail({
     to: ADMIN_NOTIFICATION_EMAIL,
     subject: `Who Touched This: PR submitted — #${number}`,
-    text: lines.join('\n'),
-    html: `<!doctype html>
-<html lang="en">
-  <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#202124">
-    <main style="max-width:600px;margin:0 auto;padding:24px">
-      <h1 style="font-size:22px">Who Touched This</h1>
-      <p>${escapeHtml(displayName)} submitted PR #${input.prNumber} for contribution #${number}.</p>
-      ${htmlIdentity}
-      <p>Submitted: ${escapeHtml(submitted)}</p>
-      <p><a href="${escapeHtml(prUrl)}">Review PR</a></p>
-      <p><a href="${escapeHtml(adminUrl)}">Open Admin</a></p>
-    </main>
-  </body>
-</html>`,
+    preheader: `${displayName} submitted PR #${input.prNumber}.`,
+    appOrigin: input.appOrigin,
     idempotencyKey: input.idempotencyKey,
-  };
+    headline: `PR submitted for Contribution #${number}`,
+    paragraphs: [
+      copy(`${displayName} submitted PR #${input.prNumber} for Contribution #${number}.`),
+      ...(identity ? [copy(identity)] : []),
+      copy(`Submitted: ${submitted}`),
+    ],
+    actions: [
+      { label: 'Review PR', url: prUrl },
+      { label: 'Open Admin', url: adminUrl },
+    ],
+    plainText: lines.join('\n'),
+  });
 }
 
 export async function processAdminPrSubmission(
