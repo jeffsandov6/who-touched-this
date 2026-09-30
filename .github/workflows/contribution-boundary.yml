@@ -25,7 +25,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Validate pull request metadata
+      - name: Classify trusted pull request metadata
+        id: pull-request
+        env:
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types scripts/validate-pull-request-mode.mjs --github-event "$GITHUB_EVENT_PATH"
+
+      - name: Validate community contribution metadata
+        if: steps.pull-request.outputs.mode == 'contribution'
         env:
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_EVENT_PATH: ${{ github.event_path }}
@@ -33,12 +43,14 @@ jobs:
         run: node --experimental-strip-types scripts/validate-contribution.mjs --github-event "$GITHUB_EVENT_PATH"
 
       - name: Create trusted review handoff
+        if: steps.pull-request.outputs.mode == 'contribution'
         run: >-
           node --experimental-strip-types scripts/create-review-handoff.mjs
           --github-event "$GITHUB_EVENT_PATH"
           --output trusted-review-handoff.json
 
       - name: Upload trusted review handoff
+        if: steps.pull-request.outputs.mode == 'contribution'
         # actions/upload-artifact v7.0.1
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:

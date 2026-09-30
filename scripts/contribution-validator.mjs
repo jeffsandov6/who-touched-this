@@ -333,6 +333,7 @@ export async function collectGitHubContribution(eventPath, environment = process
       mode: object?.mode ?? null,
       size: object?.size ?? null,
       binaryOrMedia: targetPath ? isMediaPath(targetPath) || file.patch === undefined : false,
+      patch: typeof file.patch === 'string' ? file.patch : null,
       additions: file.additions ?? 0,
       deletions: file.deletions ?? 0,
     };

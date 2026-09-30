@@ -1,0 +1,79 @@
+name: Dependabot maintenance
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Dependabot maintenance validation
+    if: >-
+      github.actor == 'dependabot[bot]' &&
+      github.event.sender.login == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]' &&
+      github.event.repository.full_name == 'jeffsandov6/who-touched-this' &&
+      github.event.pull_request.base.repo.full_name == 'jeffsandov6/who-touched-this' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == 'jeffsandov6/who-touched-this' &&
+      startsWith(github.event.pull_request.head.ref, 'dependabot/')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact maintenance revision
+        # actions/checkout v6.0.3
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Use Node.js 22
+        # actions/setup-node v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Revalidate trusted identity and changed-file scope
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node --experimental-strip-types scripts/validate-pull-request-mode.mjs --github-event "$GITHUB_EVENT_PATH"
+
+      - name: Verify patch formatting
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: git diff --check "$BASE_SHA" "$HEAD_SHA"
+
+      - name: Install root dependencies exactly
+        run: npm ci
+
+      - name: Install Functions dependencies exactly
+        run: npm --prefix functions ci
+
+      - name: Check and build application variants
+        run: |
+          npm run check
+          npm run build
+          npm run build:contributor
+
+      - name: Check and test Functions
+        run: |
+          npm run functions:check
+          npm run functions:test
+
+      - name: Run trusted pipeline and release tests
+        run: |
+          npm run test:contribution-validator
+          npm run test:pr-review
+          npm run test:release
