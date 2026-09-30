@@ -1,6 +1,9 @@
 import type { SendEmailInput } from './types.js';
+import { copy, renderContributorEmail } from './email-shell.js';
 
-export const INVITATION_EMAIL_SUBJECT = 'your turn on who touched this';
+export { escapeHtml } from './email-shell.js';
+
+export const INVITATION_EMAIL_SUBJECT = "you're next on who touched this";
 
 export interface InvitationEmailTemplateInput {
   to: string;
@@ -11,22 +14,8 @@ export interface InvitationEmailTemplateInput {
   idempotencyKey: string;
 }
 
-export function escapeHtml(value: string): string {
-  return value.replace(/[&<>'"]/g, (character) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    "'": '&#39;',
-    '"': '&quot;',
-  })[character] ?? character);
-}
-
 export function invitationJoinUrl(appOrigin: string): string {
-  const origin = new URL(appOrigin);
-  if (!['http:', 'https:'].includes(origin.protocol) || origin.username || origin.password) {
-    throw new Error('APP_ORIGIN must be an HTTP(S) origin without credentials.');
-  }
-  return new URL('/join', origin).toString();
+  return applicationUrl(appOrigin, '/join');
 }
 
 export function applicationUrl(
@@ -43,16 +32,18 @@ export function applicationUrl(
 export function formatInvitationDate(date: Date): string {
   if (!Number.isFinite(date.getTime())) throw new Error('Invitation deadline is invalid.');
   return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'long',
-    timeStyle: 'long',
-    timeZone: 'UTC',
+    dateStyle: 'long', timeStyle: 'long', timeZone: 'UTC',
   }).format(date);
 }
 
-export function formatTurnDuration(hours: number): string {
+function validateTurnDuration(hours: number): void {
   if (!Number.isSafeInteger(hours) || hours < 1 || hours > 720) {
     throw new Error('Contribution duration is invalid.');
   }
+}
+
+export function formatTurnDuration(hours: number): string {
+  validateTurnDuration(hours);
   if (hours % 24 === 0) {
     const days = hours / 24;
     return `${days} ${days === 1 ? 'day' : 'days'}`;
@@ -60,48 +51,32 @@ export function formatTurnDuration(hours: number): string {
   return `${hours} ${hours === 1 ? 'hour' : 'hours'}`;
 }
 
+export function formatTurnDurationAdjective(hours: number): string {
+  validateTurnDuration(hours);
+  return `${hours}-hour`;
+}
+
 export function buildInvitationEmail(input: InvitationEmailTemplateInput): SendEmailInput {
   const joinUrl = invitationJoinUrl(input.appOrigin);
   const deadline = formatInvitationDate(input.acceptBy);
-  const duration = formatTurnDuration(input.turnDurationHours);
-  const displayName = input.displayName.trim();
-  if (!displayName || displayName.length > 50) throw new Error('Contributor display name is invalid.');
-
-  const text = [
-    `hello ${displayName},`,
-    '',
-    "you've been selected for the next turn on who touched this.",
-    `accept your invitation by ${deadline}.`,
-    `your contribution timer has not started yet. after accepting, you'll have ${duration}.`,
-    'sign in with the same GitHub account you used to join.',
-    '',
-    `accept your turn: ${joinUrl}`,
-  ].join('\n');
-
-  const htmlName = escapeHtml(displayName);
-  const htmlDeadline = escapeHtml(deadline);
-  const htmlDuration = escapeHtml(duration);
-  const htmlJoinUrl = escapeHtml(joinUrl);
-  const html = `<!doctype html>
-<html lang="en">
-  <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#202124">
-    <main style="max-width:600px;margin:0 auto;padding:24px">
-      <h1 style="font-size:22px">who touched this</h1>
-      <p>hello ${htmlName},</p>
-      <p>you&rsquo;ve been selected for the next turn on who touched this.</p>
-      <p>accept your invitation by <strong>${htmlDeadline}</strong>.</p>
-      <p>your contribution timer has not started yet. after accepting, you&rsquo;ll have ${htmlDuration}.</p>
-      <p>sign in with the same GitHub account you used to join.</p>
-      <p><a href="${htmlJoinUrl}">accept your turn</a></p>
-    </main>
-  </body>
-</html>`;
-
-  return {
+  const duration = formatTurnDurationAdjective(input.turnDurationHours);
+  return renderContributorEmail({
     to: input.to,
     subject: INVITATION_EMAIL_SUBJECT,
-    text,
-    html,
+    preheader: `accept your invitation by ${deadline}.`,
+    appOrigin: input.appOrigin,
     idempotencyKey: input.idempotencyKey,
-  };
+    journeyState: 'invited',
+    eyebrow: 'invited',
+    headline: "you're up next.",
+    displayName: input.displayName,
+    paragraphs: [
+      copy('thanks for taking part in who touched this. seriously, we appreciate it :)'),
+      copy("you've been invited to take the next turn."),
+      copy(`accept by ${deadline}.`),
+      copy(`your ${duration} clock won't start until you accept, so no panic yet.`),
+      copy('sign in with the same GitHub account you used to join.'),
+    ],
+    primaryAction: { label: 'accept your turn', url: joinUrl },
+  });
 }

@@ -1,10 +1,6 @@
 import type { SendEmailInput } from './types.js';
-import {
-  applicationUrl,
-  escapeHtml,
-  formatInvitationDate,
-  formatTurnDuration,
-} from './template.js';
+import { copy, escapeHtml, renderContributorEmail, type EmailCopy } from './email-shell.js';
+import { applicationUrl, formatInvitationDate, formatTurnDurationAdjective } from './template.js';
 
 interface BaseInput {
   to: string;
@@ -21,6 +17,7 @@ interface InvitationReminderInput extends BaseInput {
 interface TurnInput extends BaseInput {
   targetContributionNumber: number;
   dueAt: Date;
+  turnDurationHours: number;
 }
 
 interface ContributionInput extends BaseInput {
@@ -29,94 +26,93 @@ interface ContributionInput extends BaseInput {
   prUrl: string;
 }
 
-function validateName(value: string): string {
-  const name = value.trim();
-  if (!name || name.length > 50) throw new Error('Contributor display name is invalid.');
-  return name;
+function numberLabel(value: number): string {
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error('Contribution number is invalid.');
+  return String(value).padStart(3, '0');
 }
 
-function emailDocument(subject: string, name: string, paragraphs: string[], cta: string, label: string) {
-  const text = [`hello ${name},`, '', ...paragraphs, '', `${label}: ${cta}`].join('\n');
-  const htmlParagraphs = paragraphs.map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join('\n      ');
-  const html = `<!doctype html>
-<html lang="en">
-  <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#202124">
-    <main style="max-width:600px;margin:0 auto;padding:24px">
-      <h1 style="font-size:22px">who touched this</h1>
-      <p>hello ${escapeHtml(name)},</p>
-      ${htmlParagraphs}
-      <p><a href="${escapeHtml(cta)}">${escapeHtml(label)}</a></p>
-    </main>
-  </body>
-</html>`;
-  return { subject, text, html };
-}
-
-function finish(input: BaseInput, content: ReturnType<typeof emailDocument>): SendEmailInput {
-  return { to: input.to, idempotencyKey: input.idempotencyKey, ...content };
+function supportSentence(prefix: string, suffix: string): EmailCopy {
+  return {
+    text: `${prefix}hello@whotouchedthis.website${suffix}`,
+    html: `${escapeHtml(prefix)}<a href="mailto:hello@whotouchedthis.website" style="color:#171717">hello@whotouchedthis.website</a>${escapeHtml(suffix)}`,
+  };
 }
 
 export function buildInvitationReminderEmail(input: InvitationReminderInput): SendEmailInput {
-  const name = validateName(input.displayName);
   const deadline = formatInvitationDate(input.acceptBy);
-  const duration = formatTurnDuration(input.turnDurationHours);
-  return finish(input, emailDocument(
-    'your who touched this invitation expires soon', name,
-    [
-      `your invitation expires at ${deadline}.`,
-      `your contribution clock has not started. after accepting, you will have ${duration}.`,
-      'sign in with the same GitHub account you used to join.',
+  const duration = formatTurnDurationAdjective(input.turnDurationHours);
+  return renderContributorEmail({
+    ...input,
+    subject: 'your who touched this invitation expires soon',
+    preheader: `your invitation expires at ${deadline}.`,
+    journeyState: 'invited', eyebrow: 'invited', headline: 'still want it?',
+    paragraphs: [
+      copy(`your invitation expires at ${deadline}.`),
+      copy(`your ${duration} clock still hasn't started, but the invitation clock definitely has.`),
+      copy('if you want the turn, accept before the deadline.'),
     ],
-    applicationUrl(input.appOrigin, '/join'), 'review your invitation',
-  ));
+    primaryAction: { label: 'review your invitation', url: applicationUrl(input.appOrigin, '/join') },
+  });
 }
 
 export function buildTurnStartedEmail(input: TurnInput): SendEmailInput {
-  const name = validateName(input.displayName);
-  return finish(input, emailDocument(
-    'your who touched this turn has started', name,
-    [
-      `the clock is now running for contribution #${String(input.targetContributionNumber).padStart(3, '0')}.`,
-      `your absolute deadline is ${formatInvitationDate(input.dueAt)}.`,
+  const number = numberLabel(input.targetContributionNumber);
+  const deadline = formatInvitationDate(input.dueAt);
+  formatTurnDurationAdjective(input.turnDurationHours);
+  return renderContributorEmail({
+    ...input,
+    subject: "it's your turn on who touched this",
+    preheader: `the clock is officially running for Contribution #${number}.`,
+    journeyState: 'turn', eyebrow: 'your turn', headline: "okay. don't break it.",
+    paragraphs: [
+      copy(`the clock is officially running for Contribution #${number}.`),
+      copy(`you've got ${input.turnDurationHours} hours. your deadline is ${deadline}.`),
+      copy('make one small contribution. make it yours.'),
     ],
-    applicationUrl(input.appOrigin, '/join'), 'view your turn',
-  ));
+    primaryAction: { label: 'view your turn', url: applicationUrl(input.appOrigin, '/join') },
+  });
 }
 
-export function buildTurnReminderEmail(
-  input: TurnInput,
-  threshold: 72 | 24,
-): SendEmailInput {
-  const name = validateName(input.displayName);
+export function buildTurnReminderEmail(input: TurnInput, threshold: 72 | 24): SendEmailInput {
+  formatTurnDurationAdjective(input.turnDurationHours);
+  const number = numberLabel(input.targetContributionNumber);
   const subject = threshold === 72
     ? '3 days left on your who touched this turn'
     : '24 hours left on your who touched this turn';
-  return finish(input, emailDocument(
-    subject, name,
-    [
-      `about ${threshold} hours remain for contribution #${String(input.targetContributionNumber).padStart(3, '0')}.`,
-      `your absolute deadline is ${formatInvitationDate(input.dueAt)}.`,
+  return renderContributorEmail({
+    ...input,
+    subject,
+    preheader: `about ${threshold} hours remain for Contribution #${number}.`,
+    journeyState: 'turn', eyebrow: 'your turn', headline: "clock's ticking.",
+    paragraphs: [
+      copy(`about ${threshold} hours remain for Contribution #${number}.`),
+      copy(`your deadline is ${formatInvitationDate(input.dueAt)}.`),
+      supportSentence("think you'll need more time? email ", ' before the deadline.'),
+      copy("extensions aren't guaranteed, but disappearing into the void won't help :("),
     ],
-    applicationUrl(input.appOrigin, '/join'), 'view your turn',
-  ));
+    primaryAction: { label: 'view your turn', url: applicationUrl(input.appOrigin, '/join') },
+  });
 }
 
 export function buildDeadlinePassedEmail(input: TurnInput): SendEmailInput {
-  const name = validateName(input.displayName);
-  return finish(input, emailDocument(
-    'your who touched this deadline has passed', name,
-    [
-      `the deadline for contribution #${String(input.targetContributionNumber).padStart(3, '0')} passed at ${formatInvitationDate(input.dueAt)}.`,
-      'your turn remains technically open until the owner explicitly closes it.',
-      'if you already have a pull request ready, you may still submit it or contact the owner, but late acceptance is not guaranteed.',
+  const number = numberLabel(input.targetContributionNumber);
+  const duration = formatTurnDurationAdjective(input.turnDurationHours);
+  return renderContributorEmail({
+    ...input,
+    subject: 'your who touched this deadline has passed',
+    preheader: `the ${duration} window for Contribution #${number} has ended.`,
+    journeyState: 'missed', eyebrow: 'your turn', headline: "well... time's up.",
+    paragraphs: [
+      copy(`the ${duration} window for Contribution #${number} ended at ${formatInvitationDate(input.dueAt)}.`),
+      copy("if you've already got a pull request ready, send it now. we may still review a late submission, but no promises."),
+      supportSentence("if not, that's probably the end of this turn (we get it, life). want another shot later? email ", ' :)'),
     ],
-    applicationUrl(input.appOrigin, '/join'), 'view your turn',
-  ));
+    primaryAction: { label: 'view your turn', url: applicationUrl(input.appOrigin, '/join') },
+  });
 }
 
 export function buildContributionCompletedEmail(input: ContributionInput): SendEmailInput {
-  const name = validateName(input.displayName);
-  const number = String(input.contributionNumber).padStart(3, '0');
+  const number = numberLabel(input.contributionNumber);
   const summary = input.summary.trim();
   if (!summary || summary.length > 160) throw new Error('Contribution summary is invalid.');
   const pr = new URL(input.prUrl);
@@ -126,37 +122,29 @@ export function buildContributionCompletedEmail(input: ContributionInput): SendE
   }
   const contributionUrl = applicationUrl(input.appOrigin, `/history/${input.contributionNumber}`);
   const claimUrl = applicationUrl(input.appOrigin, '/wtt/claim');
-  const subject = `contribution #${number} is now part of who touched this`;
-  const text = [
-    `hello ${name},`, '', 'your contribution is live.', '',
-    `Contribution #${number}`, `summary: ${summary}`, `GitHub pull request: ${pr.toString()}`,
-    `view contribution: ${contributionUrl}`, '', 'you earned 1 WTT.', '',
-    'you touched the website.', 'unfortunately, you earned this.', '',
-    `claim your WTT: ${claimUrl}`, '', 'new to Solana wallets?',
-    "we'll walk you through it on the claim page.", '',
-    'you do not need SOL or crypto to participate in Who Touched This.',
-    'you only need a Solana wallet if you want to claim your WTT.', '',
-    'need help?', 'hello@whotouchedthis.website',
-  ].join('\n');
-  const html = `<!doctype html>
-<html lang="en">
-  <body style="font-family:system-ui,sans-serif;line-height:1.5;color:#202124">
-    <main style="max-width:600px;margin:0 auto;padding:24px">
-      <h1 style="font-size:22px">who touched this</h1>
-      <p>hello ${escapeHtml(name)},</p>
-      <p>your contribution is live.</p>
-      <h2 style="font-size:18px">Contribution #${number}</h2>
-      <p>${escapeHtml(summary)}</p>
-      <p><a href="${escapeHtml(contributionUrl)}">view contribution</a></p>
-      <h2 style="font-size:18px">you earned 1 WTT.</h2>
-      <p>you touched the website.<br>unfortunately, you earned this.</p>
-      <p><a href="${escapeHtml(claimUrl)}">claim your WTT</a></p>
-      <p><strong>new to Solana wallets?</strong><br>we'll walk you through it on the claim page.</p>
-      <p>you do not need SOL or crypto to participate in Who Touched This.<br>
-      you only need a Solana wallet if you want to claim your WTT.</p>
-      <p>need help?<br><a href="mailto:hello@whotouchedthis.website">hello@whotouchedthis.website</a></p>
-    </main>
-  </body>
-</html>`;
-  return finish(input, { subject, text, html });
+  return renderContributorEmail({
+    ...input,
+    subject: `Contribution #${number} is live on who touched this`,
+    preheader: `Contribution #${number} is live.`,
+    journeyState: 'complete', eyebrow: 'touched it', headline: 'you actually did it.',
+    paragraphs: [
+      copy(`Contribution #${number} is live.`),
+      copy(summary),
+      copy('the website is slightly more yours now.'),
+    ],
+    detail: [{
+      text: `GitHub pull request: ${pr.toString()}`,
+      html: `GitHub pull request: <a href="${escapeHtml(pr.toString())}" style="color:#171717">${escapeHtml(pr.toString())}</a>`,
+    }],
+    primaryAction: { label: 'view contribution', url: contributionUrl },
+    secondary: {
+      heading: 'unfortunately, you earned 1 wtt.',
+      paragraphs: [
+        copy('you touched the website. this is the consequence.'),
+        copy("wtt is a crypto token on Solana. claiming it is optional & free. you don't need to buy SOL or pay anything to claim it (we pay the fees)."),
+      ],
+      action: { label: 'claim your wtt', url: claimUrl },
+    },
+    closing: [copy("new to Solana wallets? we'll walk you through it on the claim page.")],
+  });
 }

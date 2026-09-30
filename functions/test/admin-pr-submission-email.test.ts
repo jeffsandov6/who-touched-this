@@ -158,6 +158,8 @@ test('template contains only operational public presentation and safe canonical 
   assert.equal(email.to, 'hello@whotouchedthis.website');
   assert.match(email.text, /Review PR: https:\/\/github\.com/);
   assert.match(email.text, /Open Admin: https:\/\/whotouchedthis\.website\/admin/);
+  assert.doesNotMatch(email.html, /journey-(?:invited|turn|missed|complete)@2x\.(?:png|jpg)/);
+  assert.doesNotMatch(email.html, /pirate (?:beginning|sailing|stranded|reaching)/);
   assert.doesNotMatch(`${email.text}\n${email.html}`, /private@example|Firebase UID|queue|email address/i);
   assert.throws(() => buildAdminPrSubmittedEmail({ ...input, prUrl: 'javascript:alert(1)' }));
   assert.throws(() => buildAdminPrSubmittedEmail({
