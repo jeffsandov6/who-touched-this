@@ -87,6 +87,7 @@ test('maintenance validation is unprivileged, exact-revision, and runs actual pr
   assert.match(workflowTrigger(maintenance), /pull_request:\n    branches: \[main\]/);
   assert.doesNotMatch(maintenance, /pull_request_target|workflow_run|checks: write|secrets\./);
   assert.match(maintenance, /contents: read/);
+  assert.match(maintenance, /pull-requests: read/);
   for (const identity of [
     "github.actor == 'dependabot[bot]'",
     "github.event.sender.login == 'dependabot[bot]'",
