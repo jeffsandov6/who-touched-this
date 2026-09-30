@@ -4,6 +4,8 @@ import test from 'node:test';
 
 const boundary = await readFile(new URL('../.github/workflows/contribution-boundary.yml', import.meta.url), 'utf8');
 const review = await readFile(new URL('../.github/workflows/contributor-build.yml', import.meta.url), 'utf8');
+const maintenance = await readFile(new URL('../.github/workflows/dependabot-maintenance.yml', import.meta.url), 'utf8');
+const dependabot = await readFile(new URL('../.github/dependabot.yml', import.meta.url), 'utf8');
 const sandboxRunner = await readFile(new URL('../scripts/run-review-sandbox.mjs', import.meta.url), 'utf8');
 const preview = await readFile(new URL('../scripts/pr-review/preview.mjs', import.meta.url), 'utf8');
 const packageManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
@@ -12,7 +14,7 @@ const statusReporter = await readFile(new URL('../scripts/report-review-status.m
 const handoff = await readFile(new URL('../scripts/pr-review/handoff.mjs', import.meta.url), 'utf8');
 const handoffWriter = await readFile(new URL('../scripts/create-review-handoff.mjs', import.meta.url), 'utf8');
 const handoffVerifier = await readFile(new URL('../scripts/verify-review-handoff.mjs', import.meta.url), 'utf8');
-const workflows = `${boundary}\n${review}`;
+const workflows = `${boundary}\n${review}\n${maintenance}`;
 
 function workflowTrigger(workflow) {
   const match = workflow.match(/^on:\n([\s\S]*?)\npermissions:/m);
@@ -58,8 +60,60 @@ test('privileged boundary remains base-controlled metadata-only execution', () =
   assert.doesNotMatch(boundary, /\$\{\{\s*secrets\./);
   assert.match(boundary, /contents: read/);
   assert.match(boundary, /pull-requests: read/);
-  assert.ok(boundary.indexOf('Validate pull request metadata') < boundary.indexOf('Create trusted review handoff'));
+  assert.ok(boundary.indexOf('Classify trusted pull request metadata') < boundary.indexOf('Validate community contribution metadata'));
+  assert.ok(boundary.indexOf('Validate community contribution metadata') < boundary.indexOf('Create trusted review handoff'));
   assert.ok(boundary.indexOf('Create trusted review handoff') < boundary.indexOf('Upload trusted review handoff'));
+});
+
+test('Dependabot maintenance is authenticated without titles, labels, or contributor handoffs', () => {
+  const classifier = namedStep(boundary, 'Classify trusted pull request metadata');
+  assert.match(classifier, /GITHUB_ACTOR: \$\{\{ github\.actor \}\}/);
+  assert.match(classifier, /validate-pull-request-mode\.mjs/);
+  assert.match(namedStep(boundary, 'Validate community contribution metadata'), /if: steps\.pull-request\.outputs\.mode == 'contribution'/);
+  assert.match(namedStep(boundary, 'Create trusted review handoff'), /if: steps\.pull-request\.outputs\.mode == 'contribution'/);
+  assert.match(namedStep(boundary, 'Upload trusted review handoff'), /if: steps\.pull-request\.outputs\.mode == 'contribution'/);
+  assert.doesNotMatch(boundary, /pull_request\.(?:title|body)|labels/);
+  assert.doesNotMatch(maintenance, /trusted-contribution-handoff|create-review-handoff|Trusted contributor review/);
+});
+
+test('Dependabot never starts hostile canvas review jobs', () => {
+  const validateJob = review.slice(review.indexOf('  validate-handoff:'), review.indexOf('  build-hostile-canvas:'));
+  assert.match(validateJob, /github\.event\.workflow_run\.actor\.login != 'dependabot\[bot\]'/);
+  assert.match(review, /needs: validate-handoff/);
+  assert.match(review, /needs: \[validate-handoff, build-hostile-canvas\]/);
+});
+
+test('maintenance validation is unprivileged, exact-revision, and runs actual project checks', () => {
+  assert.match(workflowTrigger(maintenance), /pull_request:\n    branches: \[main\]/);
+  assert.doesNotMatch(maintenance, /pull_request_target|workflow_run|checks: write|secrets\./);
+  assert.match(maintenance, /contents: read/);
+  for (const identity of [
+    "github.actor == 'dependabot[bot]'",
+    "github.event.sender.login == 'dependabot[bot]'",
+    "github.event.pull_request.user.login == 'dependabot[bot]'",
+    "github.event.repository.full_name == 'jeffsandov6/who-touched-this'",
+    "github.event.pull_request.base.repo.full_name == 'jeffsandov6/who-touched-this'",
+    "github.event.pull_request.base.ref == 'main'",
+    "github.event.pull_request.head.repo.full_name == 'jeffsandov6/who-touched-this'",
+    "startsWith(github.event.pull_request.head.ref, 'dependabot/')",
+  ]) assert.ok(maintenance.includes(identity), identity);
+  assert.match(maintenance, /ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
+  assert.match(maintenance, /persist-credentials: false/);
+  for (const command of [
+    'git diff --check', 'npm ci', 'npm --prefix functions ci', 'npm run check', 'npm run build',
+    'npm run build:contributor', 'npm run functions:check', 'npm run functions:test',
+    'npm run test:contribution-validator', 'npm run test:pr-review', 'npm run test:release',
+  ]) assert.ok(maintenance.includes(command), command);
+});
+
+test('Dependabot version updates are grouped by ecosystem without grouping security updates', () => {
+  assert.equal((dependabot.match(/interval: "weekly"/g) ?? []).length, 3);
+  assert.equal((dependabot.match(/open-pull-requests-limit: 5/g) ?? []).length, 3);
+  assert.equal((dependabot.match(/applies-to: version-updates/g) ?? []).length, 3);
+  assert.match(dependabot, /root-minor-and-patch:[\s\S]*?update-types:[\s\S]*?"minor"[\s\S]*?"patch"/);
+  assert.match(dependabot, /functions-minor-and-patch:[\s\S]*?update-types:[\s\S]*?"minor"[\s\S]*?"patch"/);
+  assert.match(dependabot, /routine-actions:[\s\S]*?patterns:[\s\S]*?- "\*"/);
+  assert.doesNotMatch(dependabot, /applies-to: security-updates/);
 });
 
 test('hostile orchestration comes only from trusted default-branch workflow_run code', () => {

@@ -30,7 +30,7 @@
     "test:contribution-history": "node --experimental-strip-types --test tests/contribution-history.test.ts",
     "test:invitation": "node --experimental-strip-types --test tests/invitation.test.ts",
     "test:media": "node --experimental-strip-types --test tests/media.test.ts",
-    "test:contribution-validator": "node --experimental-strip-types --test tests/contribution-validator.test.mjs tests/ci-workflows.test.mjs",
+    "test:contribution-validator": "node --experimental-strip-types --test tests/contribution-validator.test.mjs tests/pull-request-policy.test.mjs tests/ci-workflows.test.mjs",
     "test:pr-review": "node --experimental-strip-types --test tests/contribution-security-scan.test.mjs tests/pr-review-security.test.mjs tests/pr-preview.test.mjs tests/pr-review-status.test.mjs",
     "test:pr-review:network": "node --experimental-strip-types scripts/test-review-network-isolation.mjs",
     "test:snapshots": "node --experimental-strip-types --test tests/editable-routes.test.mjs tests/snapshots.test.mjs",
