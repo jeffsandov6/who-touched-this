@@ -121,7 +121,7 @@ test('maintenance installs only lockfile-matched Chromium before Playwright-back
 
 test('Functions lockfile generation is pinned to the supported npm 10 toolchain', () => {
   assert.equal(functionsPackageManifest.engines.node, '22');
-  assert.match(functionsPackageManifest.packageManager, /^npm@10\.\d+\.\d+$/);
+  assert.equal(functionsPackageManifest.packageManager, 'npm@10.9.8');
 });
 
 test('Dependabot version updates are grouped by ecosystem without grouping security updates', () => {
