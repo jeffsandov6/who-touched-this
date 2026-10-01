@@ -244,6 +244,14 @@
   line-height: 1;
 }
 
+.wtt-coin-stats-status {
+  margin: -0.35rem 0 1rem;
+
+  color: #777;
+
+  font-size: 0.68rem;
+}
+
 /* market */
 
 .wtt-coin-market {

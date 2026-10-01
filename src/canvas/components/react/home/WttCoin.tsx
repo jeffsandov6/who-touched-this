@@ -1,12 +1,22 @@
 /** @jsxImportSource react */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { subscribeToPublicWttStats } from '../../../../platform/firebase/public-wtt-stats';
 
 import './WttCoin.css';
 
 const mintAddress = 'B6GqRNfVZ5aW2mkB4u7PJqAvh49qCaEF7uHUoPgRnQet';
 
-const stats = {
+type DisplayStats = {
+    earned: number | '—';
+    claimed: number | '—';
+    unclaimed: number | '—';
+    holders: number | '—';
+    supply: number | '—';
+};
+
+const unavailableStats: DisplayStats = {
     earned: '—',
     claimed: '—',
     unclaimed: '—',
@@ -16,6 +26,36 @@ const stats = {
 
 export default function WttCoin() {
     const [showBuyMessage, setShowBuyMessage] = useState(false);
+    const [stats, setStats] = useState<DisplayStats>(unavailableStats);
+    const [statsStatus, setStatsStatus] = useState<
+        'loading' | 'ready' | 'missing' | 'error'
+    >('loading');
+
+    useEffect(() => {
+        return subscribeToPublicWttStats((state) => {
+            setStatsStatus(state.status);
+
+            if (state.status !== 'ready') {
+                setStats(unavailableStats);
+                return;
+            }
+
+            setStats({
+                earned: state.stats.earned,
+                claimed: state.stats.claimed,
+                unclaimed: state.stats.earned - state.stats.claimed,
+                holders: state.stats.holders,
+                supply: state.stats.supply,
+            });
+        });
+    }, []);
+
+    const statsStatusText = {
+        loading: 'loading live stats...',
+        ready: null,
+        missing: 'live stats not available yet.',
+        error: 'live stats unavailable.',
+    }[statsStatus];
 
     return (
         <section className="wtt-coin">
@@ -88,6 +128,15 @@ export default function WttCoin() {
 
             <div className="wtt-coin-section">
                 <p className="wtt-coin-section-heading">rewards</p>
+
+                {statsStatusText && (
+                    <p
+                        className="wtt-coin-stats-status"
+                        aria-live="polite"
+                    >
+                        {statsStatusText}
+                    </p>
+                )}
 
                 <dl className="wtt-coin-stats wtt-coin-stats--three">
                     <div className="wtt-coin-stat">
