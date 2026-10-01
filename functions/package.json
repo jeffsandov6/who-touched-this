@@ -38,5 +38,6 @@
     "@types/fast-crc32c": "2.0.3",
     "@types/node": "26.4.1",
     "typescript": "6.0.3"
-  }
+  },
+  "packageManager": "npm@10.9.8"
 }

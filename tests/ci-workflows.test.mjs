@@ -10,6 +10,7 @@ const sandboxRunner = await readFile(new URL('../scripts/run-review-sandbox.mjs'
 const preview = await readFile(new URL('../scripts/pr-review/preview.mjs', import.meta.url), 'utf8');
 const packageManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const packageLock = JSON.parse(await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'));
+const functionsPackageManifest = JSON.parse(await readFile(new URL('../functions/package.json', import.meta.url), 'utf8'));
 const statusReporter = await readFile(new URL('../scripts/report-review-status.mjs', import.meta.url), 'utf8');
 const handoff = await readFile(new URL('../scripts/pr-review/handoff.mjs', import.meta.url), 'utf8');
 const handoffWriter = await readFile(new URL('../scripts/create-review-handoff.mjs', import.meta.url), 'utf8');
@@ -116,6 +117,11 @@ test('maintenance installs only lockfile-matched Chromium before Playwright-back
   const step = namedStep(maintenance, 'Install lockfile-matched Playwright Chromium');
   assert.match(step, /\.\/node_modules\/\.bin\/playwright install --with-deps chromium/);
   assert.doesNotMatch(step, /playwright@|v\d+\.\d+\.\d+|install (?:firefox|webkit)/);
+});
+
+test('Functions lockfile generation is pinned to the supported npm 10 toolchain', () => {
+  assert.equal(functionsPackageManifest.engines.node, '22');
+  assert.equal(functionsPackageManifest.packageManager, 'npm@10.9.8');
 });
 
 test('Dependabot version updates are grouped by ecosystem without grouping security updates', () => {
