@@ -196,6 +196,8 @@ test('templates have correct subjects, CTAs, readable lines, UTC times, and esca
     assert.match(email.html, /pirate sailing through a dangerous voyage/);
   }
   assert.match(deadline.html, /journey-missed@2x\.jpg/);
+  assert.match(deadline.html,
+    /src="https:\/\/whotouchedthis\.website\/email\/journey\/journey-missed@2x\.jpg"/);
   assert.match(deadline.html, /pirate stranded after a shipwreck/);
   assert.doesNotMatch(deadline.html, /journey-turn@2x\.jpg/);
 });

@@ -61,7 +61,7 @@ class FakeProvider implements EmailProvider {
   }
 }
 
-const deadline = new Date('2030-06-02T18:30:00.000Z');
+const deadline = new Date('2030-06-02T18:30:21.000Z');
 
 function invitation(overrides: Partial<InvitationCreatedData> = {}): InvitationCreatedData {
   const timestamp = new FakeTimestamp(new Date('2030-06-01T18:30:00.000Z'));
@@ -104,7 +104,8 @@ test('invitation template has approved copy, journey state, UTC deadline, durati
   assert.match(email.text, /invited\nyou're up next\./);
   assert.match(email.text, /thanks for taking part in who touched this\. seriously, we appreciate it :\)/);
   assert.match(email.text, /June 2, 2030/);
-  assert.match(email.text, /6:30:00 PM UTC/);
+  assert.match(email.text, /6:30 PM UTC/);
+  assert.doesNotMatch(email.text, /6:30:00 PM UTC/);
   assert.match(email.text, /168-hour clock won't start/);
   assert.match(email.text, /https:\/\/whotouchedthis\.website\/join/);
   assert.match(email.html, /accept your turn/);
