@@ -32,7 +32,14 @@ export function applicationUrl(
 export function formatInvitationDate(date: Date): string {
   if (!Number.isFinite(date.getTime())) throw new Error('Invitation deadline is invalid.');
   return new Intl.DateTimeFormat('en-US', {
-    dateStyle: 'long', timeStyle: 'long', timeZone: 'UTC',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'UTC',
+    timeZoneName: 'short',
   }).format(date);
 }
 

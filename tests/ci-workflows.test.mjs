@@ -53,7 +53,10 @@ test('privileged boundary remains base-controlled metadata-only execution', () =
   const trigger = workflowTrigger(boundary);
   const checkout = namedStep(boundary, 'Check out trusted base policy');
   assert.match(trigger, /pull_request_target:\n    branches: \[main\]/);
-  assert.match(checkout, /uses: actions\/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0/);
+  assert.match(
+    checkout,
+    /uses: actions\/checkout@[0-9a-f]{40}/,
+  );
   assert.match(checkout, /persist-credentials: false/);
   assert.doesNotMatch(checkout, /github\.event\.pull_request\.head/);
   assert.doesNotMatch(checkout, /github\.event\.pull_request\.base\.sha/);

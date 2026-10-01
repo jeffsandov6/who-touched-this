@@ -1,84 +1,41 @@
 import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { buildInvitationEmail } from '../lib/src/email/template.js';
 import {
-  buildContributionCompletedEmail,
-  buildDeadlinePassedEmail,
-  buildInvitationReminderEmail,
-  buildTurnReminderEmail,
-  buildTurnStartedEmail,
-} from '../lib/src/email/lifecycle-template.js';
+  buildEmailTestFixtures,
+  EMAIL_PREVIEW_TEMPLATE_NAMES,
+  EMAIL_TEST_APP_ORIGIN,
+  EMAIL_TEST_JOURNEY_ASSETS,
+} from '../lib/src/email/email-test-fixtures.js';
 import { buildAdminPrSubmittedEmail } from '../lib/src/email/admin-submission-delivery.js';
 
 const outputDir = join(dirname(fileURLToPath(import.meta.url)), '..', '.email-previews');
 const previewAssetDir = join(outputDir, 'assets');
 const publicAssetDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'public', 'email', 'journey');
-const appOrigin = 'https://whotouchedthis.website';
-const journeyAssets = [
-  'journey-invited@2x.jpg',
-  'journey-turn@2x.jpg',
-  'journey-missed@2x.jpg',
-  'journey-complete@2x.jpg',
-];
-const contributor = {
+const previews = buildEmailTestFixtures(EMAIL_PREVIEW_TEMPLATE_NAMES, {
   to: 'jeffexample@example.test',
+  runId: 'local_preview',
+  now: new Date('2030-10-01T18:00:00.000Z'),
+});
+previews.set('admin-pr-submitted', buildAdminPrSubmittedEmail({
   displayName: 'JeffExample',
-  appOrigin,
-};
-const invitationDeadline = new Date('2026-10-01T18:00:00.000Z');
-const turnDeadline = new Date('2026-10-04T18:00:00.000Z');
-
-const previews = new Map([
-  ['invitation', buildInvitationEmail({
-    ...contributor, acceptBy: invitationDeadline, turnDurationHours: 72,
-    idempotencyKey: 'preview_invitation',
-  })],
-  ['invitation-reminder', buildInvitationReminderEmail({
-    ...contributor, acceptBy: invitationDeadline, turnDurationHours: 72,
-    idempotencyKey: 'preview_invitation_reminder',
-  })],
-  ['turn-started', buildTurnStartedEmail({
-    ...contributor, targetContributionNumber: 42, dueAt: turnDeadline,
-    turnDurationHours: 72, idempotencyKey: 'preview_turn_started',
-  })],
-  ['turn-72h', buildTurnReminderEmail({
-    ...contributor, targetContributionNumber: 42, dueAt: turnDeadline,
-    turnDurationHours: 168, idempotencyKey: 'preview_turn_72h',
-  }, 72)],
-  ['turn-24h', buildTurnReminderEmail({
-    ...contributor, targetContributionNumber: 42, dueAt: turnDeadline,
-    turnDurationHours: 72, idempotencyKey: 'preview_turn_24h',
-  }, 24)],
-  ['deadline-passed', buildDeadlinePassedEmail({
-    ...contributor, targetContributionNumber: 42, dueAt: turnDeadline,
-    turnDurationHours: 72, idempotencyKey: 'preview_deadline',
-  })],
-  ['completion-000', buildContributionCompletedEmail({
-    ...contributor, contributionNumber: 0, summary: 'built the beginning of the website',
-    prUrl: 'https://github.com/example/who-touched-this/pull/1',
-    idempotencyKey: 'preview_completion_000',
-  })],
-  ['completion-community', buildContributionCompletedEmail({
-    ...contributor, contributionNumber: 42, summary: 'added a suspiciously large red button',
-    prUrl: 'https://github.com/example/who-touched-this/pull/420',
-    idempotencyKey: 'preview_completion_042',
-  })],
-  ['admin-pr-submitted', buildAdminPrSubmittedEmail({
-    displayName: 'JeffExample', githubUsername: 'jeff-example', contributionNumber: 42,
-    prNumber: 420, prUrl: 'https://github.com/example/who-touched-this/pull/420',
-    submittedAt: new Date('2026-10-03T14:30:00.000Z'), appOrigin,
-    expectedRepository: 'example/who-touched-this', idempotencyKey: 'preview_admin_pr',
-  })],
-]);
+  githubUsername: 'jeff-example',
+  contributionNumber: 42,
+  prNumber: 42,
+  prUrl: 'https://github.com/example/example/pull/42',
+  submittedAt: new Date('2030-10-03T18:00:00.000Z'),
+  appOrigin: EMAIL_TEST_APP_ORIGIN,
+  expectedRepository: 'example/example',
+  idempotencyKey: 'local_test_admin_pr_submitted_local_preview',
+}));
 
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(previewAssetDir, { recursive: true });
-await Promise.all(journeyAssets.map((filename) => (
+await Promise.all(EMAIL_TEST_JOURNEY_ASSETS.map((filename) => (
   copyFile(join(publicAssetDir, filename), join(previewAssetDir, filename))
 )));
 for (const [name, email] of previews) {
-  const localHtml = email.html.replaceAll(`${appOrigin}/email/journey/`, './assets/');
+  const localHtml = email.html.replaceAll(`${EMAIL_TEST_APP_ORIGIN}/email/journey/`, './assets/');
   await writeFile(join(outputDir, `${name}.html`), localHtml, 'utf8');
   await writeFile(join(outputDir, `${name}.txt`), `${email.subject}\n\n${email.text}\n`, 'utf8');
 }
