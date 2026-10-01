@@ -18,6 +18,7 @@
     "test:emulator:founder": "node integration/founder-bootstrap.mjs",
     "test:emulator:archive-relay": "node integration/archive-relay.mjs",
     "emulator:seed:snapshots": "node integration/snapshot-archive-seed.mjs",
+    "emulator:seed:wtt-stats": "node integration/public-wtt-stats-seed.mjs",
     "emulator:prepare:founder": "node integration/founder-bootstrap-seed.mjs",
     "wtt:reconcile": "npm run build && node scripts/reconcile-wtt-entitlements.mjs",
     "wtt:reconcile-stats": "npm run build && node scripts/reconcile-wtt-public-stats.mjs",
