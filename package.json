@@ -76,7 +76,7 @@
     "@firebase/rules-unit-testing": "5.0.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "firebase-tools": "15.31.0",
+    "firebase-tools": "15.32.0",
     "playwright": "1.56.0",
     "typescript": "6.0.3"
   }
