@@ -6,6 +6,14 @@
   position: relative;
 }
 
+.cork-mobile-hint {
+  display: none;
+}
+
+.thoughts-corkboard-rotation {
+  position: relative;
+}
+
 .thoughts-corkboard {
   position: relative;
   box-sizing: border-box;
@@ -440,45 +448,40 @@
 
 @media (max-width: 40rem) {
   .thoughts-corkboard-section {
-    width: calc(100vw - 0.75rem);
-    margin-top: 4rem;
-    margin-bottom: 4rem;
+    position: relative;
+    width: 100%;
+    height: 35rem;
+    margin: 4rem auto;
+    transform: none;
+    overflow: visible;
+  }
+
+  .cork-mobile-hint {
+    position: absolute;
+    top: -2rem;
+    left: 0;
+    display: block;
+    width: 100%;
+    margin: 0;
+    color: #4a443e;
+    font: 0.72rem/1.4 Arial, sans-serif;
+    text-align: center;
+  }
+
+  .thoughts-corkboard-rotation {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 68rem;
+    transform:
+      translate(-50%, -50%)
+      rotate(-90deg)
+      scale(0.48);
+    transform-origin: center;
   }
 
   .thoughts-corkboard {
-    height: auto;
-    min-height: 74rem;
-  }
-
-  .cork-on-day { top: 3%; left: 3%; width: 28%; }
-  .cork-nintendo { top: 4%; left: 34%; width: 25%; }
-  .cork-tickets { top: 5%; left: 61%; width: 35%; }
-  .cork-drink { top: 24%; right: 3%; width: 34%; }
-  .cork-ideathon { top: 25%; left: 4%; width: 42%; min-height: 8.2rem; }
-  .cork-blank-two { top: 28%; left: 73%; width: 20%; }
-  .cork-bills { top: 37%; left: 3%; width: 39%; min-height: 8.4rem; }
-  .cork-movies { top: 35%; left: 45%; width: 49%; }
-  .cork-sneaker { top: 47%; left: 58%; width: 35%; }
-  .cork-gamification { top: 51%; right: 3%; width: 28%; }
-  .cork-petlink { top: 50%; left: 3%; width: 29%; }
-  .cork-kunigami { top: 48%; left: 30%; width: 27%; }
-  .cork-tesla { top: 57%; left: 55%; width: 41%; }
-  .cork-ddos { top: 61%; left: 3%; width: 51%; font-size: 0.54rem; }
-  .cork-blueprint { top: 76%; left: 4%; width: 53%; }
-  .cork-songs { top: 70%; left: 61%; width: 35%; min-height: 14rem; }
-  .cork-command { top: 84%; left: 51%; width: 45%; font-size: 0.52rem; }
-  .cork-traffic { top: 88%; left: 4%; width: 43%; }
-  .cork-perspective { top: 92%; left: 42%; width: 42%; }
-  .cork-mints { top: 96%; left: 5%; width: 22%; }
-  .cork-blank-one { top: 90%; right: 3%; width: 21%; }
-  .cork-context { top: 22%; right: 3%; width: auto; }
-
-  .cork-sticky ul,
-  .cork-scrap {
-    font-size: 0.58rem;
-  }
-
-  .cork-vellum {
-    font-size: 1rem;
+    width: 68rem;
+    height: 50rem;
   }
 }
