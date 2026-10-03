@@ -1,0 +1,382 @@
+.thoughts-corkboard-section {
+  width: min(calc(100vw - 2rem), 68rem);
+  margin: clamp(4rem, 7vw, 5.5rem) 0;
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+.thoughts-corkboard {
+  position: relative;
+  box-sizing: border-box;
+  height: clamp(42rem, 73vw, 50rem);
+  overflow: hidden;
+  border: clamp(0.55rem, 1.5vw, 0.9rem) solid #5d3a25;
+  border-radius: 0.2rem;
+  background-color: #b77942;
+  background-image:
+    radial-gradient(circle at 18% 22%, rgb(91 48 24 / 16%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 74% 61%, rgb(255 224 171 / 18%) 0 1px, transparent 1.5px),
+    radial-gradient(circle at 42% 77%, rgb(80 42 22 / 10%) 0 1px, transparent 2px),
+    linear-gradient(115deg, rgb(255 255 255 / 4%), transparent 42%, rgb(74 37 18 / 7%));
+  background-size: 9px 11px, 13px 15px, 17px 19px, 100% 100%;
+  box-shadow:
+    inset 0 0 0.3rem rgb(55 28 15 / 65%),
+    inset 0 0 2rem rgb(67 32 13 / 30%),
+    0.45rem 0.55rem 0 #ded9cd;
+}
+
+.cork-item {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  margin: 0;
+}
+
+.cork-item img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cork-pinned::before {
+  position: absolute;
+  z-index: 5;
+  top: 0.35rem;
+  left: 50%;
+  width: 0.72rem;
+  height: 0.72rem;
+  border: 1px solid rgb(69 28 19 / 42%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ffd7c0 0 16%, #b44335 35%, #70261f 78%);
+  box-shadow: 0.08rem 0.14rem 0.16rem rgb(49 22 10 / 45%);
+  content: '';
+  transform: translateX(-50%);
+}
+
+.cork-photo {
+  padding: 0.38rem 0.38rem 1rem;
+  background: #ede9dd;
+  box-shadow: 0.25rem 0.4rem 0.45rem rgb(68 34 15 / 42%);
+}
+
+.cork-cutout {
+  filter: drop-shadow(0.22rem 0.32rem 0.2rem rgb(62 30 12 / 38%));
+}
+
+.cork-on-day {
+  top: 4%;
+  left: 3%;
+  width: 19%;
+  transform: rotate(-2.5deg);
+}
+
+.cork-nintendo {
+  z-index: 2;
+  top: 4%;
+  left: 25%;
+  width: 18%;
+  transform: rotate(2deg);
+}
+
+.cork-tickets {
+  top: 5%;
+  left: 45%;
+  width: 26%;
+  transform: rotate(-1.5deg);
+}
+
+.cork-petlink {
+  top: 55%;
+  left: 3%;
+  width: 18%;
+  transform: rotate(-4deg);
+}
+
+/* .cork-petlink-crop {
+  position: relative;
+  aspect-ratio: 1060 / 860;
+  overflow: hidden;
+}
+
+.cork-petlink-crop img {
+  position: absolute;
+  top: -34%;
+  left: -6.5%;
+  width: 108.5%;
+  max-width: none;
+  filter: saturate(0.82) blur(0.55px);
+} */
+
+/* .cork-petlink figcaption {
+  position: absolute;
+  right: -0.3rem;
+  bottom: 0.7rem;
+  padding: 0.18rem 0.35rem;
+  color: #3e3731;
+  background: #e9dfc6;
+  font: 0.62rem/1.2 'Bradley Hand', 'Segoe Print', cursive;
+  transform: rotate(3deg);
+} */
+
+.cork-kunigami {
+  top: 45%;
+  left: 24%;
+  width: 18%;
+  transform: rotate(1.5deg);
+}
+
+.cork-blueprint {
+  z-index: 2;
+  top: 59%;
+  left: 45%;
+  width: 31%;
+  padding: 0.28rem;
+  border: 0;
+  background: #e5e0d4;
+  box-shadow: 0.25rem 0.38rem 0.4rem rgb(59 28 12 / 36%);
+  color: inherit;
+  cursor: pointer;
+  transform: rotate(-2deg);
+}
+
+.cork-vellum {
+  position: absolute;
+  inset: 0.9rem 0.7rem 0.7rem 1rem;
+  display: grid;
+  place-items: center;
+  color: rgb(45 48 44 / 72%);
+  background: rgb(238 239 226 / 56%);
+  box-shadow: 0.16rem 0.22rem 0.25rem rgb(50 38 25 / 25%);
+  backdrop-filter: blur(0.8px) saturate(0.78);
+  font-family: 'Bradley Hand', 'Segoe Print', cursive;
+  font-size: clamp(1rem, 2.2vw, 1.6rem);
+  letter-spacing: 0.04em;
+  transform: translate(0.3rem, 0.15rem) rotate(0.6deg);
+  transition: transform 180ms ease;
+}
+
+.cork-blueprint:hover .cork-vellum,
+.cork-blueprint:focus .cork-vellum {
+  transform: translate(calc(0.3rem + 10px), calc(0.15rem + 8px)) rotate(0.6deg);
+}
+
+.cork-blueprint:focus-visible {
+  outline: 2px solid rgb(50 35 22 / 75%);
+  outline-offset: 0.2rem;
+}
+
+.cork-paper,
+.cork-sticky,
+.cork-scrap,
+.cork-blank {
+  color: #3d392f;
+  box-shadow: 0.22rem 0.32rem 0.36rem rgb(63 31 13 / 35%);
+}
+
+.cork-tesla {
+  z-index: 3;
+  top: 36%;
+  left: 47%;
+  width: 24%;
+  background: #f0efe9;
+  filter: drop-shadow(0.22rem 0.32rem 0.2rem rgb(62 30 12 / 38%));
+  transform: rotate(1.7deg);
+}
+
+.cork-tesla img {
+  background: #f0efe9;
+}
+
+.cork-sticky {
+  padding: 1.1rem 0.85rem 0.8rem;
+  font-family: 'Bradley Hand', 'Segoe Print', cursive;
+}
+
+.cork-sticky h3,
+.cork-sticky p,
+.cork-sticky ul {
+  margin: 0;
+}
+
+.cork-sticky h3 {
+  margin-bottom: 0.35rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.cork-sticky ul {
+  padding: 0;
+  font-size: 0.66rem;
+  line-height: 1.45;
+  list-style: none;
+}
+
+.cork-bills {
+  top: 39%;
+  left: 4%;
+  width: 18%;
+  min-height: 8.2rem;
+  background: #f3d982;
+  transform: rotate(2.5deg);
+}
+
+.cork-bills pre,
+.cork-ddos pre,
+.cork-command pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font: inherit;
+}
+
+.cork-movies {
+  top: 19%;
+  left: 73%;
+  width: 22%;
+  min-height: 10.5rem;
+  background: #e5d28f;
+  transform: rotate(2deg);
+}
+
+.cork-songs {
+  top: 48%;
+  left: 79%;
+  width: 18%;
+  min-height: 16rem;
+  background: #bcd4c3;
+  transform: rotate(-1.5deg);
+}
+
+.cork-songs ul {
+  font-size: 0.59rem;
+}
+
+.cork-ideathon {
+  z-index: 2;
+  top: 28%;
+  left: 25%;
+  width: 19%;
+  min-height: 8.5rem;
+  background: #e7c7c1;
+  transform: rotate(-2deg);
+}
+
+.cork-ideathon h3 {
+  margin-bottom: 0.6rem;
+  letter-spacing: 0.04em;
+}
+
+.cork-ideathon p {
+  margin-top: 0.35rem;
+  font-size: 0.66rem;
+  line-height: 1.3;
+}
+
+.cork-sneaker {
+  z-index: 3;
+  top: 31%;
+  left: 63%;
+  width: 13%;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transform: rotate(4deg);
+}
+
+.cork-ddos {
+  z-index: 2;
+  top: 63%;
+  left: 20%;
+  width: 23%;
+  padding: 1.2rem 0.7rem 0.75rem;
+  background: #e7e5dc;
+  font: 0.57rem/1.34 'Bradley Hand', 'Segoe Print', cursive;
+  transform: rotate(1.5deg);
+}
+
+.cork-command {
+  z-index: 3;
+  top: 83%;
+  left: 2%;
+  width: 22%;
+  background: #d6dbc7;
+  font: 0.57rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  transform: rotate(-2.5deg);
+}
+
+.cork-scrap {
+  padding: 0.45rem 0.6rem;
+  background: #ebe5d7;
+  font: 0.64rem/1.35 'Bradley Hand', 'Segoe Print', cursive;
+}
+
+.cork-drink { top: 4%; right: 3%; width: 22%; transform: rotate(-2deg); }
+.cork-traffic { top: 86%; left: 25%; width: 19%; transform: rotate(2deg); }
+.cork-gamification { top: 41%; right: 4%; width: 18%; transform: rotate(-3deg); }
+.cork-perspective { top: 87%; left: 48%; width: 27%; transform: rotate(1deg); }
+.cork-mints { top: 91%; left: 4%; width: 12%; transform: rotate(-2deg); }
+.cork-context { top: 1%; right: 2%; width: auto; font-size: 0.5rem; transform: rotate(-1deg); }
+
+.cork-blank {
+  min-height: 4.7rem;
+  background: rgb(240 218 134 / 82%);
+}
+
+.cork-blank-one {
+  top: 82%;
+  right: 3%;
+  width: 14%;
+  transform: rotate(3deg);
+}
+
+.cork-blank-two {
+  top: 33%;
+  left: 42%;
+  width: 11%;
+  min-height: 3.8rem;
+  background: rgb(229 221 196 / 84%);
+  transform: rotate(-4deg);
+}
+
+@media (max-width: 40rem) {
+  .thoughts-corkboard-section {
+    width: calc(100vw - 0.75rem);
+    margin-top: 4rem;
+    margin-bottom: 4rem;
+  }
+
+  .thoughts-corkboard {
+    height: auto;
+    min-height: 74rem;
+  }
+
+  .cork-on-day { top: 3%; left: 3%; width: 28%; }
+  .cork-nintendo { top: 4%; left: 34%; width: 25%; }
+  .cork-tickets { top: 5%; left: 61%; width: 35%; }
+  .cork-drink { top: 24%; right: 3%; width: 34%; }
+  .cork-ideathon { top: 25%; left: 4%; width: 42%; min-height: 8.2rem; }
+  .cork-blank-two { top: 28%; left: 73%; width: 20%; }
+  .cork-bills { top: 37%; left: 3%; width: 39%; min-height: 8.4rem; }
+  .cork-movies { top: 35%; left: 45%; width: 49%; }
+  .cork-sneaker { top: 47%; left: 58%; width: 35%; }
+  .cork-gamification { top: 51%; right: 3%; width: 28%; }
+  .cork-petlink { top: 50%; left: 3%; width: 29%; }
+  .cork-kunigami { top: 48%; left: 30%; width: 27%; }
+  .cork-tesla { top: 57%; left: 55%; width: 41%; }
+  .cork-ddos { top: 61%; left: 3%; width: 51%; font-size: 0.54rem; }
+  .cork-blueprint { top: 76%; left: 4%; width: 53%; }
+  .cork-songs { top: 70%; left: 61%; width: 35%; min-height: 14rem; }
+  .cork-command { top: 84%; left: 51%; width: 45%; font-size: 0.52rem; }
+  .cork-traffic { top: 88%; left: 4%; width: 43%; }
+  .cork-perspective { top: 92%; left: 42%; width: 42%; }
+  .cork-mints { top: 96%; left: 5%; width: 22%; }
+  .cork-blank-one { top: 90%; right: 3%; width: 21%; }
+  .cork-context { top: 22%; right: 3%; width: auto; }
+
+  .cork-sticky ul,
+  .cork-scrap {
+    font-size: 0.58rem;
+  }
+
+  .cork-vellum {
+    font-size: 1rem;
+  }
+}
