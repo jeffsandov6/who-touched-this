@@ -9,7 +9,7 @@
   width: min(100% - 3rem, 43rem);
   min-height: 100vh;
   margin: 0 auto;
-  padding: clamp(3rem, 9vw, 7rem) 0 clamp(7rem, 18vw, 14rem);
+  padding: clamp(3rem, 7vw, 5rem) 0 clamp(6rem, 12vw, 9rem);
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(1rem, 0.97rem + 0.18vw, 1.08rem);
   line-height: 1.75;
@@ -17,7 +17,7 @@
 
 .thoughts-intro {
   max-width: 29rem;
-  margin-bottom: clamp(4rem, 9vw, 7rem);
+  margin-bottom: clamp(3.5rem, 6vw, 5rem);
 }
 
 .thoughts-intro h1,
@@ -33,7 +33,7 @@
 }
 
 .thoughts-section {
-  margin: clamp(6rem, 14vw, 10rem) 0;
+  margin: clamp(4.5rem, 7vw, 5.5rem) 0;
 }
 
 .thoughts-section h2 {
@@ -100,7 +100,7 @@
 
 .thoughts-found-ideas {
   width: min(calc(100vw - 3rem), 56rem);
-  margin-top: clamp(7rem, 16vw, 11rem);
+  margin-top: clamp(4.5rem, 8vw, 6rem);
   margin-left: 50%;
   transform: translateX(-50%);
 }
@@ -357,7 +357,7 @@
 .thoughts-quotes {
   display: grid;
   gap: 0.75rem;
-  margin: clamp(7rem, 16vw, 12rem) 0;
+  margin: clamp(4.5rem, 8vw, 6rem) 0;
   padding-left: clamp(0rem, 8vw, 5rem);
   color: #65645e;
 }
@@ -368,7 +368,7 @@
 }
 
 .thoughts-ending {
-  margin-top: clamp(9rem, 22vw, 17rem);
+  margin-top: clamp(7rem, 13vw, 10rem);
 }
 
 @media (max-width: 40rem) {

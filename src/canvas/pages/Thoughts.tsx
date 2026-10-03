@@ -1,6 +1,7 @@
 /** @jsxImportSource react */
 
 import CanvasPageNavigation from '../components/react/CanvasPageNavigation';
+import Corkboard from '../components/react/thoughts/Corkboard';
 import HitchhikerTerminal from '../components/react/thoughts/HitchhikerTerminal';
 import JustBuild from '../components/react/thoughts/JustBuild';
 import ShouldTheseExist from '../components/react/thoughts/ShouldTheseExist';
@@ -23,15 +24,13 @@ export default function Thoughts() {
 
         <HitchhikerTerminal />
 
-        <p className="thoughts-fragment">
-          websites usually have a purpose. this one has a queue.
-        </p>
-
         <p className="thoughts-fragment thoughts-fragment-indent">
           software should be allowed to be pointless sometimes.
         </p>
 
         <ShouldTheseExist />
+
+        <Corkboard />
 
         <p className="thoughts-fragment">
           not every website needs to become a company.
@@ -68,29 +67,10 @@ export default function Thoughts() {
           </details>
         </div>
 
-        <section
-          className="thoughts-section thoughts-contextless"
-          aria-labelledby="no-context"
-        >
-          <h2 id="no-context">
-            notes with no context
-          </h2>
-
-          <ul>
-            <li>onerhofer the man</li>
-            <li>the avalanches going home</li>
-            <li>ObservePoint - w/ James Tillman</li>
-          </ul>
-        </section>
-
         <aside
           className="thoughts-quotes"
           aria-label="quotes"
         >
-          <blockquote>
-            “you can just do things”
-          </blockquote>
-
           <blockquote>
             “move fast and break things”
           </blockquote>

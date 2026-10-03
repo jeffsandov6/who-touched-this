@@ -1,7 +1,7 @@
 
 .thoughts-terminal {
   width: min(calc(100vw - 3rem), 70rem);
-  margin: 0 0 clamp(7rem, 16vw, 12rem) 50%;
+  margin: 0 0 clamp(4.5rem, 8vw, 6rem) 50%;
   transform: translateX(-50%);
 }
 
