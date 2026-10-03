@@ -3,6 +3,7 @@
   margin: clamp(4rem, 7vw, 5.5rem) 0;
   margin-left: 50%;
   transform: translateX(-50%);
+  position: relative;
 }
 
 .thoughts-corkboard {
@@ -53,6 +54,20 @@
   transform: translateX(-50%);
 }
 
+.cork-taped::before {
+  position: absolute;
+  z-index: 4;
+  top: -0.28rem;
+  left: 50%;
+  width: 2.2rem;
+  height: 0.65rem;
+  background: rgb(236 221 185 / 68%);
+  box-shadow: 0 0.06rem 0.08rem rgb(65 43 25 / 18%);
+  content: '';
+  transform: translateX(-50%) rotate(-3deg);
+  pointer-events: none;
+}
+
 .cork-photo {
   padding: 0.38rem 0.38rem 1rem;
   background: #ede9dd;
@@ -78,11 +93,21 @@
   transform: rotate(2deg);
 }
 
+.cork-nintendo.cork-pinned::before {
+  top: 2.25rem;
+  left: 50%;
+}
+
 .cork-tickets {
   top: 5%;
   left: 45%;
   width: 26%;
   transform: rotate(-1.5deg);
+}
+
+.cork-tickets.cork-pinned::before {
+  top: 3.75rem;
+  left: 46%;
 }
 
 .cork-petlink {
@@ -92,37 +117,16 @@
   transform: rotate(-4deg);
 }
 
-/* .cork-petlink-crop {
-  position: relative;
-  aspect-ratio: 1060 / 860;
-  overflow: hidden;
-}
-
-.cork-petlink-crop img {
-  position: absolute;
-  top: -34%;
-  left: -6.5%;
-  width: 108.5%;
-  max-width: none;
-  filter: saturate(0.82) blur(0.55px);
-} */
-
-/* .cork-petlink figcaption {
-  position: absolute;
-  right: -0.3rem;
-  bottom: 0.7rem;
-  padding: 0.18rem 0.35rem;
-  color: #3e3731;
-  background: #e9dfc6;
-  font: 0.62rem/1.2 'Bradley Hand', 'Segoe Print', cursive;
-  transform: rotate(3deg);
-} */
-
 .cork-kunigami {
   top: 45%;
   left: 24%;
   width: 18%;
   transform: rotate(1.5deg);
+}
+
+.cork-kunigami::before {
+  top: .15rem;
+  left: 67%;
 }
 
 .cork-blueprint {
@@ -178,14 +182,11 @@
   top: 36%;
   left: 47%;
   width: 24%;
-  background: #f0efe9;
   filter: drop-shadow(0.22rem 0.32rem 0.2rem rgb(62 30 12 / 38%));
   transform: rotate(1.7deg);
 }
 
-.cork-tesla img {
-  background: #f0efe9;
-}
+
 
 .cork-sticky {
   padding: 1.1rem 0.85rem 0.8rem;
@@ -255,21 +256,55 @@
   top: 28%;
   left: 25%;
   width: 19%;
-  min-height: 8.5rem;
   background: #e7c7c1;
   transform: rotate(-2deg);
 }
 
 .cork-ideathon h3 {
-  margin-bottom: 0.6rem;
-  letter-spacing: 0.04em;
+  position: relative;
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  font-size: 0.86rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  transform: rotate(-1deg);
+}
+
+.cork-ideathon h3::before,
+.cork-ideathon h3::after {
+  position: absolute;
+  left: -0.15rem;
+  width: calc(100% + 0.3rem);
+  height: 1px;
+  background: currentColor;
+  content: '';
+  opacity: 0.75;
+  transform-origin: left center;
+}
+
+.cork-ideathon h3::before {
+  top: 51%;
+  left: -0.12rem;
+  width: calc(100% + 0.15rem);
+  transform: rotate(2.8deg);
+}
+
+.cork-ideathon h3::after {
+  bottom: -0.1rem;
+  left: 0.08rem;
+  width: calc(100% + 1.95rem);
+  transform: rotate(-1.2deg);
 }
 
 .cork-ideathon p {
-  margin-top: 0.35rem;
-  font-size: 0.66rem;
-  line-height: 1.3;
+  margin: 0;
+  max-width: 95%;
+  font-size: 0.64rem;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+  transform: rotate(0.3deg);
 }
+
 
 .cork-sneaker {
   z-index: 3;
@@ -281,15 +316,50 @@
   transform: rotate(4deg);
 }
 
+.cork-sneaker.cork-taped::before {
+  left: 57%;
+  transform: translateX(-50%) rotate(4deg);
+}
+
 .cork-ddos {
   z-index: 2;
-  top: 63%;
+  top: 69%;
   left: 20%;
-  width: 23%;
-  padding: 1.2rem 0.7rem 0.75rem;
+  width: 14%;
+  padding: 1.1rem 0.75rem 0.9rem;
   background: #e7e5dc;
-  font: 0.57rem/1.34 'Bradley Hand', 'Segoe Print', cursive;
+  font: 0.50rem/1.34 'Bradley Hand', 'Segoe Print', cursive;
   transform: rotate(1.5deg);
+  overflow: hidden;
+}
+
+.cork-ddos pre {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.cork-ddos-scribble {
+  position: absolute;
+  inset: 0.2rem;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.cork-ddos-scribble svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.cork-ddos-scribble path {
+  fill: none;
+  stroke: rgba(70, 85, 185, 0.82);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .cork-command {
@@ -302,6 +372,11 @@
   transform: rotate(-2.5deg);
 }
 
+.cork-command.cork-pinned::before {
+  top: -0.15rem;
+  left: 56%;
+}
+
 .cork-scrap {
   padding: 0.45rem 0.6rem;
   background: #ebe5d7;
@@ -309,8 +384,21 @@
 }
 
 .cork-drink { top: 4%; right: 3%; width: 22%; transform: rotate(-2deg); }
+.cork-drink.cork-taped::before {
+  left: 42%;
+  width: 1.8rem;
+  transform: translateX(-50%) rotate(-7deg);
+}
+
 .cork-traffic { top: 86%; left: 25%; width: 19%; transform: rotate(2deg); }
+
 .cork-gamification { top: 41%; right: 4%; width: 18%; transform: rotate(-3deg); }
+.cork-gamification.cork-taped::before {
+  left: 64%;
+  width: 2.5rem;
+  transform: translateX(-50%) rotate(5deg);
+}
+
 .cork-perspective { top: 87%; left: 48%; width: 27%; transform: rotate(1deg); }
 .cork-mints { top: 91%; left: 4%; width: 12%; transform: rotate(-2deg); }
 .cork-context { top: 1%; right: 2%; width: auto; font-size: 0.5rem; transform: rotate(-1deg); }
@@ -332,8 +420,22 @@
   left: 42%;
   width: 11%;
   min-height: 3.8rem;
-  background: rgb(229 221 196 / 84%);
+  background: #e5ddc4;
   transform: rotate(-4deg);
+}
+
+.cork-todo {
+  position: absolute;
+  z-index: 6;
+  right: 5%;
+  bottom: -3.5rem;
+  width: 15%;
+  padding: 0.55rem 0.75rem 4rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  background: #e5ddc4;
+  transform: rotate(-2deg);
 }
 
 @media (max-width: 40rem) {
