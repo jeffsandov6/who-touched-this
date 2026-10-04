@@ -2,10 +2,12 @@
 
 This is the canonical manual for an active contribution turn. Who Touched This is one website changed
 by one community contributor at a time. You work in your own fork, submit one small coherent idea, &
-never need write access to the canonical repository. DO WHATEVER YOU WANT, IDC, JUST DON'T 'BREAK' THE WEBSITE, & FOLLOW THE RULES.
+never need write access to the canonical repository. 
 
-IMPORTANT:
-Edit only within src/canvas/**. Any edits outside of this will cause your Github PR build to fail.
+**do whatever you want, idc. just don't "break" the website, & follow the rules.**
+
+**important:**  
+edit only within `src/canvas/**`. any edits outside of this will cause your github pr build to fail.
 
 ## start here
 
@@ -124,6 +126,26 @@ The contributor-editable area is exactly:
 ```text
 src/canvas/**
 ```
+
+
+### stack & file types
+
+Who Touched This is built with Astro & TypeScript. The current editable pages use React/TSX, but the canvas also has support for Astro, Vue, Svelte, & Solid.
+
+Inside `src/canvas/**`, you can use the existing supported file types, including:
+
+- React / TypeScript (`.tsx`)
+- Astro (`.astro`)
+- Vue (`.vue`)
+- Svelte (`.svelte`)
+- Solid / TypeScript (`.tsx`)
+- TypeScript or JavaScript helpers (`.ts`, `.js`)
+- plain CSS (`.css`)
+- normal web assets under `src/canvas/assets/**`
+
+Framework components should stay in their matching directories under `src/canvas/components/**`. React & Solid both use JSX/TSX, so keep them in their existing `react/` or `solid/` directories so Astro knows which renderer to use.
+
+Use the dependencies already installed when they fit your idea. If you need a new package to make your idea work, ask the maintainer early in your turn. New dependencies are allowed when reasonable, but do not edit `package.json` or `package-lock.json` yourself. The maintainer will add approved dependencies to the protected project setup.
 
 Your contribution should revolve around one coherent main idea. It may touch multiple canvas files
 when the idea requires it, but it should not become a full-site overhaul or bundle several unrelated
