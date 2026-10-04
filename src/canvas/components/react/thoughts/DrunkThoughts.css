@@ -1,0 +1,200 @@
+.drunk-thoughts {
+  width: min(calc(100% - 2rem), 58rem);
+  margin: clamp(5rem, 10vw, 8rem) auto;
+}
+
+.drunk-thoughts__header {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(44, 39, 34, 0.14);
+}
+
+.drunk-thoughts__number {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.55;
+}
+
+.drunk-thoughts__header h2 {
+  margin: 0;
+  font: inherit;
+  font-size: clamp(1.4rem, 3vw, 1.8rem);
+  font-weight: 400;
+}
+
+.drunk-thoughts__subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  opacity: 0.55;
+}
+
+/* individual drunk-thought entry */
+
+.drunk-thought {
+  margin-top: 2rem;
+  border-bottom: 1px solid rgba(44, 39, 34, 0.14);
+}
+
+.drunk-thought__summary {
+  padding: 1.15rem 0;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1.4;
+}
+
+.drunk-thought__summary:hover {
+  opacity: 0.7;
+}
+
+/* bitcoin entry */
+.bitcoin-thought__content {
+  padding: 0.75rem 0 2.5rem;
+}
+
+.bitcoin-thought__archive {
+  width: min(100%, 38rem);
+  margin: 0 0 2rem;
+}
+
+.bitcoin-thought__screenshots {
+  position: relative;
+  min-height: 21rem;
+}
+
+.bitcoin-thought__screenshot {
+  position: absolute;
+  display: block;
+  width: min(62%, 26rem);
+  height: auto;
+  border: 1px solid rgba(44, 39, 34, 0.12);
+  background: #fff;
+  box-shadow: 0 0.5rem 1.5rem rgba(35, 27, 20, 0.07);
+  cursor: zoom-in;
+}
+
+.bitcoin-thought__screenshot--2015 {
+  z-index: 3;
+  top: 0;
+  left: 0;
+  transform: rotate(-1deg);
+}
+
+.bitcoin-thought__screenshot--2016 {
+  z-index: 2;
+  top: 2.5rem;
+  right: 0;
+  transform: rotate(1deg);
+}
+
+.bitcoin-thought__screenshot--2016-2018 {
+  z-index: 1;
+  top: 5rem;
+  left: 8%;
+  transform: rotate(-0.35deg);
+}
+
+
+.bitcoin-thought__copy {
+  width: min(100%, 38rem);
+  font-size: 0.9rem;
+  line-height: 1.65;
+}
+
+.bitcoin-thought__copy p {
+  margin: 0 0 1.15rem;
+}
+
+.bitcoin-thought__monero {
+  margin-top: 2rem !important;
+}
+
+.drunk-thought--empty {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0;
+  padding: 1.15rem 0;
+  font-size: 1.05rem;
+  opacity: 0.5;
+}
+
+.drunk-thought--empty__arrow {
+  font-size: 0.8rem;
+}
+
+/* mobile */
+
+@media (max-width: 40rem) {
+  .drunk-thoughts {
+    width: calc(100% - 2.5rem);
+    margin-top: 5rem;
+    margin-bottom: 5rem;
+  }
+
+  .drunk-thoughts__header {
+    align-items: flex-start;
+  }
+
+  .drunk-thought {
+    margin-top: 1.5rem;
+  }
+
+  .drunk-thought--empty {
+    margin-top: 0;
+  }
+
+  .drunk-thought__summary {
+    padding: 1rem 0;
+    font-size: 1rem;
+  }
+
+  .bitcoin-thought__content {
+    padding-top: 1.25rem;
+    padding-bottom: 2.5rem;
+  }
+
+  .bitcoin-thought__archive {
+    width: 100%;
+    margin-bottom: 2.25rem;
+  }
+
+  .bitcoin-thought__screenshots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+  }
+
+  .bitcoin-thought__screenshot {
+    position: static;
+    width: 100%;
+  }
+
+  .bitcoin-thought__screenshot--2015 {
+    transform: rotate(-0.4deg);
+  }
+
+  .bitcoin-thought__screenshot--2016 {
+    transform: rotate(0.4deg);
+  }
+
+  .bitcoin-thought__screenshot--2016-2018 {
+    transform: rotate(-0.2deg);
+  }
+
+  .bitcoin-thought__copy {
+    width: 100%;
+    font-size: 0.9rem;
+    line-height: 1.65;
+  }
+
+  .bitcoin-thought__copy p {
+    margin-bottom: 1.1rem;
+  }
+
+  .bitcoin-thought__monero {
+    margin-top: 2.5rem !important;
+  }
+}

@@ -342,7 +342,6 @@
 
   .thoughts-notebook {
     width: min(100% - 2.5rem, 43rem);
-    padding-top: 1rem;
   }
 
   .thoughts-found-ideas {

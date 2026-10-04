@@ -108,7 +108,7 @@ rate limiters on these?
 ________________________
 use fake emails w/ all email
 components but in a bad order?
-me.com\@gmail ?
+me.com@gmail ?
 if the validator is on FE,
 no way this works`}</pre>
             <span className="cork-ddos-scribble" aria-hidden="true">
