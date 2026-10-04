@@ -468,14 +468,24 @@ export default function WttClaimPage() {
 
   return (
     <section className="page-content wtt-claim-page" aria-labelledby="wtt-claim-heading">
-      <h1 id="wtt-claim-heading">claim wtt</h1>
+      <h1 id="wtt-claim-heading">wtt</h1>
       {previewActive && <p className="wtt-preview-label">local preview — no real wallet or wtt</p>}
-      <p className="wtt-intro">you touched the website. unfortunately, you may have earned WTT.</p>
+      <p className="wtt-intro">a crypto token that can only be earned by touching the website</p>
       <section className="wtt-about" aria-labelledby="wtt-about-heading">
         <h2 id="wtt-about-heading">what is wtt?</h2>
         <p>WTT is a crypto token on Solana. think of it like a little digital coin: an artifact & reward for participating in Who Touched This.</p>
         <p>WTT is not required to participate. claiming your wtt is optional & free. you don't need to buy SOL or pay anything to claim it. we cover the Solana fees, & earned wtt does not expire.</p>
+        <p>wtt can't be bought (for now), sold (for now), traded (for now), or transferred (for now). the only way to get one is to earn it by contributing to Who Touched This.</p>
         <p>we first use GitHub to find the WTT you earned. then you choose a wallet to receive it.</p>
+        <p>
+          <a
+            href="https://explorer.solana.com/address/B6GqRNfVZ5aW2mkB4u7PJqAvh49qCaEF7uHUoPgRnQet"
+            target="_blank"
+            rel="noreferrer"
+          >
+            view wtt on solana ↗
+          </a>
+        </p>
       </section>
 
       {errorMessage && <p className="notice notice-error" role="alert">{errorMessage}</p>}
@@ -485,7 +495,7 @@ export default function WttClaimPage() {
       ) : !identity ? (
         <section className="wtt-auth-panel" aria-labelledby="wtt-sign-in-heading">
           <h2 id="wtt-sign-in-heading">find your wtt</h2>
-          <p>sign in with the same GitHub account you used for Who Touched This.</p>
+          <p>if you've contributed to Who Touched This, sign in with the same GitHub account you used to participate.</p>
           <button className="button" type="button" onClick={handleSignIn} disabled={busy}>
             {busy ? 'opening GitHub…' : 'continue with GitHub'}
           </button>

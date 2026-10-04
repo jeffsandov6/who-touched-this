@@ -3,7 +3,7 @@
 const rules = [
   'one community contributor has an active turn at a time.',
   'each GitHub account may make one ordinary contribution per season.',
-  'each contribution should contain one small, coherent main idea & affect a limited part of the editable site.',
+  'each contribution should contain one small, coherent main idea & affect a limited part of the editable site (within reason).',
   'ordinary contributions may change only the editable canvas & must pass the project contribution checks.',
   'adding an entirely new page is not part of an ordinary contribution. if your idea requires a new page, reach out to the maintainer first.',
   'protected platform code, infrastructure, authentication, contributor data, queue systems, deployment configuration, & other protected files may not be changed.',
@@ -29,7 +29,8 @@ export default function RulesPage() {
 
       <p>
         who touched this works because each contributor gets a limited turn while the platform
-        around the editable site remains protected.
+        around the editable site remains protected. there's really not too many rules to what you can do, code-wise.
+        but be reasonable. when in doubt, read the rules below. 
       </p>
 
       <ul>

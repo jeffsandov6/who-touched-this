@@ -142,6 +142,7 @@ export function buildContributionCompletedEmail(input: ContributionInput): SendE
       paragraphs: [
         copy('you touched the website. this is the consequence.'),
         copy("wtt is a crypto token on Solana. claiming it is optional & free. you don't need to buy SOL or pay anything to claim it (we pay the fees)."),
+        copy("wtt can't be bought (yet, maybe ever), sold (yet, maybe ever), traded (yet, maybe ever), or transferred (yet, maybe ever). the only way to get one is to earn it by contributing to Who Touched This."),
       ],
       action: { label: 'claim your wtt', url: claimUrl },
     },

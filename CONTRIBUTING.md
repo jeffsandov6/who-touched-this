@@ -2,7 +2,10 @@
 
 This is the canonical manual for an active contribution turn. Who Touched This is one website changed
 by one community contributor at a time. You work in your own fork, submit one small coherent idea, &
-never need write access to the canonical repository.
+never need write access to the canonical repository. DO WHATEVER YOU WANT, IDC, JUST DON'T 'BREAK' THE WEBSITE, & FOLLOW THE RULES.
+
+IMPORTANT:
+Edit only within src/canvas/**. Any edits outside of this will cause your Github PR build to fail.
 
 ## start here
 
@@ -30,7 +33,7 @@ The exact commands are below.
 
 ## 1. fork, clone & set up
 
-On GitHub, choose **Fork**. Replace `YOUR_GITHUB_USERNAME` in this command:
+On GitHub (on this repo), choose **Fork**. Replace `YOUR_GITHUB_USERNAME` in this command:
 
 ```sh
 git clone https://github.com/YOUR_GITHUB_USERNAME/who-touched-this.git
@@ -47,7 +50,7 @@ gh repo fork jeffsandov6/who-touched-this --clone
 GitHub CLI is not required. The default flow remains **Fork** in GitHub, clone your fork, then run
 `npm run contributor:setup`.
 
-The setup command is safe to rerun. It:
+The setup command (npm run contributor:setup) is safe to rerun. It:
 
 - refuses an `origin` that points to `jeffsandov6/who-touched-this` instead of your fork
 - adds `upstream` when it is missing, using HTTPS or SSH to match your `origin`
@@ -107,6 +110,12 @@ shell, a clearly marked contributor-preview status, & the current canvas.
 Contributor preview requires no `.env`, production credentials, secrets, or private configuration. Do not
 copy production configuration into your fork. Join, Admin, & other operational pages are not part of
 contributor preview.
+
+If you want to test on a phone, try this command
+```sh
+npm run dev:contributor
+```
+you'll need to be logged in to the same wifi as your computer's, then go to the url next to "Network" on your phone
 
 ## 4. make one coherent contribution
 
