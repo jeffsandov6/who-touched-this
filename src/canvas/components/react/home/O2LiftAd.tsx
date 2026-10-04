@@ -1,6 +1,6 @@
 /** @jsxImportSource react */
 
-import o2LiftImage from '../../../assets/home/o2lift/o2lift.jpg';
+import o2LiftImage from '../../../assets/home/o2lift/o2Lift.jpg';
 
 import './O2LiftAd.css';
 

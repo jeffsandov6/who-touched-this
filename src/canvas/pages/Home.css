@@ -34,13 +34,6 @@
   width: 100%;
 }
 
-.canvas-home-placeholder {
-  min-height: 18rem;
-  display: grid;
-  place-items: center;
-  border: 1px dashed currentColor;
-}
-
 @media (max-width: 800px) {
   .canvas-home-intro {
     grid-template-columns: 1fr;

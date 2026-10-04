@@ -1,6 +1,6 @@
 /** @jsxImportSource react */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 
 import './GravityGlitch.css';
@@ -28,7 +28,6 @@ function seededValue(index: number, salt: number) {
 
 export default function GravityGlitch() {
   const [hasDropped, setHasDropped] = useState(false);
-  const letters = useMemo(() => Array.from(copy), []);
 
   useEffect(() => {
     const timerId = window.setTimeout(() => setHasDropped(true), GRAVITY_DELAY_MS);

@@ -29,8 +29,6 @@ const OUTCOMES: Outcome[] = [
   { id: 'one-pixel' },
 ];
 
-const TEMPORARY_OUTCOME_MS = 2600;
-
 function pickOutcome(previousOutcome: OutcomeId | null): OutcomeId {
   const available = previousOutcome
     ? OUTCOMES.filter((outcome) => outcome.id !== previousOutcome)

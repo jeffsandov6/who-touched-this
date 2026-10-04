@@ -19,11 +19,39 @@ export default function ViewMasterPeephole() {
   const [sceneIndex, setSceneIndex] = useState(0);
   const [isChanging, setIsChanging] = useState(false);
   const changeTimerRef = useRef<number | null>(null);
+  const launcherRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const hasOpenedRef = useRef(false);
   const Scene = scenes[sceneIndex];
 
   useEffect(() => () => {
     if (changeTimerRef.current !== null) window.clearTimeout(changeTimerRef.current);
   }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      hasOpenedRef.current = true;
+      closeButtonRef.current?.focus();
+    } else if (hasOpenedRef.current) {
+      launcherRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   const advanceScene = () => {
     if (isChanging) return;
@@ -39,6 +67,7 @@ export default function ViewMasterPeephole() {
     <aside className={`view-master ${isOpen ? 'view-master--open' : ''}`}>
       {!isOpen ? (
         <button
+          ref={launcherRef}
           type="button"
           className="view-master-launcher"
           aria-label="Open viewer"
@@ -53,6 +82,7 @@ export default function ViewMasterPeephole() {
           </div>
 
           <button
+            ref={closeButtonRef}
             type="button"
             className="view-master-close"
             aria-label="Close viewer"

@@ -2,6 +2,7 @@
   min-height: 100vh;
   color: #292a27;
   background: #f7f6f1;
+  overflow-x: clip;
 }
 
 .thoughts-notebook {
