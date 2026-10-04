@@ -2,17 +2,28 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import DialUpOutcome from './DialUpOutcome';
+import PlaceboSliderOutcome from './PlaceboSliderOutcome';
+import SurveyOutcome from './SurveyOutcome';
+import LowBatteryOutcome from './LowBatteryOutcome';
+import SchrodingersCatOutcome from './SchrodingersCatOutcome';
+
 import './BigRandomizer.css';
 
 type OutcomeId =
   | 'worse-website'
-  | 'fish'
   | 'no'
   | 'successful-error'
   | 'thoughts'
   | 'nevermind'
   | 'nothing'
-  | 'one-pixel';
+  | 'one-pixel'
+  | 'survey'
+  | 'placebo-slider'
+  | 'dial-up'
+  | 'low-battery'
+  | 'schrodingers-cat'
+  ;
 
 type Outcome = {
   id: OutcomeId;
@@ -20,13 +31,17 @@ type Outcome = {
 
 const OUTCOMES: Outcome[] = [
   { id: 'worse-website' },
-  { id: 'fish' },
   { id: 'no' },
   { id: 'successful-error' },
   { id: 'thoughts' },
   { id: 'nevermind' },
   { id: 'nothing' },
   { id: 'one-pixel' },
+  { id: 'survey' },
+  { id: 'placebo-slider' },
+  { id: 'dial-up' },
+  { id: 'low-battery' },
+  { id: 'schrodingers-cat' },
 ];
 
 function pickOutcome(previousOutcome: OutcomeId | null): OutcomeId {
@@ -46,13 +61,17 @@ export default function BigRandomizer() {
 
   const timersRef = useRef<number[]>([]);
 
+
+
   const clearTimers = () => {
     timersRef.current.forEach((timerId) => window.clearTimeout(timerId));
     timersRef.current = [];
   };
 
   useEffect(() => {
-    return clearTimers;
+    return () => {
+      clearTimers();
+    };
   }, []);
 
   const runRandomizer = () => {
@@ -119,12 +138,6 @@ export default function BigRandomizer() {
           </p>
         )}
 
-        {outcome === 'fish' && (
-          <div className="big-randomizer-fish" aria-label="A fish">
-            &gt;&lt;(((°&gt;
-          </div>
-        )}
-
         {outcome === 'no' && (
           <p>
             okay.
@@ -168,6 +181,27 @@ export default function BigRandomizer() {
             />
           </div>
         )}
+
+        {outcome === 'survey' && (
+          <SurveyOutcome />
+        )}
+
+        {outcome === 'placebo-slider' && (
+          <PlaceboSliderOutcome />
+        )}
+
+        {outcome === 'dial-up' && (
+          <DialUpOutcome />
+        )}
+
+        {outcome === 'low-battery' && (
+          <LowBatteryOutcome />
+        )}
+
+        {outcome === 'schrodingers-cat' && (
+          <SchrodingersCatOutcome />
+        )}
+
       </div>
 
       <button

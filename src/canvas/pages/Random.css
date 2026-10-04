@@ -3,6 +3,16 @@
   overflow-x: clip;
 }
 
+.canvas-random-desktop-note {
+  margin: 1rem 0 3rem;
+  text-align: center;
+
+  color: #777166;
+
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
 .canvas-random-content {
   box-sizing: border-box;
   display: flex;
@@ -25,7 +35,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: clamp(1rem, 2vw, 1.5rem);
-  align-items: stretch;
+  align-items: start;
 }
 
 .canvas-random-toy-row > * {

@@ -18,6 +18,10 @@ export default function Random() {
     <div className="canvas-random">
       <CanvasPageNavigation currentPath="/random" />
 
+      <p className="canvas-random-desktop-note">
+        this is best experienced on a computer. get off your phone
+      </p>
+
       <RareAlternateReality>
         <main className="canvas-random-content">
           <GravityGlitch />

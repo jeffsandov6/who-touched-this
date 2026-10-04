@@ -16,7 +16,7 @@ export default function Home() {
       <CanvasPageNavigation currentPath="/" />
 
       <p className="canvas-home-desktop-note">
-        this is best experienced on a computer. get off your phone
+        this gets weirder on a computer. get off your phone
       </p>
 
       <main className="canvas-home-content">

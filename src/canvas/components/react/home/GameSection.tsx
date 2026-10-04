@@ -69,7 +69,7 @@ export default function GameSection() {
     { size: 4.25, moveIntervalMs: null },
     { size: 3.4, moveIntervalMs: 1200 },
     { size: 2.6, moveIntervalMs: 750 },
-    { size: 2.0, moveIntervalMs: 475 },
+    { size: 2.3, moveIntervalMs: 500 },
     { size: 2.0, moveIntervalMs: 460 },
   ];
 
