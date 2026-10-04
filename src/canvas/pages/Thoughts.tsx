@@ -5,6 +5,7 @@ import Corkboard from '../components/react/thoughts/Corkboard';
 import HitchhikerTerminal from '../components/react/thoughts/HitchhikerTerminal';
 import JustBuild from '../components/react/thoughts/JustBuild';
 import ShouldTheseExist from '../components/react/thoughts/ShouldTheseExist';
+import DrunkThoughts from "../components/react/thoughts/DrunkThoughts";
 
 import './Thoughts.css';
 
@@ -25,7 +26,7 @@ export default function Thoughts() {
         <HitchhikerTerminal />
 
         <p className="thoughts-fragment thoughts-fragment-indent">
-          software should be allowed to be pointless sometimes.
+          software should be allowed to be pointless sometimes
         </p>
 
         <ShouldTheseExist />
@@ -36,45 +37,7 @@ export default function Thoughts() {
           does every idea have to become a business?
         </p>
 
-        <div className="thoughts-section thoughts-expandable">
-          <details>
-            <summary>i still like the original idea</summary>
-
-            <div className="thoughts-note-body">
-              <p>
-                take away the charts, speculation, influencers &amp;
-                number-go-up culture and decentralized digital money is still
-                an incredibly interesting idea to me.
-              </p>
-
-              <p>
-                i think that's the part i've always liked.
-              </p>
-            </div>
-          </details>
-
-          <details>
-            <summary>one person and a lot of software</summary>
-
-            <div className="thoughts-note-body">
-              <p>
-                maybe the interesting ai question is not whether it gets cheap
-                enough to replace five people, but whether it makes one person
-                productive enough that paying for it costs less than keeping
-                five people. i do not know if that is what happens.
-              </p>
-            </div>
-          </details>
-        </div>
-
-        <aside
-          className="thoughts-quotes"
-          aria-label="quotes"
-        >
-          <blockquote>
-            “move fast and break things”
-          </blockquote>
-        </aside>
+        <DrunkThoughts />
 
         <p className="thoughts-fragment thoughts-fragment-indent">
           eventually somebody is going to delete this sentence

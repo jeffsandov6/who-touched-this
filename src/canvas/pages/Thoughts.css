@@ -47,20 +47,6 @@
   text-transform: lowercase;
 }
 
-.thoughts-expandable > h2 {
-  margin-bottom: 1.25rem;
-  color: #77766f;
-}
-
-.thoughts-expandable details {
-  border-top: 1px solid #d9d6cc;
-}
-
-.thoughts-expandable summary:focus-visible {
-  outline: 2px solid #606c76;
-  outline-offset: 0.35rem;
-}
-
 .thoughts-fragment {
   max-width: 31rem;
 }
