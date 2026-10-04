@@ -484,4 +484,8 @@
     width: 68rem;
     height: 50rem;
   }
+
+  .cork-todo {
+    bottom: -1.25rem;
+  }
 }
