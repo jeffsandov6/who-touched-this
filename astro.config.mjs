@@ -5,6 +5,7 @@ import svelte from '@astrojs/svelte';
 import vue from '@astrojs/vue';
 
 export default defineConfig({
+  site: 'https://whotouchedthis.website',
   output: 'static',
   integrations: [
     react({
