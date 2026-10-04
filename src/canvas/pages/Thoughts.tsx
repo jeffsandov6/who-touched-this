@@ -33,7 +33,7 @@ export default function Thoughts() {
         <Corkboard />
 
         <p className="thoughts-fragment">
-          not every website needs to become a company.
+          does every idea have to become a business?
         </p>
 
         <div className="thoughts-section thoughts-expandable">

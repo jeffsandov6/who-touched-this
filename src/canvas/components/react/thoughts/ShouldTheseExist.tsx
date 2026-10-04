@@ -102,6 +102,9 @@ export default function ShouldTheseExist() {
         </div>
         <h2 id="should-these-exist">should these exist?</h2>
       </header>
+      <p className="thoughts-move-fast-note" aria-hidden="true">
+        move fast & break things
+      </p>
 
       <div className="thoughts-idea-carousel-controls" aria-label="idea carousel controls">
         <span aria-live="polite">{position}</span>

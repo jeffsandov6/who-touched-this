@@ -9,14 +9,14 @@
   width: min(100% - 3rem, 43rem);
   min-height: 100vh;
   margin: 0 auto;
-  padding: clamp(3rem, 7vw, 5rem) 0 clamp(6rem, 12vw, 9rem);
+  padding: 1rem 0 clamp(6rem, 12vw, 9rem);
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(1rem, 0.97rem + 0.18vw, 1.08rem);
   line-height: 1.75;
 }
 
 .thoughts-intro {
-  max-width: 29rem;
+  max-width: none;
   margin-bottom: clamp(3.5rem, 6vw, 5rem);
 }
 
@@ -103,6 +103,22 @@
   margin-top: clamp(4.5rem, 8vw, 6rem);
   margin-left: 50%;
   transform: translateX(-50%);
+  position: relative;
+}
+
+.thoughts-move-fast-note {
+  position: absolute;
+  z-index: 10;
+  top: 9.75rem;
+  right: -4rem;
+  margin: 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0.6;
+  transform: rotate(7deg);
+  pointer-events: none;
 }
 
 .thoughts-found-ideas-heading {
@@ -150,7 +166,7 @@
   line-height: 1.4;
 }
 
-.thoughts-idea-carousel-controls > div {
+.thoughts-idea-carousel-controls>div {
   display: flex;
   gap: 0.4rem;
 }
@@ -220,7 +236,7 @@
   object-position: center top;
 }
 
-.thoughts-idea-preview > span {
+.thoughts-idea-preview>span {
   position: absolute;
   right: 0.45rem;
   bottom: 0.4rem;
@@ -312,7 +328,7 @@
   background: rgb(24 24 21 / 72%);
 }
 
-.thoughts-idea-dialog-content > header {
+.thoughts-idea-dialog-content>header {
   position: sticky;
   z-index: 1;
   top: 0;
@@ -372,9 +388,19 @@
 }
 
 @media (max-width: 40rem) {
+ .thoughts-move-fast-note {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: fit-content;
+    margin: 0.6rem 0 -0.25rem auto;
+    font-size: 0.68rem;
+    transform: rotate(5deg) translateX(0.2rem);
+  }
+
   .thoughts-notebook {
     width: min(100% - 2.5rem, 43rem);
-    padding-top: 2rem;
+    padding-top: 1rem;
   }
 
   .thoughts-found-ideas {
@@ -425,4 +451,8 @@
     padding-top: 0.85rem;
     font-size: 0.75rem;
   }
+
+  /* html, body {
+    background: #000000 !important;
+  } */
 }
