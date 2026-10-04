@@ -1,11 +1,11 @@
-## What did you change?
+## What did you change? (this appear in your public History entry in https://whotouchedthis.website/history)
 
 <!-- In a concise sentence or two, describe your one coherent contribution in plain language.
 If accepted, the maintainer uses this as the public History summary. -->
 
-## Message/signature
+## Message/signature (optional, also shown in your public History entry)
 
-<!-- Optional. Anything written here may be displayed publicly with your contribution.
+<!-- Optional. Anything written here will be displayed publicly with your contribution.
 Leave this section empty if you do not want to add a message. -->
 
 ## Quick check
