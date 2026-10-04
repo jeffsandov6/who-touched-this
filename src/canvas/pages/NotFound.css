@@ -1,0 +1,136 @@
+.canvas-not-found {
+  display: grid;
+  min-height: clamp(32rem, 72vh, 48rem);
+  place-items: center;
+  padding: clamp(2rem, 6vw, 5rem) 1.5rem;
+  color: #29271f;
+  background: #f5f2e9;
+}
+
+.not-found-map {
+  width: min(100%, 48rem);
+}
+
+.not-found-map__heading {
+  margin-bottom: 1.75rem;
+  text-align: center;
+}
+
+.not-found-map__heading p {
+  margin: 0;
+}
+
+.not-found-map__code {
+  color: #827a68;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.not-found-map__heading h1 {
+  margin: 0.25rem 0 0.35rem;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(2.2rem, 7vw, 4.5rem);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.not-found-map__heading p:last-child {
+  color: #686253;
+  font-size: 0.9rem;
+}
+
+.not-found-map__drawing {
+  display: block;
+  width: 100%;
+  height: auto;
+  padding: clamp(0.75rem, 3vw, 1.5rem);
+  border: 1px solid #bdb39e;
+  background:
+    radial-gradient(circle at 16% 21%, rgb(117 95 55 / 7%) 0 1px, transparent 2px),
+    radial-gradient(circle at 74% 63%, rgb(117 95 55 / 6%) 0 1px, transparent 2px),
+    #e9dfc8;
+  box-shadow:
+    0.35rem 0.4rem 0 #d8ceb7,
+    inset 0 0 3rem rgb(91 71 38 / 8%);
+}
+
+.not-found-map__land {
+  fill: rgb(255 252 239 / 34%);
+  stroke: #746b57;
+  stroke-width: 2;
+}
+
+.not-found-map__contour {
+  fill: none;
+  stroke: #a69b84;
+  stroke-width: 1.5;
+}
+
+.not-found-map__trail {
+  fill: none;
+  stroke: #5f594d;
+  stroke-width: 3;
+  stroke-dasharray: 7 10;
+  stroke-linecap: round;
+}
+
+.not-found-map__start {
+  fill: #5f594d;
+}
+
+.not-found-map__x path {
+  fill: none;
+  stroke: #8d3f32;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.not-found-map__compass circle,
+.not-found-map__compass path {
+  fill: none;
+  stroke: #8b826e;
+  stroke-width: 1.5;
+}
+
+.not-found-map__compass text,
+.not-found-map__label {
+  fill: #665e4e;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.not-found-map__label {
+  font-size: 17px;
+}
+
+.not-found-map__home {
+  display: block;
+  width: fit-content;
+  margin: 1.75rem auto 0;
+  color: #454137;
+  font-size: 0.9rem;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25rem;
+}
+
+.not-found-map__home:hover {
+  color: #111;
+}
+
+@media (max-width: 40rem) {
+  .canvas-not-found {
+    min-height: 34rem;
+    padding-inline: 1rem;
+  }
+
+  .not-found-map__drawing {
+    padding: 0.35rem;
+  }
+
+  .not-found-map__label {
+    font-size: 15px;
+  }
+}
