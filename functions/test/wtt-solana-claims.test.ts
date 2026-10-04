@@ -21,14 +21,19 @@ import {
   assertWttMintInvariants,
   assertWttTokenAccountInvariants,
   attemptIsDefinitivelyExpired,
+  buildWttContributionMemo,
   buildExternallySignedTransaction,
   createWttClaimInstructions,
+  createWttClaimMemoInstructions,
   validatePreparedTransaction,
+  WTT_MEMO_PROGRAM_ID,
   wttClaimAmount,
 } from '../src/wtt/solana-claims.js';
 import { WttClaimError } from '../src/wtt/claims.js';
 
 const wallet = Keypair.generate().publicKey.toBase58();
+const appOrigin = 'https://whotouchedthis.website';
+const entitlementIds = ['contribution:12'];
 
 function expectPrecondition(operation: () => unknown) {
   assert.throws(operation, (error) => error instanceof WttClaimError
@@ -36,36 +41,135 @@ function expectPrecondition(operation: () => unknown) {
 }
 
 test('missing ATA uses create-idempotent, mint-checked, freeze in one ordered instruction list', () => {
-  const { instructions } = createWttClaimInstructions(wallet, 2, 'missing');
+  const { instructions } = createWttClaimInstructions(
+    wallet, 2, 'missing', entitlementIds, appOrigin,
+  );
   assert.deepEqual(instructions.map((instruction) => instruction.programId.toBase58()), [
     ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(),
     TOKEN_PROGRAM_ID.toBase58(),
     TOKEN_PROGRAM_ID.toBase58(),
+    WTT_MEMO_PROGRAM_ID.toBase58(),
   ]);
   assert.equal(instructions[0]!.data[0], 1, 'ATA instruction is idempotent create');
   assert.equal(instructions[1]!.data[0], 14, 'SPL instruction is MintToChecked');
   assert.equal(instructions[2]!.data[0], 10, 'SPL instruction is FreezeAccount');
+  assert.equal(
+    instructions[3]!.data.toString('utf8'),
+    'who touched this | contribution #012 | https://whotouchedthis.website/history/12',
+  );
 });
 
 test('frozen ATA uses thaw, mint-checked, freeze', () => {
-  const { instructions } = createWttClaimInstructions(wallet, 2, 'frozen');
-  assert.deepEqual(instructions.map((instruction) => instruction.data[0]), [11, 14, 10]);
-  assert.ok(instructions.every((instruction) => instruction.programId.equals(TOKEN_PROGRAM_ID)));
+  const { instructions } = createWttClaimInstructions(
+    wallet, 2, 'frozen', entitlementIds, appOrigin,
+  );
+  assert.deepEqual(instructions.slice(0, 3).map((instruction) => instruction.data[0]), [11, 14, 10]);
+  assert.ok(instructions.slice(0, 3).every((instruction) => instruction.programId.equals(TOKEN_PROGRAM_ID)));
+  assert.ok(instructions[3]!.programId.equals(WTT_MEMO_PROGRAM_ID));
 });
 
 test('initialized ATA uses mint-checked then freeze', () => {
-  const { instructions } = createWttClaimInstructions(wallet, 2, 'initialized');
-  assert.deepEqual(instructions.map((instruction) => instruction.data[0]), [14, 10]);
+  const { instructions } = createWttClaimInstructions(
+    wallet, 2, 'initialized', entitlementIds, appOrigin,
+  );
+  assert.deepEqual(instructions.slice(0, 2).map((instruction) => instruction.data[0]), [14, 10]);
+  assert.ok(instructions[2]!.programId.equals(WTT_MEMO_PROGRAM_ID));
   const authority = new PublicKey(WTT_OPERATIONAL_AUTHORITY);
   const mint = new PublicKey(WTT_MINT_ADDRESS);
-  for (const instruction of instructions) {
+  for (const instruction of instructions.slice(0, 2)) {
     assert.ok(instruction.keys.some((key) => key.pubkey.equals(authority) && key.isSigner));
     assert.ok(instruction.keys.some((key) => key.pubkey.equals(mint)));
   }
 });
 
+test('contribution memos use padded display numbers and canonical numeric History routes', () => {
+  assert.equal(
+    buildWttContributionMemo(0, appOrigin),
+    'who touched this | contribution #000 | https://whotouchedthis.website/history/0',
+  );
+  assert.equal(
+    buildWttContributionMemo(31, appOrigin),
+    'who touched this | contribution #031 | https://whotouchedthis.website/history/31',
+  );
+});
+
+test('multiple contribution entitlements produce deterministic numerically ordered memos', () => {
+  const first = createWttClaimMemoInstructions([
+    'future-source:private-entitlement-id',
+    'contribution:44',
+    'contribution:31',
+  ], appOrigin);
+  const second = createWttClaimMemoInstructions([
+    'contribution:31',
+    'future-source:private-entitlement-id',
+    'contribution:44',
+  ], appOrigin);
+  const expected = [
+    'who touched this | contribution #031 | https://whotouchedthis.website/history/31',
+    'who touched this | contribution #044 | https://whotouchedthis.website/history/44',
+  ];
+  assert.deepEqual(first.map((instruction) => instruction.data.toString('utf8')), expected);
+  assert.deepEqual(second.map((instruction) => instruction.data.toString('utf8')), expected);
+  assert.ok(first.every((instruction) => instruction.programId.equals(WTT_MEMO_PROGRAM_ID)
+    && instruction.keys.length === 0));
+});
+
+test('memo contents exclude private claim, contributor, wallet, and summary data', () => {
+  const sensitiveValues = [
+    'founder@example.com',
+    '123456789',
+    wallet,
+    'future-source:private-entitlement-id',
+    'private contribution summary',
+  ];
+  const serialized = createWttClaimMemoInstructions([
+    'future-source:private-entitlement-id',
+    'contribution:31',
+  ], appOrigin).map((instruction) => instruction.data.toString('utf8')).join('\n');
+  for (const sensitive of sensitiveValues) assert.doesNotMatch(serialized, new RegExp(sensitive));
+});
+
+test('memo instructions share the atomic transaction instruction list with mint and freeze', () => {
+  const { instructions } = createWttClaimInstructions(
+    wallet,
+    2,
+    'initialized',
+    ['contribution:44', 'contribution:31'],
+    appOrigin,
+  );
+  assert.deepEqual(instructions.map((instruction) => instruction.programId.toBase58()), [
+    TOKEN_PROGRAM_ID.toBase58(),
+    TOKEN_PROGRAM_ID.toBase58(),
+    WTT_MEMO_PROGRAM_ID.toBase58(),
+    WTT_MEMO_PROGRAM_ID.toBase58(),
+  ]);
+  assert.equal(instructions[0]!.data[0], 14, 'SPL instruction is MintToChecked');
+  assert.equal(instructions[1]!.data[0], 10, 'SPL instruction is FreezeAccount');
+});
+
+test('transaction message construction is deterministic for the same reserved contributions', () => {
+  const blockhash = Keypair.generate().publicKey.toBase58();
+  const authority = new PublicKey(WTT_OPERATIONAL_AUTHORITY);
+  const messageFor = (ids: readonly string[]) => {
+    const { instructions } = createWttClaimInstructions(
+      wallet, 2, 'initialized', ids, appOrigin,
+    );
+    return new Transaction({
+      feePayer: authority,
+      blockhash,
+      lastValidBlockHeight: 123,
+    }).add(...instructions).serializeMessage();
+  };
+  assert.deepEqual(
+    messageFor(['contribution:44', 'contribution:31']),
+    messageFor(['contribution:31', 'contribution:44']),
+  );
+});
+
 test('canonical ATA invariants reject incorrect address, program, mint, owner, or state', () => {
-  const { ata } = createWttClaimInstructions(wallet, 1, 'initialized');
+  const { ata } = createWttClaimInstructions(
+    wallet, 1, 'initialized', entitlementIds, appOrigin,
+  );
   const valid = {
     address: ata.toBase58(),
     programAddress: WTT_TOKEN_PROGRAM_ADDRESS,

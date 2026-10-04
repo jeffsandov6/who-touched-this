@@ -350,6 +350,7 @@ export const claimWtt = onCall({
       solana: new MainnetWttSolanaGateway(
         configuredWttSolanaRpcUrl(),
         new GoogleKmsWttMessageSigner(),
+        configuredAppOrigin(),
         (event, fields) => logger.warn('WTT Solana operational check failed.', {
           event: `wtt_${event}`,
           ...fields,

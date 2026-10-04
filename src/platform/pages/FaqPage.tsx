@@ -4,13 +4,13 @@ const funQuestions = [
   {
     question: 'what is who touched this?',
     answer:
-      'who touched this is a collaborative coding experiment where one public website is changed sequentially by different contributors. each person gets one turn to make an update on the site. i\'m really just curious to see where this goes. the possibilities are endless.',
+      'who touched this is a collaborative coding experiment where one public website is changed sequentially by different contributors. each person gets one turn to make an update on the site. i\'m really just curious to see where this goes. idk where this goes really, but i guess we\'ll see.',
 
   },
   {
     question: 'what should i make?',
     answer:
-      'honestly whatever you want, as long as it fits the rules & the scope of one contribution. it can be useful, useless, weird, funny, beautiful, ugly, interactive, confusing, or something nobody would have thought to put there. that\'s kind of the point. we tend to forget how fun developing can be once it just becomes something we do at our job. there was never a more fun time for me than when i participated in hackathons with my buddies. writing software can be a lot more fun as a social activity.',
+      'honestly whatever you want, as long as it fits the rules & the scope of one contribution. it can be useful, useless, weird, funny, beautiful, ugly, interactive, confusing, or something nobody would have thought to put there. that\'s kind of the point. we tend to forget how fun developing can be once it just becomes something we do at our job. personally, there was never a more fun time for me than when i participated in hackathons with my buddies. writing software can be a lot more fun when it is done as a social activity.',
   },
   {
     question: 'do i have to be an amazing developer?',

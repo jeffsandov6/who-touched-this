@@ -3,9 +3,9 @@ import {
   Connection,
   PublicKey,
   Transaction,
+  TransactionInstruction,
   type AccountInfo,
   type Commitment,
-  type TransactionInstruction,
 } from '@solana/web3.js';
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -63,6 +63,11 @@ export interface WttTokenAccountState {
 const MINT = new PublicKey(WTT_MINT_ADDRESS);
 const AUTHORITY = new PublicKey(WTT_OPERATIONAL_AUTHORITY);
 const COMMITMENT: Commitment = 'confirmed';
+export const WTT_MEMO_PROGRAM_ID = new PublicKey(
+  'MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr',
+);
+
+const CONTRIBUTION_ENTITLEMENT_ID_PATTERN = /^contribution:(0|[1-9][0-9]*)$/;
 
 export type WttSolanaOperationalEvent =
   | 'mint_invariant_failure'
@@ -96,6 +101,49 @@ export function wttClaimAmount(amount: number): bigint {
   return BigInt(amount);
 }
 
+export function buildWttContributionMemo(
+  contributionNumber: number,
+  appOrigin: string,
+): string {
+  if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) {
+    throw new WttClaimError('failed-precondition', 'WTT contribution provenance is invalid.');
+  }
+  let origin: URL;
+  try {
+    origin = new URL(appOrigin);
+  } catch {
+    throw new WttClaimError('failed-precondition', 'WTT contribution provenance origin is invalid.');
+  }
+  if (!['http:', 'https:'].includes(origin.protocol)
+    || origin.username || origin.password || origin.pathname !== '/'
+    || origin.search || origin.hash) {
+    throw new WttClaimError('failed-precondition', 'WTT contribution provenance origin is invalid.');
+  }
+  const displayNumber = String(contributionNumber).padStart(3, '0');
+  return `who touched this | contribution #${displayNumber} | ${origin.origin}/history/${contributionNumber}`;
+}
+
+export function createWttClaimMemoInstructions(
+  entitlementIds: readonly string[],
+  appOrigin: string,
+): TransactionInstruction[] {
+  const contributionNumbers = entitlementIds.flatMap((entitlementId) => {
+    if (!entitlementId.startsWith('contribution:')) return [];
+    const match = CONTRIBUTION_ENTITLEMENT_ID_PATTERN.exec(entitlementId);
+    const contributionNumber = match ? Number(match[1]) : Number.NaN;
+    if (!Number.isSafeInteger(contributionNumber)) {
+      throw new WttClaimError('failed-precondition', 'WTT contribution provenance is invalid.');
+    }
+    return [contributionNumber];
+  }).sort((left, right) => left - right);
+
+  return contributionNumbers.map((contributionNumber) => new TransactionInstruction({
+    programId: WTT_MEMO_PROGRAM_ID,
+    keys: [],
+    data: Buffer.from(buildWttContributionMemo(contributionNumber, appOrigin), 'utf8'),
+  }));
+}
+
 export function assertWttTokenAccountInvariants(
   walletAddress: string,
   account: WttTokenAccountState,
@@ -121,6 +169,8 @@ export function createWttClaimInstructions(
   walletAddress: string,
   amount: number,
   ataState: WttAtaState,
+  entitlementIds: readonly string[],
+  appOrigin: string,
 ): { ata: PublicKey; instructions: TransactionInstruction[] } {
   const owner = new PublicKey(walletAddress);
   const ata = getAssociatedTokenAddressSync(
@@ -145,6 +195,7 @@ export function createWttClaimInstructions(
       MINT, ata, AUTHORITY, wttClaimAmount(amount), WTT_DECIMALS, [], TOKEN_PROGRAM_ID,
     ),
     createFreezeAccountInstruction(ata, MINT, AUTHORITY, [], TOKEN_PROGRAM_ID),
+    ...createWttClaimMemoInstructions(entitlementIds, appOrigin),
   );
   return { ata, instructions };
 }
@@ -217,6 +268,7 @@ export class MainnetWttSolanaGateway implements WttSolanaGateway {
   constructor(
     rpcUrl: string,
     private readonly signer: WttKmsMessageSigner,
+    private readonly appOrigin: string,
     private readonly observe: (event: WttSolanaOperationalEvent, fields: Record<string, unknown>) => void = () => {},
   ) {
     this.#connection = new Connection(rpcUrl, COMMITMENT);
@@ -287,7 +339,13 @@ export class MainnetWttSolanaGateway implements WttSolanaGateway {
       throw error;
     }
     const ataState = await this.#inspectAta(claim.walletAddress);
-    const { instructions } = createWttClaimInstructions(claim.walletAddress, claim.amount, ataState);
+    const { instructions } = createWttClaimInstructions(
+      claim.walletAddress,
+      claim.amount,
+      ataState,
+      claim.entitlementIds,
+      this.appOrigin,
+    );
     const { blockhash, lastValidBlockHeight } = await this.#connection.getLatestBlockhash(COMMITMENT);
     let signed;
     try {
