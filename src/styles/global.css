@@ -693,6 +693,31 @@ h1 { margin-block: 0 1rem; font-size: clamp(1.75rem, 5vw, 2.5rem); line-height: 
 .history-snapshot-image-link { display: block; }
 .history-snapshot-full-link { display: inline-flex; margin-top: 0.65rem; font-size: 0.85rem; font-weight: 700; }
 
+.platform-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem 1rem;
+  color: #707070;
+  font-size: 0.875rem;
+}
+
+.platform-footer a {
+  color: inherit;
+  text-underline-offset: 0.2rem;
+}
+
+.platform-footer a:hover {
+  color: #202124;
+}
+
+.platform-footer a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  border-radius: 0.125rem;
+}
+
 @media (max-width: 40rem) {
   .platform-navigation { align-items: flex-start; flex-direction: column; gap: 0.75rem; }
   .admin-toolbar { flex-direction: column; }
