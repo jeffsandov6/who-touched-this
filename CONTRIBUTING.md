@@ -145,7 +145,7 @@ Inside `src/canvas/**`, you can use the existing supported file types, including
 
 Framework components should stay in their matching directories under `src/canvas/components/**`. React & Solid both use JSX/TSX, so keep them in their existing `react/` or `solid/` directories so Astro knows which renderer to use.
 
-Use the dependencies already installed when they fit your idea. If you need a new package to make your idea work, ask the maintainer early in your turn. New dependencies are allowed when reasonable, but do not edit `package.json` or `package-lock.json` yourself. The maintainer will add approved dependencies to the protected project setup.
+Use the dependencies already installed when they fit your idea. If your idea needs a new package, that's okay. `package.json` & `package-lock.json` are protected, so dependency changes may initially fail the automated contribution check. The maintainer can review reasonable dependency requests & add approved packages to the protected project setup. You do not need to coordinate this before opening your PR.
 
 Your contribution should revolve around one coherent main idea. It may touch multiple canvas files
 when the idea requires it, but it should not become a full-site overhaul or bundle several unrelated
