@@ -1,3 +1,14 @@
+export const SNAPSHOT_BUILD_ENV = Object.freeze({
+  PUBLIC_FIREBASE_API_KEY: 'snapshot-test-key',
+  PUBLIC_FIREBASE_AUTH_DOMAIN: 'snapshot.invalid',
+  PUBLIC_FIREBASE_PROJECT_ID: 'wtt-snapshot-preview',
+  PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '123456789012',
+  PUBLIC_FIREBASE_APP_ID: '1:123456789012:web:0000000000000000000000',
+  PUBLIC_FIREBASE_STORAGE_BUCKET: 'wtt-snapshot-preview.invalid',
+  PUBLIC_USE_FIREBASE_EMULATORS: 'false',
+  PUBLIC_SITE_INDEXING_ENABLED: 'false',
+});
+
 export const SNAPSHOT_CONFIG = Object.freeze({
   manifestSchemaVersion: 2,
   routeRegistryPath: 'src/platform/config/editable-routes.json',

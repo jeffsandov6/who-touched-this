@@ -88,7 +88,7 @@ test('preview verification fails for modified, missing, and malformed artifacts'
   });
 });
 
-test('PR preview browser blocks external requests while retaining loopback rendering', async () => {
+test('PR preview executes client JavaScript while blocking external requests', async () => {
   let externalRequests = 0;
   const external = createServer((_request, response) => {
     externalRequests += 1;
@@ -112,10 +112,9 @@ test('PR preview browser blocks external requests while retaining loopback rende
       outputPath: root,
       waitMs: 50,
       blockExternalRequests: true,
-      javaScriptEnabled: false,
     });
     assert.match(checksums['/'].tiles[0].sha256, /^[0-9a-f]{64}$/);
-    assert.equal(checksums['/'].height, 900);
+    assert.ok(checksums['/'].height > 7_201);
     assert.equal(externalRequests, 0);
   } finally {
     if (browser) await browser.close();
