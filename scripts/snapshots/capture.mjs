@@ -109,13 +109,14 @@ export function createTilePlan(dimensions, config = SNAPSHOT_CONFIG) {
   });
 }
 
-export async function captureRevision({ browser, side, sha, routes, routeKeys, distPath, outputPath, waitMs, signal, blockExternalRequests = false, screenshotBudget = { bytes: 0 } }) {
+export async function captureRevision({ browser, side, sha, routes, routeKeys, distPath, outputPath, waitMs, signal, blockExternalRequests = false, javaScriptEnabled = true, screenshotBudget = { bytes: 0 } }) {
   const server = await startStaticServer(distPath);
   const context = await browser.newContext({
     viewport: SNAPSHOT_CONFIG.viewport,
     deviceScaleFactor: SNAPSHOT_CONFIG.deviceScaleFactor,
     locale: SNAPSHOT_CONFIG.locale,
     timezoneId: SNAPSHOT_CONFIG.timezoneId,
+    javaScriptEnabled,
     serviceWorkers: blockExternalRequests ? 'block' : 'allow',
   });
   const captures = {};
@@ -296,8 +297,8 @@ export async function captureSnapshots(options) {
       throw new Error(`Playwright Chromium could not start. Run "npx playwright install chromium" once, then retry. Cause: ${error.message}`);
     }
     const screenshotBudget = { bytes: 0 };
-    const beforeChecksums = await captureRevision({ browser, side: 'before', sha: beforeSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: beforeDist, outputPath: stagingPath, waitMs, signal: options.signal, screenshotBudget });
-    const afterChecksums = await captureRevision({ browser, side: 'after', sha: afterSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: afterDist, outputPath: stagingPath, waitMs, signal: options.signal, screenshotBudget });
+    const beforeChecksums = await captureRevision({ browser, side: 'before', sha: beforeSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: beforeDist, outputPath: stagingPath, waitMs, signal: options.signal, javaScriptEnabled: false, screenshotBudget });
+    const afterChecksums = await captureRevision({ browser, side: 'after', sha: afterSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: afterDist, outputPath: stagingPath, waitMs, signal: options.signal, javaScriptEnabled: false, screenshotBudget });
     const manifest = buildSnapshotManifest({
       contributionNumber,
       captureId,

@@ -211,8 +211,8 @@ export async function capturePullRequestPreview(options) {
       throw new Error(`Playwright Chromium could not start: ${error.message}`);
     }
     const screenshotBudget = { bytes: 0 };
-    const before = await captureRevision({ browser, side: 'before', sha: identity.baseSha, routes, routeKeys, distPath: baseDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true, screenshotBudget });
-    const proposedAfter = await captureRevision({ browser, side: 'proposed-after', sha: identity.headSha, routes, routeKeys, distPath: proposedDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true, screenshotBudget });
+    const before = await captureRevision({ browser, side: 'before', sha: identity.baseSha, routes, routeKeys, distPath: baseDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true, javaScriptEnabled: false, screenshotBudget });
+    const proposedAfter = await captureRevision({ browser, side: 'proposed-after', sha: identity.headSha, routes, routeKeys, distPath: proposedDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true, javaScriptEnabled: false, screenshotBudget });
     const manifest = buildPullRequestPreviewManifest({ ...identity, routes, waitMs, capturedAt: new Date().toISOString(), checksums: { before, proposedAfter } });
     await writeFile(join(stagingPath, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
     await writeFile(join(stagingPath, 'index.html'), renderPullRequestReviewPage(manifest), { flag: 'wx' });

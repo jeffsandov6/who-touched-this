@@ -230,7 +230,7 @@ for (const route of registry.routes) {
   const directory = route === '/' ? 'dist' : \`dist\${route}\`;
   await mkdir(directory, { recursive: true });
   const longContent = route === '/thoughts' ? '<div style="height:25001px">long page beyond the legacy 20000px ceiling</div>' : '';
-  await writeFile(\`\${directory}/index.html\`, \`<!doctype html><html><body><main><h1>\${route}</h1><p>\${marker}</p>\${longContent}</main></body></html>\`);
+  await writeFile(\`\${directory}/index.html\`, \`<!doctype html><html><body><main><h1>\${route}</h1><p>\${marker}</p>\${longContent}</main><script>document.querySelector('main')?.remove()</script></body></html>\`);
 }`);
     await writeFile(join(root, 'marker.txt'), 'BEFORE');
     await exec('git', ['add', '.'], { cwd: root });

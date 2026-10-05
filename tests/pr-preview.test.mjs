@@ -99,7 +99,7 @@ test('PR preview browser blocks external requests while retaining loopback rende
   const root = await mkdtemp(join(tmpdir(), 'wtt-pr-network-'));
   let browser;
   try {
-    await writeFile(join(root, 'index.html'), `<!doctype html><main>Preview</main><script>fetch('http://127.0.0.1:${address.port}/should-not-run').catch(() => {});</script>`);
+    await writeFile(join(root, 'index.html'), `<!doctype html><main>Preview</main><script>document.body.innerHTML = '<div style="height:7201px">javascript executed</div>'; fetch('http://127.0.0.1:${address.port}/should-not-run').catch(() => {});</script>`);
     await mkdir(join(root, 'shots'), { recursive: true });
     browser = await chromium.launch({ headless: true });
     const checksums = await captureRevision({
@@ -112,8 +112,10 @@ test('PR preview browser blocks external requests while retaining loopback rende
       outputPath: root,
       waitMs: 50,
       blockExternalRequests: true,
+      javaScriptEnabled: false,
     });
     assert.match(checksums['/'].tiles[0].sha256, /^[0-9a-f]{64}$/);
+    assert.equal(checksums['/'].height, 900);
     assert.equal(externalRequests, 0);
   } finally {
     if (browser) await browser.close();
