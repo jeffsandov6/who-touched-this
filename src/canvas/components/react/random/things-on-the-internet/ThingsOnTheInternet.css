@@ -1,0 +1,156 @@
+.things-on-the-internet {
+  display: flex;
+  flex-direction: column;
+
+  min-height: 17rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+
+  border: 1px solid #b8b4aa;
+
+  background: #eeebe2;
+  color: #24231f;
+}
+
+.things-on-the-internet-header {
+  margin-bottom: 1.25rem;
+}
+
+.things-on-the-internet-kicker {
+  margin: 0 0 0.35rem;
+
+  color: #777166;
+
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.things-on-the-internet h2 {
+  margin: 0;
+
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.things-on-the-internet-viewport {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  gap: 1rem;
+
+  flex: 1;
+
+  min-height: 9rem;
+  padding-top: 0.75rem;
+
+  border-top: 1px solid rgba(36, 35, 31, 0.16);
+}
+
+.things-on-the-internet-image,
+.things-on-the-internet-placeholder {
+  display: block;
+
+  width: 100%;
+  height: auto;
+
+  border: 1px solid rgba(36, 35, 31, 0.14);
+
+  background: #ded9cd;
+}
+
+.things-on-the-internet-placeholder {
+  display: grid;
+  place-items: center;
+
+  color: #8a8478;
+
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.things-on-the-internet-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.things-on-the-internet-copy strong {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.things-on-the-internet-copy span {
+  color: #777166;
+
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.things-on-the-internet-copy a {
+  color: inherit;
+
+  font-size: 0.72rem;
+
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.things-on-the-internet-controls {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+
+  margin-top: 1rem;
+}
+
+.things-on-the-internet-controls button {
+  display: grid;
+  place-items: center;
+
+  width: 2rem;
+  height: 2rem;
+
+  padding: 0;
+
+  border: 1px solid #aaa499;
+
+  background: transparent;
+  color: inherit;
+
+  font: inherit;
+
+  cursor: pointer;
+}
+
+.things-on-the-internet-controls button:hover {
+  background: rgba(36, 35, 31, 0.05);
+}
+
+.things-on-the-internet-controls span {
+  color: #8a8478;
+
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+.things-on-the-internet-image--cover {
+  object-fit: cover;
+}
+
+.things-on-the-internet-image--contain {
+  object-fit: contain;
+}
+
+@media (max-width: 32rem) {
+  .things-on-the-internet-viewport {
+    grid-template-columns: 1fr;
+  }
+
+  .things-on-the-internet-copy {
+    justify-content: flex-start;
+  }
+}

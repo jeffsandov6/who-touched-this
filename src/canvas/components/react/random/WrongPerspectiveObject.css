@@ -1,0 +1,145 @@
+.wrong-perspective-object {
+  --wrong-perspective-entry-duration: 3500ms;
+  --wrong-perspective-alignment-duration: 1500ms;
+
+  display: grid;
+  place-items: center;
+  gap: 0.5rem;
+
+  min-height: 24rem;
+
+  overflow: hidden;
+
+  border: 1px solid #a49e91;
+  background: #e8e2d5;
+
+  padding: clamp(0.5rem, 2vw, 1.25rem);
+}
+
+.wrong-perspective-caption {
+  margin: -0.25rem 0 0;
+
+  color: #777166;
+
+  font-size: 0.72rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.wrong-perspective-drawing {
+  display: block;
+
+  width: min(100%, 42rem);
+  height: auto;
+
+  filter: drop-shadow(
+    0 0.7rem 0.8rem rgba(55, 48, 39, 0.08)
+  );
+}
+
+.wrong-perspective-paper { fill: #f2eee4; }
+.wrong-perspective-grid { fill: url('#wrong-perspective-grid'); opacity: 0.36; }
+.wrong-perspective-grid-line { fill: none; stroke: #c9c1b2; stroke-width: 0.65; }
+
+.wrong-perspective-stair-body {
+  fill: #c7c0b3;
+  stroke: #34332f;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.wrong-perspective-stair-body--light { fill: #d4cec1; }
+
+.wrong-perspective-riser-face {
+  fill: #8f8a81;
+  stroke: #34332f;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+
+.wrong-perspective-step-lines path {
+  fill: none;
+  stroke: #45433e;
+  stroke-width: 2.25;
+  stroke-linecap: square;
+}
+
+.wrong-perspective-risers path {
+  fill: #9e988d;
+  stroke: #45433e;
+  stroke-width: 1.35;
+  stroke-linejoin: round;
+}
+
+.wrong-perspective-landings path {
+  fill: #ddd7ca;
+  stroke: #34332f;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.wrong-perspective-fourth-flight {
+  opacity: 0;
+  transform: translate(165px, -72px) rotate(-5deg);
+  transform-origin: 595px 297px;
+  transition:
+    transform var(--wrong-perspective-entry-duration) cubic-bezier(0.22, 0.72, 0.23, 1),
+    opacity 500ms ease;
+}
+
+.wrong-perspective-object--stage-1 .wrong-perspective-fourth-flight {
+  opacity: 1;
+  transform: translate(9px, -6px) rotate(-0.45deg);
+}
+
+.wrong-perspective-object--stage-2 .wrong-perspective-fourth-flight {
+  opacity: 1;
+  transform: translate(0, 0) rotate(0);
+  transition-duration: var(--wrong-perspective-alignment-duration);
+  transition-timing-function: cubic-bezier(0.3, 0.75, 0.22, 1);
+}
+
+.wrong-perspective-impossible-seam {
+  opacity: 0;
+  transform: translate(8px, -5px);
+  transition:
+    opacity 500ms ease,
+    transform var(--wrong-perspective-alignment-duration) ease-out;
+}
+
+.wrong-perspective-seam-top {
+  fill: #ddd7ca;
+  stroke: #34332f;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+
+.wrong-perspective-seam-edge {
+  fill: #89847b;
+  stroke: #34332f;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.wrong-perspective-object--stage-2 .wrong-perspective-impossible-seam {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+
+@media (max-width: 650px) {
+  .wrong-perspective-object {
+    min-height: 18rem;
+    padding: 0.25rem;
+  }
+
+  .wrong-perspective-drawing {
+    width: min(100%, 34rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrong-perspective-fourth-flight,
+  .wrong-perspective-impossible-seam {
+    transition: none;
+  }
+}

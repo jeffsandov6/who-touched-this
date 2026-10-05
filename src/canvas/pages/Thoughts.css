@@ -1,0 +1,378 @@
+.canvas-thoughts {
+  min-height: 100vh;
+  color: #292a27;
+  background: #f7f6f1;
+  overflow-x: clip;
+}
+
+.thoughts-notebook {
+  box-sizing: border-box;
+  width: min(100% - 3rem, 43rem);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 1rem 0 clamp(6rem, 12vw, 9rem);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1rem, 0.97rem + 0.18vw, 1.08rem);
+  line-height: 1.75;
+}
+
+.thoughts-intro {
+  max-width: none;
+  margin-bottom: clamp(3.5rem, 6vw, 5rem);
+}
+
+.thoughts-intro h1,
+.thoughts-fragment,
+.thoughts-ending p {
+  margin: 0;
+}
+
+.thoughts-intro h1 {
+  font-size: clamp(1.25rem, 1.05rem + 0.9vw, 1.75rem);
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.thoughts-section {
+  margin: clamp(4.5rem, 7vw, 5.5rem) 0;
+}
+
+.thoughts-section h2 {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+  text-transform: lowercase;
+}
+
+.thoughts-fragment {
+  max-width: 31rem;
+}
+
+.thoughts-fragment-indent {
+  margin-left: clamp(0rem, 8vw, 5rem);
+}
+
+.thoughts-found-ideas {
+  width: min(calc(100vw - 3rem), 56rem);
+  margin-top: clamp(4.5rem, 8vw, 6rem);
+  margin-left: 50%;
+  transform: translateX(-50%);
+  position: relative;
+}
+
+.thoughts-move-fast-note {
+  position: absolute;
+  z-index: 10;
+  top: 9.75rem;
+  right: -4rem;
+  margin: 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0.6;
+  transform: rotate(7deg);
+  pointer-events: none;
+}
+
+.thoughts-found-ideas-heading {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #aaa89f;
+}
+
+.thoughts-found-ideas-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  margin-bottom: 0.45rem;
+  color: #7b7972;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+}
+
+.thoughts-found-ideas-meta span:last-child {
+  flex: 0 0 auto;
+  color: #918e85;
+}
+
+.thoughts-found-ideas .thoughts-found-ideas-heading h2 {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.65rem, 1.4rem + 1vw, 2.2rem);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+.thoughts-idea-carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+  color: #79766f;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.67rem;
+  line-height: 1.4;
+}
+
+.thoughts-idea-carousel-controls>div {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.thoughts-idea-carousel-controls button,
+.thoughts-idea-dialog button {
+  min-height: 2.4rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #aaa69d;
+  color: #45443f;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.thoughts-idea-carousel-controls button:hover:not(:disabled) {
+  background: #ece9e1;
+}
+
+.thoughts-idea-carousel-controls button:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.thoughts-idea-carousel-controls button:focus-visible,
+.thoughts-idea-dialog button:focus-visible {
+  outline: 3px solid #606c76;
+  outline-offset: 0.2rem;
+}
+
+.thoughts-idea-carousel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.thoughts-idea-card {
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 0.55rem 0.55rem 1rem;
+  border: 1px solid #d2cec4;
+  background: #f0eee7;
+  box-shadow: 0.25rem 0.3rem 0 #e3e0d7;
+}
+
+.thoughts-idea-preview {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: clamp(15rem, 28vw, 19rem);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #343431;
+  background: #080808;
+  cursor: zoom-in;
+}
+
+.thoughts-idea-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.thoughts-idea-card-dynamic .thoughts-idea-preview img {
+  object-fit: cover;
+  object-position: center top;
+}
+
+.thoughts-idea-preview>span {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.4rem;
+  padding: 0.2rem 0.35rem;
+  color: #d8d8d3;
+  background: rgb(12 12 12 / 78%);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+}
+
+.thoughts-idea-preview:focus-visible {
+  outline: 3px solid #606c76;
+  outline-offset: 0.25rem;
+}
+
+.thoughts-idea-card-body {
+  padding: 0.85rem 0.35rem 0;
+}
+
+.thoughts-idea-card h3,
+.thoughts-idea-card p {
+  margin: 0;
+}
+
+.thoughts-idea-card h3 {
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.thoughts-idea-outcome {
+  min-height: 3.8rem;
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid #d2cec4;
+}
+
+.thoughts-idea-outcome .thoughts-idea-outcome-label {
+  margin-bottom: 0.25rem;
+  color: #85827a;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.6rem;
+  letter-spacing: 0.07em;
+  line-height: 1.4;
+}
+
+.thoughts-idea-outcome p:last-child {
+  color: #484742;
+  font-size: 0.91rem;
+  line-height: 1.45;
+}
+
+.thoughts-idea-secondary-link {
+  display: inline-block;
+  margin-top: 0.3rem;
+  color: #686860;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.62rem;
+  line-height: 1.3;
+  text-decoration: underline;
+  text-decoration-color: #aaa69d;
+  text-underline-offset: 0.18rem;
+}
+
+.thoughts-idea-secondary-link:hover {
+  color: #30312d;
+}
+
+.thoughts-idea-secondary-link:focus-visible {
+  outline: 2px solid #606c76;
+  outline-offset: 0.2rem;
+}
+
+.thoughts-idea-dialog {
+  box-sizing: border-box;
+  width: min(calc(100vw - 2rem), 60rem);
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  overflow: auto;
+  border: 1px solid #44433f;
+  color: #e5e3dd;
+  background: #111210;
+  box-shadow: 0 1rem 4rem rgb(0 0 0 / 45%);
+}
+
+.thoughts-idea-dialog::backdrop {
+  background: rgb(24 24 21 / 72%);
+}
+
+.thoughts-idea-dialog-content>header {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid #343630;
+  background: rgb(17 18 16 / 96%);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.72rem;
+}
+
+.thoughts-idea-dialog button {
+  min-height: 2.25rem;
+  border-color: #66675f;
+  color: #e5e3dd;
+}
+
+.thoughts-idea-dialog img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.thoughts-ending {
+  margin-top: clamp(7rem, 13vw, 10rem);
+}
+
+@media (max-width: 40rem) {
+ .thoughts-move-fast-note {
+    position: relative;
+    top: auto;
+    right: auto;
+    width: fit-content;
+    margin: 0.6rem 0 -0.25rem auto;
+    font-size: 0.68rem;
+    transform: rotate(5deg) translateX(0.2rem);
+  }
+
+  .thoughts-notebook {
+    width: min(100% - 2.5rem, 43rem);
+  }
+
+  .thoughts-found-ideas {
+    width: calc(100vw - 1.5rem);
+  }
+
+  .thoughts-found-ideas-meta {
+    flex-wrap: wrap;
+  }
+
+  .thoughts-idea-carousel {
+    grid-template-columns: 1fr;
+  }
+
+  .thoughts-idea-preview {
+    height: clamp(13rem, 66vw, 16rem);
+  }
+
+  .thoughts-idea-outcome {
+    min-height: 0;
+  }
+
+  .thoughts-terminal {
+    width: calc(100vw - 0.75rem);
+  }
+
+  .thoughts-terminal-bezel {
+    padding: 0.35rem;
+  }
+
+  .thoughts-terminal-screen {
+    padding: 0.75rem 0.35rem;
+    border-radius: 1.5rem / 0.4rem;
+  }
+
+  .thoughts-terminal-art {
+    width: fit-content;
+    font-size: clamp(0.27rem, 1.45vw, 0.36rem);
+    line-height: 0.98;
+  }
+
+  .thoughts-terminal-output {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    font-size: 0.75rem;
+  }
+}

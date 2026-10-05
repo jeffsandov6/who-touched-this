@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title">
+  <title id="title">Replaceable idyllic landscape placeholder</title>
+  <rect width="1200" height="760" fill="#9fcbd9"/>
+  <circle cx="235" cy="148" r="68" fill="#ffe39a"/>
+  <path d="M0 454 210 270l181 143 196-207 227 217 183-167 203 206v298H0Z" fill="#72958c"/>
+  <path d="M0 510c177-75 355-65 545 9 198 77 408 70 655-20v261H0Z" fill="#84ad69"/>
+  <path d="M0 635c214-79 438-61 657 5 175 53 356 44 543-17v137H0Z" fill="#adc47b"/>
+  <g><path d="M878 560h18v92h-18Z" fill="#695037"/><path d="m829 574 58-176 65 176Z" fill="#365d3d"/></g>
+  <g fill="#f6f0d7"><ellipse cx="425" cy="610" rx="35" ry="17"/><ellipse cx="463" cy="620" rx="30" ry="15"/></g>
+  <text x="600" y="730" text-anchor="middle" font-family="sans-serif" font-size="22" fill="#526d48">replaceable idyllic landscape</text>
+</svg>

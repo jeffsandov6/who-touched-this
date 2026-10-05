@@ -1,0 +1,98 @@
+.view-source-reality {
+    width: min(100%, 72rem);
+    margin: 2rem auto;
+
+    border: 1px solid #c9c9c9;
+
+    background: #fff;
+    color: #111;
+
+    font-family:
+        ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Monaco,
+        Consolas,
+        "Liberation Mono",
+        monospace;
+}
+
+.view-source-bar {
+    padding: 0.7rem 1rem;
+
+    border-bottom: 1px solid #d7d7d7;
+
+    background: #f3f3f3;
+
+    color: #555;
+    font-size: 0.78rem;
+}
+
+.view-source-code {
+    margin: 0;
+    padding: 1rem 0 2rem;
+
+    overflow-x: auto;
+
+    font-size: clamp(0.68rem, 1.3vw, 0.88rem);
+    line-height: 1.6;
+
+    tab-size: 2;
+}
+
+.view-source-line {
+    display: grid;
+
+    grid-template-columns:
+        3rem minmax(max-content, 1fr);
+}
+
+.view-source-line-number {
+    padding-right: 0.8rem;
+
+    color: #999;
+
+    text-align: right;
+    user-select: none;
+}
+
+.view-source-line-content {
+    white-space: pre;
+}
+
+.view-source-tag {
+    color: #0000cc;
+}
+
+.view-source-attribute {
+    color: #7a2e00;
+}
+
+.view-source-string {
+    color: #a31515;
+}
+
+.view-source-comment {
+    color: #6a737d;
+    font-style: italic;
+}
+
+.view-source-punctuation {
+    color: #444;
+}
+
+@media (max-width: 720px) {
+    .view-source-reality {
+        width: 100%;
+        margin: 1rem 0;
+    }
+
+    .view-source-code {
+        font-size: 0.68rem;
+    }
+
+    .view-source-line {
+        grid-template-columns:
+            2.4rem minmax(max-content, 1fr);
+    }
+}

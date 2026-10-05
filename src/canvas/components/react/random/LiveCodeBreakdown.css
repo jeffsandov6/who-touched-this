@@ -1,0 +1,463 @@
+.live-code-breakdown {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.12fr)
+    minmax(0, 0.88fr);
+
+  min-height: 32rem;
+
+  overflow: hidden;
+
+  border: 1px solid #25282c;
+
+  background: #111316;
+  color: #e7e9ec;
+}
+
+/* editor */
+
+.live-code-editor {
+  position: relative;
+
+  min-width: 0;
+
+  overflow: hidden;
+
+  border-right: 1px solid #363a40;
+
+  background: #171a1f;
+}
+
+.live-code-editor-bar {
+  display: flex;
+  align-items: center;
+
+  gap: 0.4rem;
+
+  height: 2.75rem;
+
+  padding: 0 1rem;
+
+  border-bottom: 1px solid #30343a;
+
+  background: #20242a;
+}
+
+.live-code-editor-bar span {
+  width: 0.62rem;
+  height: 0.62rem;
+
+  border-radius: 50%;
+
+  background: #626872;
+}
+
+.live-code-editor-bar small {
+  margin-left: 0.55rem;
+
+  color: #a9afb8;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+/* source */
+
+.live-code-source {
+  margin: 0;
+
+  overflow: hidden;
+
+  padding: 1.35rem 0 2rem;
+
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+
+  font-size: clamp(0.68rem, 1.25vw, 0.88rem);
+  line-height: 1.68;
+
+  tab-size: 2;
+}
+
+.live-code-line {
+  display: grid;
+
+  grid-template-columns:
+    2.8rem
+    minmax(0, 1fr);
+
+  min-height: 1.68em;
+}
+
+.live-code-line-number {
+  padding-right: 1rem;
+
+  color: #666d78;
+
+  text-align: right;
+
+  user-select: none;
+}
+
+.live-code-line-content {
+  position: relative;
+
+  display: block;
+
+  white-space: pre;
+
+  transition:
+    color 220ms ease,
+    filter 220ms ease;
+}
+
+/*
+ * The bug does not merely hide the line.
+ * It leaves a little eaten trail behind.
+ */
+
+.live-code-line--eaten .live-code-line-content,
+.live-code-line--eaten .live-code-line-content * {
+  color: transparent;
+}
+
+.live-code-line--eaten .live-code-line-content {
+  filter: blur(0.25px);
+}
+
+.live-code-line--eaten .live-code-line-content::after {
+  content: '';
+
+  position: absolute;
+
+  left: 0;
+  top: 52%;
+
+  width: min(82%, 21rem);
+
+  border-top: 2px dotted #765c3c;
+
+  transform: translateY(-50%);
+
+  opacity: 0.72;
+}
+
+/* syntax */
+
+.live-code-keyword {
+  color: #d78bd7;
+}
+
+.live-code-tag {
+  color: #77b7df;
+}
+
+.live-code-string {
+  color: #d7b77a;
+}
+
+.live-code-selector {
+  color: #9dcc89;
+}
+
+/* bug */
+
+.live-code-bug {
+  position: absolute;
+  left: 46%;
+  top: 74%;
+  width: 1.9rem;
+  height: 1.35rem;
+  color: #b89a6d;
+  transform: translate(-50%, -50%) rotate(8deg);
+  transition: left 900ms ease-in-out, top 900ms ease-in-out, transform 900ms ease-in-out;
+  pointer-events: none;
+}
+
+.live-code-bug-body {
+  position: absolute;
+  inset: 0.14rem 0.36rem;
+  z-index: 1;
+  border-radius: 45% 55% 40% 50%;
+  background: currentColor;
+}
+
+.live-code-bug-head {
+  position: absolute;
+
+  left: 0.06rem;
+  top: 0.39rem;
+
+  width: 0.6rem;
+  height: 0.55rem;
+
+  border-radius: 50%;
+
+  background: currentColor;
+}
+
+.live-code-bug::before,
+.live-code-bug::after {
+  content: '';
+  position: absolute;
+  inset: 0.16rem -0.34rem;
+  border-top: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(26deg);
+}
+
+.live-code-bug::after {
+  transform: rotate(-25deg);
+}
+
+/*
+ * Each stage moves the bug to approximately the code
+ * it is about to consume.
+ */
+
+.live-code-bug--stage-0 {
+  left: 44%;
+  top: 72%;
+
+  opacity: 0.75;
+}
+
+.live-code-bug--stage-1 {
+  left: 46%;
+  top: 67%;
+
+  transform:
+    translate(-50%, -50%)
+    rotate(-8deg);
+}
+
+.live-code-bug--stage-2 {
+  left: 57%;
+  top: 71%;
+
+  transform:
+    translate(-50%, -50%)
+    rotate(10deg);
+}
+
+.live-code-bug--stage-3 {
+  left: 67%;
+  top: 75%;
+
+  transform:
+    translate(-50%, -50%)
+    rotate(-7deg);
+}
+
+.live-code-bug--stage-4 {
+  left: 52%;
+  top: 31%;
+
+  transform:
+    translate(-50%, -50%)
+    rotate(14deg);
+}
+
+.live-code-bug--stage-5 {
+  left: 49%;
+  top: 79%;
+
+  transform:
+    translate(-50%, -50%)
+    rotate(-13deg);
+}
+
+/* preview */
+
+.live-code-preview {
+  display: grid;
+
+  place-items: center;
+
+  min-width: 0;
+
+  padding: clamp(1.5rem, 4vw, 3rem);
+
+  background: #ece9df;
+  color: #202227;
+}
+
+.live-code-card {
+  box-sizing: border-box;
+  width: min(100%, 19rem);
+  min-height: 20rem;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1rem;
+  border: 1px solid currentColor;
+  background: #fffef8;
+  padding: 2rem;
+  text-align: center;
+  transition:
+    transform 850ms ease,
+    border-color 300ms ease,
+    border-radius 700ms ease,
+    padding 700ms ease,
+    min-height 700ms ease,
+    background 400ms ease;
+}
+
+.live-code-card-shape {
+  width: 6.25rem;
+  height: 6.25rem;
+
+  border-radius: 1.5rem;
+
+  background: #7b8ba1;
+
+  box-shadow:
+    inset -1rem -1rem 0
+    rgba(0, 0, 0, 0.12);
+
+  transition:
+    opacity 450ms ease,
+    transform 550ms ease;
+}
+
+.live-code-card-copy {
+  display: grid;
+
+  gap: 0.35rem;
+}
+
+.live-code-card h2,
+.live-code-card p {
+  margin: 0;
+}
+
+.live-code-card h2 {
+  font-size: 1.35rem;
+}
+
+.live-code-card p {
+  color: #6a6860;
+
+  font-size: 0.86rem;
+}
+
+/* stage 1: border line eaten */
+
+.live-code-card--no-border {
+  border-color: transparent;
+}
+
+/* stage 2: radius line eaten */
+
+.live-code-card--no-radius {
+  border-radius: 0;
+}
+
+/* stage 3: background line eaten */
+
+.live-code-card--no-background {
+  background: transparent;
+}
+
+/*
+ * stage 4:
+ * React removes .card__shape entirely when its source
+ * line is eaten.
+ */
+
+/*
+ * stage 5:
+ * display:grid disappears.
+ *
+ * Deliberately ugly, because losing the layout rule
+ * should have an obvious structural consequence.
+ */
+
+.live-code-card--no-grid {
+  display: block;
+
+  min-height: 10rem;
+
+  padding: 0.8rem;
+
+  text-align: left;
+
+  transform:
+    translate(2.7rem, 1.5rem)
+    rotate(2deg);
+}
+
+.live-code-card--no-grid .live-code-card-copy {
+  display: block;
+}
+
+.live-code-card--no-grid h2 {
+  margin:
+    0.6rem
+    0
+    0
+    0.7rem;
+
+  font-size: 1.18rem;
+  line-height: 1;
+}
+
+.live-code-card--no-grid p {
+  margin:
+    3.6rem
+    0
+    0
+    6.2rem;
+
+  font-size: 0.82rem;
+  line-height: 1;
+
+  color: #77746c;
+  opacity: 0.78;
+}
+
+
+/* responsive */
+
+@media (max-width: 720px) {
+  .live-code-breakdown {
+    grid-template-columns: 1fr;
+  }
+
+  .live-code-editor {
+    min-height: 31rem;
+
+    border-right: 0;
+    border-bottom: 1px solid #363a40;
+  }
+
+  .live-code-preview {
+    min-height: 24rem;
+  }
+
+  .live-code-source {
+    font-size: clamp(
+      0.6rem,
+      2.7vw,
+      0.78rem
+    );
+  }
+}
+
+/* reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .live-code-bug,
+  .live-code-card,
+  .live-code-card-shape {
+    transition-duration: 1ms;
+  }
+}

@@ -1,0 +1,60 @@
+.pokemon-intrusions {
+  position: fixed;
+  inset: 0;
+  z-index: 7000;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.pokemon-intrusions-runner {
+  position: absolute;
+  top: var(--intrusion-top);
+  width: min(var(--intrusion-width), 70vw);
+  animation-duration: var(--intrusion-duration);
+  animation-fill-mode: forwards;
+  animation-timing-function: linear;
+  will-change: transform;
+}
+
+@media (max-width: 600px) {
+  .pokemon-intrusions-runner {
+    width: min(var(--intrusion-width), 94vw);
+  }
+}
+
+.pokemon-intrusions-runner img {
+  display: block;
+  width: 100%;
+  height: auto;
+  animation: pokemon-intrusions-bob 2.8s ease-in-out infinite alternate;
+}
+
+.pokemon-intrusions-runner--left-to-right {
+  left: 0;
+  animation-name: pokemon-intrusions-cross-right;
+}
+
+.pokemon-intrusions-runner--right-to-left {
+  right: 0;
+  animation-name: pokemon-intrusions-cross-left;
+}
+
+@keyframes pokemon-intrusions-cross-right {
+  from { transform: translate3d(-120%, 0, 0); }
+  to { transform: translate3d(calc(100vw + 20%), 0, 0); }
+}
+
+@keyframes pokemon-intrusions-cross-left {
+  from { transform: translate3d(120%, 0, 0) scaleX(-1); }
+  to { transform: translate3d(calc(-100vw - 20%), 0, 0) scaleX(-1); }
+}
+
+@keyframes pokemon-intrusions-bob {
+  from { transform: translateY(calc(var(--intrusion-bob) * -0.5)); }
+  to { transform: translateY(calc(var(--intrusion-bob) * 0.5)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pokemon-intrusions-runner img { animation: none; }
+  .pokemon-intrusions-runner { animation-duration: 1ms; }
+}

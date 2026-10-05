@@ -1,0 +1,204 @@
+.do-not-click {
+  position: relative;
+  min-height: 24rem;
+  overflow: hidden;
+  border: 1px solid currentColor;
+  isolation: isolate;
+}
+
+.do-not-click-content {
+  position: relative;
+  z-index: 1;
+  min-height: 24rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.do-not-click-title {
+  margin: 0;
+  max-width: 12ch;
+  font-size: clamp(2rem, 4vw, 4.5rem);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+}
+
+.do-not-click-button {
+  appearance: none;
+  border: 2px solid currentColor;
+  background: transparent;
+  color: inherit;
+  padding: 0.8rem 1.4rem;
+  font: inherit;
+  font-weight: 700;
+}
+
+.do-not-click-button:hover {
+  transform: rotate(-2deg);
+}
+
+.do-not-click-button:active {
+  transform: translateY(2px);
+}
+
+.do-not-click-result {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+/* brian swarm */
+
+.do-not-click-brian-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.do-not-click-brian {
+  position: absolute;
+  display: block;
+  height: auto;
+  opacity: 0;
+
+  transform:
+    translate(-50%, -50%)
+    scale(0.35);
+
+  transform-origin: center;
+
+  animation-name: do-not-click-brian-burst;
+  animation-timing-function: cubic-bezier(0.2, 0.72, 0.28, 1);
+  animation-fill-mode: forwards;
+
+  will-change: transform, opacity;
+}
+
+@keyframes do-not-click-brian-burst {
+  0% {
+    opacity: 0;
+    transform:
+      translate(-50%, -50%)
+      scale(0.35);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  75% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform:
+      translate(
+        calc(-50% + var(--brian-x)),
+        calc(-50% + var(--brian-y))
+      )
+      rotate(var(--brian-rotation))
+      scale(var(--brian-scale));
+  }
+}
+
+/* brian swarm */
+
+.do-not-click-brian-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+
+  overflow: hidden;
+
+  pointer-events: none;
+}
+
+.do-not-click-brian {
+  position: absolute;
+
+  display: block;
+  height: auto;
+
+  opacity: 0;
+
+  transform:
+    translate(-50%, -50%) scale(0.35);
+
+  transform-origin: center;
+
+  animation-name: do-not-click-brian-burst;
+  animation-timing-function: cubic-bezier(0.18, 0.75, 0.3, 1);
+  animation-fill-mode: forwards;
+
+  will-change: transform, opacity;
+}
+
+@keyframes do-not-click-brian-burst {
+  0% {
+    opacity: 0;
+
+    transform:
+      translate(-50%, -50%) scale(0.35);
+  }
+
+  8% {
+    opacity: 1;
+  }
+
+  72% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+
+    transform:
+      translate(calc(-50% + var(--brian-x)),
+        calc(-50% + var(--brian-y))) rotate(var(--brian-rotation)) scale(var(--brian-scale));
+  }
+}
+
+.do-not-click-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: clamp(9rem, 18vw, 15rem);
+  color: currentColor;
+  opacity: 0;
+  pointer-events: none;
+  transform-origin: 10% 10%;
+  transition: opacity 120ms ease;
+  will-change: transform;
+}
+
+.do-not-click-cursor--visible {
+  opacity: 1;
+}
+
+.do-not-click-cursor svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (pointer: coarse) {
+  .do-not-click-cursor {
+    display: none;
+  }
+}
+
+@media (pointer: fine) {
+
+  .do-not-click,
+  .do-not-click * {
+    cursor: none;
+  }
+}

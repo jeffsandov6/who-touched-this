@@ -1,0 +1,176 @@
+
+.thoughts-build {
+  margin-bottom: clamp(4.5rem, 8vw, 6rem);
+}
+
+.thoughts-build-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.65rem;
+  margin-bottom: clamp(2.75rem, 7vw, 4.5rem);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #aaa89f;
+}
+
+.thoughts-build-heading span,
+.thoughts-loot-drop-file,
+.thoughts-loot-drop-domain {
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  line-height: 1.4;
+}
+
+.thoughts-build-heading span {
+  color: #96938a;
+}
+
+.thoughts-build-heading h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 1.3rem + 1.25vw, 2.25rem);
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.thoughts-build h3 {
+  margin: 0 0 1rem;
+  font-size: clamp(1.08rem, 1rem + 0.35vw, 1.3rem);
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.thoughts-build-possibility {
+  width: min(100%, 38rem);
+}
+
+.thoughts-build-note {
+  position: relative;
+  box-sizing: border-box;
+  padding: 1.5rem clamp(1.25rem, 4vw, 2.25rem) 1.75rem;
+  border: 1px solid #c9d8d0;
+  background-color: #f8fbf7;
+  background-image: linear-gradient(to bottom, transparent 2.55rem, #e2eae4 2.6rem);
+  background-size: 100% 2.6rem;
+  box-shadow: 0.35rem 0.35rem 0 #e7ebe4;
+}
+
+.thoughts-build-note p {
+  max-width: 32rem;
+  margin: 0 0 0.75rem;
+}
+
+.thoughts-build-note .thoughts-build-note-conclusion {
+  width: fit-content;
+  margin: 1.35rem 0 0;
+  padding: 0 0.2rem 0.05rem;
+  border-bottom: 1px solid #9db4a7;
+  color: #536f60;
+  font-style: italic;
+}
+
+.thoughts-build-counterpoint {
+  width: min(100% - 2rem, 34rem);
+  margin: clamp(2.25rem, 5vw, 3.5rem) 0 0 auto;
+}
+
+.thoughts-build-counterpoint h3 {
+  color: #4e4743;
+}
+
+.thoughts-loot-drop {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.25rem 1rem;
+  box-sizing: border-box;
+  padding: 1.35rem 1.5rem 1.6rem;
+  overflow: hidden;
+  border: 1px solid #bdb3aa;
+  border-left: 0.3rem solid #765d52;
+  color: #332e2b;
+  background: #eee9e0;
+  box-shadow: 0.4rem 0.45rem 0 #ddd6cb;
+  text-decoration: none;
+}
+
+.thoughts-loot-drop:hover {
+  border-color: #8c756a;
+  background: #f2ede5;
+}
+
+.thoughts-loot-drop:focus-visible {
+  outline: 3px solid #765d52;
+  outline-offset: 0.3rem;
+}
+
+.thoughts-loot-drop-file {
+  color: #806e65;
+  text-transform: uppercase;
+}
+
+.thoughts-loot-drop-name {
+  grid-column: 1;
+  margin-top: 0.8rem;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
+.thoughts-loot-drop-kind {
+  grid-column: 1;
+  color: #6c6560;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+}
+
+.thoughts-loot-drop-domain {
+  grid-row: 1;
+  grid-column: 2;
+  color: #654f45;
+}
+
+.thoughts-loot-drop-metrics,
+.thoughts-loot-drop-context,
+.thoughts-loot-drop-finding {
+  grid-column: 1 / -1;
+  position: relative;
+  z-index: 1;
+}
+
+.thoughts-loot-drop-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid #c9beb4;
+  border-bottom: 1px solid #c9beb4;
+  color: #5e5752;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+.thoughts-loot-drop-metrics span {
+  display: grid;
+}
+
+.thoughts-loot-drop-metrics strong {
+  color: #372f2b;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.45rem;
+  font-weight: 400;
+  line-height: 1.05;
+}
+
+.thoughts-loot-drop-context {
+  margin-top: 0.75rem;
+  color: #6c6560;
+  font-size: 0.88em;
+}
+
+.thoughts-loot-drop-finding {
+  margin-top: 1.2rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #b9aca1;
+}

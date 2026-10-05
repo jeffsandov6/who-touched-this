@@ -1,0 +1,113 @@
+.view-master-pan-scene--peripheral {
+  width: max(300%, 84rem);
+  height: auto;
+  aspect-ratio: 3 / 1;
+}
+
+.view-master-pan-scene--peripheral>img {
+  object-fit: fill;
+}
+
+.view-master-peripheral-scene {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+
+  --peripheral-figure-width: 2.6rem;
+  --peripheral-figure-height: 8.5rem;
+  --peripheral-figure-y: 51%;
+  --peripheral-figure-right-inset: -1.1rem;
+  --peripheral-figure-left-inset: -1rem;
+}
+
+.view-master-peripheral-figure {
+  position: absolute;
+  top: var(--peripheral-figure-y);
+  z-index: 5;
+
+  width: var(--peripheral-figure-width);
+  height: var(--peripheral-figure-height);
+
+  opacity: 1;
+  pointer-events: none;
+
+  transform: translateY(-50%);
+  transition:
+    left 240ms ease,
+    right 240ms ease,
+    opacity 180ms ease,
+    transform 240ms ease;
+}
+
+.view-master-peripheral-figure>img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.view-master-peripheral-figure--right {
+  right: var(--peripheral-figure-right-inset);
+}
+
+.view-master-peripheral-figure--left {
+  left: var(--peripheral-figure-left-inset);
+}
+
+.view-master-peripheral-figure--left>img {
+  transform: scaleX(-1);
+}
+
+.view-master-peripheral-figure--right.view-master-peripheral-figure--slipping {
+  transform: translate(110%, -50%);
+  opacity: 0;
+}
+
+.view-master-peripheral-figure--left.view-master-peripheral-figure--slipping {
+  transform: translate(-110%, -50%);
+  opacity: 0;
+}
+
+.view-master-peripheral-figure--hidden {
+  opacity: 0;
+}
+
+.view-master-peripheral-caption {
+  position: absolute;
+  right: 6%;
+  bottom: 7%;
+  z-index: 2;
+
+  color: rgba(235, 238, 234, 0.38);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1;
+
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (max-width: 520px) {
+  view-master-pan-scene--peripheral {
+    width: max(500%, 82rem);
+    height: auto;
+  }
+
+  .view-master-peripheral-scene {
+    --peripheral-figure-width: 0.62rem;
+    --peripheral-figure-height: 5.15rem;
+    --peripheral-figure-y: 56%;
+    --peripheral-figure-inset: -0.3rem;
+  }
+
+  .view-master-peripheral-caption {
+    right: 10%;
+    bottom: 8%;
+    font-size: 0.66rem;
+  }
+}

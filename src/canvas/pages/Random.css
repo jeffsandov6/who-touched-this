@@ -1,0 +1,49 @@
+.canvas-random {
+  min-height: 100vh;
+  overflow-x: clip;
+}
+
+.canvas-random-desktop-note {
+  margin: 1rem 0 3rem;
+  text-align: center;
+
+  color: #777166;
+
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.canvas-random-content {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3.5rem, 8vw, 7rem);
+  width: min(100% - 2.5rem, 72rem);
+  margin: 1rem auto 8rem;
+}
+
+@media (max-width: 40rem) {
+  .canvas-random-content {
+    width: min(100% - 1.5rem, 72rem);
+    margin-top: 0;
+    margin-bottom: 6rem;
+  }
+}
+
+
+.canvas-random-toy-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(1rem, 2vw, 1.5rem);
+  align-items: start;
+}
+
+.canvas-random-toy-row > * {
+  min-width: 0;
+}
+
+@media (max-width: 48rem) {
+  .canvas-random-toy-row {
+    grid-template-columns: 1fr;
+  }
+}

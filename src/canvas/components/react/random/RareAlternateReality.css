@@ -1,0 +1,7 @@
+.rare-alternate-reality {
+  transform-origin: 50% 50%;
+}
+
+.rare-alternate-reality--upside-down {
+  transform: rotate(180deg);
+}

@@ -1,0 +1,16 @@
+.view-master-pan-scene--picture-window {
+  width: max(235%, 72rem);
+  height: auto;
+  aspect-ratio: 801 / 383;
+}
+
+.view-master-pan-scene--picture-window>img {
+  object-fit: fill;
+}
+
+@media (max-width: 520px) {
+  .view-master-pan-scene--picture-window {
+    width: max(255%, 58rem);
+    height: auto;
+  }
+}
