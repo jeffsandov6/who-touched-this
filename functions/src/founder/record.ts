@@ -1,9 +1,11 @@
 import { githubIdFromAuthToken } from '../email/retry-invitation.js';
 
 const DISPLAY_NAME_MAX = 50;
+const EMAIL_MAX = 254;
 const SUMMARY_MAX = 160;
 const MESSAGE_MAX = 280;
 const GIT_SHA = /^[0-9a-f]{40}$/;
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const CANONICAL_REPOSITORY = 'jeffsandov6/who-touched-this';
 
 export type FounderSeedErrorCode =
@@ -21,6 +23,7 @@ export class FounderSeedError extends Error {
 
 export interface FounderSeedInput {
   publicDisplayName: string;
+  contactEmail: string;
   prNumber: number;
   summary: string;
   contributorMessage?: string;
@@ -35,6 +38,7 @@ interface FounderSeedTransaction {
   anyContributionExists(): Promise<boolean>;
   founderContributionExists(): Promise<boolean>;
   founderHistoryExists(): Promise<boolean>;
+  setFounderCompletionContact(githubUserId: string, data: Record<string, unknown>): void;
   createContribution(data: Record<string, unknown>): void;
   createHistory(data: Record<string, unknown>): void;
   setPublicSite(data: Record<string, unknown>): void;
@@ -62,12 +66,16 @@ export function validateFounderSeedInput(value: unknown): FounderSeedInput {
     throw new FounderSeedError('invalid-argument', 'founder contribution #000 details are invalid.');
   }
   const input = value as Record<string, unknown>;
-  const allowed = ['afterGitSha', 'beforeGitSha', 'contributorMessage', 'prNumber', 'publicDisplayName', 'summary'];
+  const allowed = ['afterGitSha', 'beforeGitSha', 'contactEmail', 'contributorMessage', 'prNumber', 'publicDisplayName', 'summary'];
   if (Object.keys(input).some((key) => !allowed.includes(key))
-    || !['afterGitSha', 'beforeGitSha', 'prNumber', 'publicDisplayName', 'summary'].every((key) => key in input)) {
+    || !['afterGitSha', 'beforeGitSha', 'contactEmail', 'prNumber', 'publicDisplayName', 'summary'].every((key) => key in input)) {
     throw new FounderSeedError('invalid-argument', 'founder contribution #000 details are invalid.');
   }
   const publicDisplayName = trimmedString(input.publicDisplayName, 'public founder name', DISPLAY_NAME_MAX)!;
+  const contactEmail = trimmedString(input.contactEmail, 'founder contact email', EMAIL_MAX)!;
+  if (!EMAIL_PATTERN.test(contactEmail)) {
+    throw new FounderSeedError('invalid-argument', 'founder contact email is invalid.');
+  }
   const summary = trimmedString(input.summary, 'contribution summary', SUMMARY_MAX)!;
   const contributorMessage = trimmedString(input.contributorMessage, 'founder message', MESSAGE_MAX, true);
   if (!Number.isSafeInteger(input.prNumber) || Number(input.prNumber) < 1) {
@@ -83,6 +91,7 @@ export function validateFounderSeedInput(value: unknown): FounderSeedInput {
   }
   return {
     publicDisplayName,
+    contactEmail,
     prNumber: input.prNumber as number,
     summary,
     ...(contributorMessage ? { contributorMessage } : {}),
@@ -151,6 +160,10 @@ export async function recordFounderSeedContribution(
 
     const timestamp = dependencies.timestamp();
     const prUrl = `https://github.com/${githubUsername}/${repositoryName}/pull/${input.prNumber}`;
+    transaction.setFounderCompletionContact(githubUserId, {
+      founderCompletionEmail: input.contactEmail,
+      founderCompletionEmailUpdatedAt: timestamp,
+    });
     transaction.createContribution({
       number: 0,
       season: 1,

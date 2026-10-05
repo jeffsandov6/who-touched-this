@@ -5,12 +5,15 @@ import {
 } from './contribution-validation.ts';
 
 export const FOUNDER_DISPLAY_NAME_MAX_LENGTH = 50;
+export const FOUNDER_CONTACT_EMAIL_MAX_LENGTH = 254;
 export const FOUNDER_CONTRIBUTION_NUMBER = 0;
 export const FOUNDER_GITHUB_REPOSITORY = 'jeffsandov6/who-touched-this';
 const GIT_SHA = /^[0-9a-f]{40}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export interface FounderSeedFormInput {
   publicDisplayName: string;
+  contactEmail: string;
   prNumber: string;
   summary: string;
   contributorMessage: string;
@@ -20,6 +23,7 @@ export interface FounderSeedFormInput {
 
 export interface FounderSeedRequest {
   publicDisplayName: string;
+  contactEmail: string;
   prNumber: number;
   summary: string;
   contributorMessage?: string;
@@ -32,6 +36,11 @@ export function validateFounderSeedForm(input: FounderSeedFormInput): FounderSee
   if (!publicDisplayName || publicDisplayName.length > FOUNDER_DISPLAY_NAME_MAX_LENGTH) {
     throw new Error(`public founder name must be 1–${FOUNDER_DISPLAY_NAME_MAX_LENGTH} characters.`);
   }
+  const contactEmail = input.contactEmail.trim();
+  if (!contactEmail || contactEmail.length > FOUNDER_CONTACT_EMAIL_MAX_LENGTH
+    || !EMAIL_PATTERN.test(contactEmail)) {
+    throw new Error('enter a valid Founder completion-email address.');
+  }
   const number = Number(input.prNumber.trim());
   if (!Number.isSafeInteger(number) || number < 1) throw new Error('enter a positive GitHub pull request number.');
   const details = validateContributionDetails(input.summary, input.contributorMessage);
@@ -42,6 +51,7 @@ export function validateFounderSeedForm(input: FounderSeedFormInput): FounderSee
   }
   return {
     publicDisplayName,
+    contactEmail,
     prNumber: number,
     summary: details.summary,
     ...(details.contributorMessage ? { contributorMessage: details.contributorMessage } : {}),

@@ -10,6 +10,7 @@ import {
 import {
   sendContributionCompleted,
   sendContributionCompletedFromContribution,
+  sendFounderContributionCompletedFromContribution,
   sendTurnNotification,
 } from '../src/email/lifecycle-delivery.js';
 import { contributorJourneyImage } from '../src/email/email-shell.js';
@@ -91,6 +92,67 @@ test('notification IDs are deterministic and scoped to their logical notificatio
   assert.equal(deliveryIds.turnDeadlinePassed('turn-a'), 'turn_deadline_passed_turn-a');
   assert.equal(deliveryIds.prSubmitted('turn-a'), 'pr_submitted_turn-a');
   assert.equal(deliveryIds.contributionCompleted(1), 'contribution_completed_1');
+});
+
+test('Founder completion uses only a matching active owner contact', async () => {
+  const state = setup();
+  let contributorLoads = 0;
+  const founderDependencies = {
+    ...state.dependencies,
+    async loadContributor() { contributorLoads += 1; return null; },
+    async loadFounderOwner() {
+      return {
+        githubUserId: '9001', role: 'owner', active: true,
+        founderCompletionEmail: 'founder@example.test',
+      };
+    },
+  };
+  const contribution = {
+    number: 0, contributionKind: 'founder_seed', githubUserId: '9001',
+    displayName: 'Founder', summary: 'Initial creative seed',
+    prUrl: 'https://github.com/jeffsandov6/who-touched-this/pull/27',
+  };
+  assert.deepEqual(await sendFounderContributionCompletedFromContribution(
+    '0', contribution, 'founder-claim', founderDependencies,
+  ), { kind: 'sent' });
+  assert.equal(contributorLoads, 0);
+  assert.equal(state.provider.sends[0]?.to, 'founder@example.test');
+
+  for (const owner of [
+    null,
+    { githubUserId: 'other', role: 'owner', active: true, founderCompletionEmail: 'founder@example.test' },
+    { githubUserId: '9001', role: 'admin', active: true, founderCompletionEmail: 'founder@example.test' },
+    { githubUserId: '9001', role: 'owner', active: false, founderCompletionEmail: 'founder@example.test' },
+  ]) {
+    const rejected = setup();
+    assert.deepEqual(await sendFounderContributionCompletedFromContribution(
+      '0', contribution, `founder-${String(owner?.githubUserId ?? 'missing')}`,
+      { ...rejected.dependencies, async loadFounderOwner() { return owner; } },
+    ), { kind: 'failed', code: 'missing_founder_owner' });
+  }
+});
+
+test('Founder completion rejects malformed Founder data and invalid private email', async () => {
+  const contribution = {
+    number: 0, contributionKind: 'founder_seed', githubUserId: '9001',
+    displayName: 'Founder', summary: 'Initial creative seed', prUrl: '',
+  };
+  const malformed = setup();
+  assert.deepEqual(await sendFounderContributionCompletedFromContribution(
+    '0', { ...contribution, contributionKind: 'community' }, 'bad-kind', {
+      ...malformed.dependencies,
+      async loadFounderOwner() { throw new Error('must not load'); },
+    },
+  ), { kind: 'failed', code: 'malformed_founder_contribution' });
+  const invalidEmail = setup();
+  assert.deepEqual(await sendFounderContributionCompletedFromContribution(
+    '0', contribution, 'bad-email', {
+      ...invalidEmail.dependencies,
+      async loadFounderOwner() {
+        return { githubUserId: '9001', role: 'owner', active: true, founderCompletionEmail: 'invalid' };
+      },
+    },
+  ), { kind: 'failed', code: 'missing_contact_email' });
 });
 
 test('contributor journey image states map to fixed production assets and alt text', () => {

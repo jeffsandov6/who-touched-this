@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import {
   CONTRIBUTION_SUMMARY_MAX_LENGTH,
   CONTRIBUTOR_MESSAGE_MAX_LENGTH,
+  FOUNDER_CONTACT_EMAIL_MAX_LENGTH,
   FOUNDER_DISPLAY_NAME_MAX_LENGTH,
   founderSnapshotCommand,
   validateFounderSeedForm,
@@ -24,6 +25,7 @@ export default function AdminFounderSeed({ isOwner }: { isOwner: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [publicDisplayName, setPublicDisplayName] = useState('founder');
+  const [contactEmail, setContactEmail] = useState('');
   const [prNumber, setPrNumber] = useState('');
   const [summary, setSummary] = useState('');
   const [contributorMessage, setContributorMessage] = useState('');
@@ -45,7 +47,7 @@ export default function AdminFounderSeed({ isOwner }: { isOwner: boolean }) {
     setError(null);
     let input;
     try {
-      input = validateFounderSeedForm({ publicDisplayName, prNumber, summary, contributorMessage, beforeGitSha, afterGitSha });
+      input = validateFounderSeedForm({ publicDisplayName, contactEmail, prNumber, summary, contributorMessage, beforeGitSha, afterGitSha });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'founder details are invalid.');
       return;
@@ -94,6 +96,7 @@ export default function AdminFounderSeed({ isOwner }: { isOwner: boolean }) {
         <form className="admin-start-turn" onSubmit={(event) => void submit(event)}>
           <p className="admin-private-note">this records an already merged creative founder pr. it does not merge, deploy, capture, or archive anything.</p>
           <div className="form-field"><label htmlFor="founder-name">public founder name / alias</label><input id="founder-name" required maxLength={FOUNDER_DISPLAY_NAME_MAX_LENGTH} value={publicDisplayName} onChange={(event) => setPublicDisplayName(event.target.value)} /></div>
+          <div className="form-field"><label htmlFor="founder-contact-email">private completion-email address</label><input id="founder-contact-email" type="email" required maxLength={FOUNDER_CONTACT_EMAIL_MAX_LENGTH} autoComplete="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} /><small>stored privately on the owner record and used only for Founder #000 completion email delivery.</small></div>
           <div className="form-field"><label htmlFor="founder-pr">GitHub pr number</label><input id="founder-pr" type="number" min="1" step="1" required value={prNumber} onChange={(event) => setPrNumber(event.target.value)} /><small>GitHub assigns this number; it is unrelated to contribution #000.</small></div>
           <div className="form-field"><label htmlFor="founder-summary">summary</label><textarea id="founder-summary" required maxLength={CONTRIBUTION_SUMMARY_MAX_LENGTH} value={summary} onChange={(event) => setSummary(event.target.value)} /></div>
           <div className="form-field"><label htmlFor="founder-message">optional founder message</label><textarea id="founder-message" maxLength={CONTRIBUTOR_MESSAGE_MAX_LENGTH} value={contributorMessage} onChange={(event) => setContributorMessage(event.target.value)} /></div>

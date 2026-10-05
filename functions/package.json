@@ -22,6 +22,7 @@
     "emulator:prepare:founder": "node integration/founder-bootstrap-seed.mjs",
     "wtt:reconcile": "npm run build && node scripts/reconcile-wtt-entitlements.mjs",
     "wtt:reconcile-stats": "npm run build && node scripts/reconcile-wtt-public-stats.mjs",
+    "founder:repair-contact": "npm run build && node scripts/repair-founder-completion-contact.mjs",
     "email:preview": "npm run build && node scripts/preview-emails.mjs",
     "email:test-send": "npm run build && node --env-file-if-exists=.secret.local scripts/send-test-emails.mjs"
   },
