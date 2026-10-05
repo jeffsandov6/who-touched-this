@@ -30,8 +30,8 @@ export default function SurveyOutcome() {
       ) : (
         <p>
           {answer === 'yes'
-            ? 'concerning.'
-            : 'reasonable.'}
+            ? 'concerning'
+            : 'reasonable'}
         </p>
       )}
     </div>
