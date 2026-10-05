@@ -221,16 +221,18 @@ test('Playwright smoke captures six PNGs from two exact fixture revisions and cl
     await exec('git', ['config', 'user.name', 'Fixture'], { cwd: root });
     await mkdir(join(root, 'src/platform/config'), { recursive: true });
     await writeFile(join(root, 'src/platform/config/editable-routes.json'), JSON.stringify({ schemaVersion: 1, routes: ['/', '/random', '/thoughts'] }));
-    await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'snapshot-fixture', version: '1.0.0', type: 'module', scripts: { 'build:contributor': 'node build.mjs' } }));
+    await writeFile(join(root, 'package.json'), JSON.stringify({ name: 'snapshot-fixture', version: '1.0.0', type: 'module', scripts: { build: 'node build.mjs' } }));
     await writeFile(join(root, 'package-lock.json'), JSON.stringify({ name: 'snapshot-fixture', version: '1.0.0', lockfileVersion: 3, requires: true, packages: { '': { name: 'snapshot-fixture', version: '1.0.0' } } }));
     await writeFile(join(root, 'build.mjs'), `import { mkdir, readFile, writeFile } from 'node:fs/promises';
 const registry = JSON.parse(await readFile('src/platform/config/editable-routes.json', 'utf8'));
+if (process.env.PUBLIC_FIREBASE_PROJECT_ID !== 'wtt-snapshot-preview') throw new Error('synthetic snapshot environment missing');
 const marker = await readFile('marker.txt', 'utf8');
 for (const route of registry.routes) {
   const directory = route === '/' ? 'dist' : \`dist\${route}\`;
   await mkdir(directory, { recursive: true });
   const longContent = route === '/thoughts' ? '<div style="height:25001px">long page beyond the legacy 20000px ceiling</div>' : '';
-  await writeFile(\`\${directory}/index.html\`, \`<!doctype html><html><body><main><h1>\${route}</h1><p>\${marker}</p>\${longContent}</main></body></html>\`);
+  const clientMutation = route === '/' ? '<script>document.body.style.minHeight="1201px"</script>' : '';
+  await writeFile(\`\${directory}/index.html\`, \`<!doctype html><html><body><main><h1>\${route}</h1><p>\${marker}</p>\${longContent}</main>\${clientMutation}</body></html>\`);
 }`);
     await writeFile(join(root, 'marker.txt'), 'BEFORE');
     await exec('git', ['add', '.'], { cwd: root });
@@ -244,6 +246,8 @@ for (const route of registry.routes) {
     const routeSideRecords = result.manifest.screenshots.flatMap(() => ['before', 'after']).length;
     assert.equal(routeSideRecords, 6);
     assert.deepEqual(result.manifest.canonicalRoutes, ['/', '/random', '/thoughts']);
+    const home = result.manifest.screenshots.find((record) => record.route === '/');
+    assert.ok(home.before.height > 900);
     const thoughts = result.manifest.screenshots.find((record) => record.route === '/thoughts');
     assert.ok(thoughts.before.height > 20_000);
     assert.ok(thoughts.before.tiles.length > 5);

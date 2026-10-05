@@ -88,7 +88,7 @@ test('preview verification fails for modified, missing, and malformed artifacts'
   });
 });
 
-test('PR preview browser blocks external requests while retaining loopback rendering', async () => {
+test('PR preview executes client JavaScript while blocking external requests', async () => {
   let externalRequests = 0;
   const external = createServer((_request, response) => {
     externalRequests += 1;
@@ -99,7 +99,7 @@ test('PR preview browser blocks external requests while retaining loopback rende
   const root = await mkdtemp(join(tmpdir(), 'wtt-pr-network-'));
   let browser;
   try {
-    await writeFile(join(root, 'index.html'), `<!doctype html><main>Preview</main><script>fetch('http://127.0.0.1:${address.port}/should-not-run').catch(() => {});</script>`);
+    await writeFile(join(root, 'index.html'), `<!doctype html><main>Preview</main><script>document.body.innerHTML = '<div style="height:7201px">javascript executed</div>'; fetch('http://127.0.0.1:${address.port}/should-not-run').catch(() => {});</script>`);
     await mkdir(join(root, 'shots'), { recursive: true });
     browser = await chromium.launch({ headless: true });
     const checksums = await captureRevision({
@@ -114,6 +114,7 @@ test('PR preview browser blocks external requests while retaining loopback rende
       blockExternalRequests: true,
     });
     assert.match(checksums['/'].tiles[0].sha256, /^[0-9a-f]{64}$/);
+    assert.ok(checksums['/'].height > 7_201);
     assert.equal(externalRequests, 0);
   } finally {
     if (browser) await browser.close();

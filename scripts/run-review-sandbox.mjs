@@ -2,6 +2,11 @@
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { hostileContainerArguments, HOSTILE_NODE_IMAGE, HOSTILE_PLAYWRIGHT_IMAGE, REVIEW_LIMITS } from './pr-review/policy.mjs';
+import { SNAPSHOT_BUILD_ENV } from './snapshots/config.mjs';
+
+const snapshotBuildEnvironment = Object.entries(SNAPSHOT_BUILD_ENV)
+  .map(([name, value]) => `${name}=${JSON.stringify(value)}`)
+  .join(' ');
 
 const args = process.argv.slice(2);
 const phase = args.shift();
@@ -29,8 +34,8 @@ try {
       workspace,
       timeoutSeconds: REVIEW_LIMITS.hostilePhaseSeconds,
       command: phase === 'build'
-        ? ['sh', '-c', 'npm run check && npm run build && npm run test:contributor && npm run build:contributor']
-        : ['npm', 'run', 'build:contributor'],
+        ? ['sh', '-c', `npm run check && npm run test:contributor && npm run build:contributor && env ${snapshotBuildEnvironment} npm run build`]
+        : ['sh', '-c', `env ${snapshotBuildEnvironment} npm run build`],
     }));
   } else if (phase === 'preview') {
     const trusted = value('--trusted');
