@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 
 const SCREENSHOT_MAX_BYTES = 20 * 1024 * 1024;
 const MANIFEST_MAX_BYTES = 1024 * 1024;
+const BUNDLE_SCREENSHOT_MAX_BYTES = 250 * 1024 * 1024;
 const CAPTURE_ID = /^[A-Za-z0-9-]{1,100}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const GIT_SHA = /^[0-9a-f]{40}$/;
@@ -87,7 +88,7 @@ function parseManifest(raw: Buffer, contributionNumber: number, captureId: strin
     'git', 'routeRegistry', 'canonicalRoutes', 'additionalRoutes', 'capturedRoutes',
     'capture', 'screenshots',
   ], 'uploaded manifest');
-  if (manifest.schemaVersion !== 1) throw new SnapshotFinalizeError('failed-precondition', 'uploaded manifest schema is unsupported.');
+  if (manifest.schemaVersion !== 1 && manifest.schemaVersion !== 2) throw new SnapshotFinalizeError('failed-precondition', 'uploaded manifest schema is unsupported.');
   if (manifest.contributionNumber !== contributionNumber || manifest.contributionLabel !== contributionLabel(contributionNumber)
     || manifest.captureId !== captureId) throw new SnapshotFinalizeError('failed-precondition', 'uploaded manifest identity does not match the archive.');
   if (typeof manifest.capturedAt !== 'string' || !Number.isFinite(Date.parse(manifest.capturedAt))) {
@@ -113,12 +114,16 @@ function parseManifest(raw: Buffer, contributionNumber: number, captureId: strin
     throw new SnapshotFinalizeError('failed-precondition', 'manifest screenshot records disagree.');
   }
   const capture = object(manifest.capture, 'manifest capture configuration');
-  exactKeys(capture, ['viewport', 'deviceScaleFactor', 'fullPage', 'format', 'locale', 'timezoneId', 'waitMs'], 'manifest capture configuration');
+  exactKeys(capture, manifest.schemaVersion === 1
+    ? ['viewport', 'deviceScaleFactor', 'fullPage', 'format', 'locale', 'timezoneId', 'waitMs']
+    : ['viewport', 'deviceScaleFactor', 'captureMode', 'tileHeight', 'format', 'locale', 'timezoneId', 'waitMs', 'maximumTileCount', 'maximumTotalScreenshotPixels', 'maximumTotalScreenshotBytes'], 'manifest capture configuration');
   const viewport = object(capture.viewport, 'manifest viewport');
   exactKeys(viewport, ['width', 'height'], 'manifest viewport');
   if (!Number.isSafeInteger(viewport.width) || !Number.isSafeInteger(viewport.height)
     || Number(viewport.width) < 1 || Number(viewport.height) < 1 || capture.deviceScaleFactor !== 1
-    || capture.fullPage !== true || capture.format !== 'png' || typeof capture.locale !== 'string'
+    || (manifest.schemaVersion === 1 ? capture.fullPage !== true : capture.captureMode !== 'tiled-document' || capture.tileHeight !== 3_600
+      || capture.maximumTileCount !== 64 || capture.maximumTotalScreenshotPixels !== 384_000_000 || capture.maximumTotalScreenshotBytes !== 160 * 1024 * 1024)
+    || capture.format !== 'png' || typeof capture.locale !== 'string'
     || typeof capture.timezoneId !== 'string' || !Number.isSafeInteger(capture.waitMs)
     || Number(capture.waitMs) < 0 || Number(capture.waitMs) > 10_000) {
     throw new SnapshotFinalizeError('failed-precondition', 'manifest capture configuration is malformed.');
@@ -133,18 +138,35 @@ function parseManifest(raw: Buffer, contributionNumber: number, captureId: strin
     keys.add(record.key);
     const sides = Object.fromEntries(['before', 'after'].map((side) => {
       const item = object(record[side], 'manifest screenshot side');
-      exactKeys(item, ['path', 'sha256'], 'manifest screenshot side');
-      const expectedPath = `${side}/${record.key}.png`;
-      if (item.path !== expectedPath || typeof item.sha256 !== 'string' || !SHA256.test(item.sha256)) {
-        throw new SnapshotFinalizeError('failed-precondition', 'manifest screenshot side is malformed.');
+      if (manifest.schemaVersion === 1) {
+        exactKeys(item, ['path', 'sha256'], 'manifest screenshot side');
+        const expectedPath = `${side}/${record.key}.png`;
+        if (item.path !== expectedPath || typeof item.sha256 !== 'string' || !SHA256.test(item.sha256)) throw new SnapshotFinalizeError('failed-precondition', 'manifest screenshot side is malformed.');
+        return [side, { width: null, height: null, tiles: [{ path: expectedPath, sha256: item.sha256 }] }];
       }
-      return [side, { path: expectedPath, sha256: item.sha256 }];
+      exactKeys(item, ['width', 'height', 'tiles'], 'manifest screenshot side');
+      if (!Number.isSafeInteger(item.width) || Number(item.width) < 1 || Number(item.width) > 2_880 || !Number.isSafeInteger(item.height) || Number(item.height) < 1
+        || !Array.isArray(item.tiles) || item.tiles.length < 1 || item.tiles.length > 64) throw new SnapshotFinalizeError('failed-precondition', 'manifest tiled screenshot side is malformed.');
+      const tileValues = item.tiles as unknown[];
+      let nextY = 0;
+      let totalBytes = 0;
+      const tiles = tileValues.map((value, tileIndex) => {
+        const tile = object(value, 'manifest screenshot tile');
+        exactKeys(tile, ['index', 'y', 'width', 'height', 'path', 'sha256', 'bytes'], 'manifest screenshot tile');
+        const expectedPath = `${side}/${record.key}/tile-${String(tileIndex).padStart(3, '0')}.png`;
+        if (tile.index !== tileIndex || tile.y !== nextY || tile.y !== tileIndex * 3_600 || tile.width !== item.width || !Number.isSafeInteger(tile.height) || Number(tile.height) < 1 || Number(tile.height) > 3_600
+          || (tileIndex < tileValues.length - 1 && tile.height !== 3_600)
+          || tile.path !== expectedPath || typeof tile.sha256 !== 'string' || !SHA256.test(tile.sha256) || !Number.isSafeInteger(tile.bytes) || Number(tile.bytes) < 1 || Number(tile.bytes) > SCREENSHOT_MAX_BYTES) throw new SnapshotFinalizeError('failed-precondition', 'manifest screenshot tile is malformed.');
+        nextY += Number(tile.height);
+        totalBytes += Number(tile.bytes);
+        return { index: tileIndex, y: tile.y as number, width: tile.width as number, height: tile.height as number, path: expectedPath, sha256: tile.sha256 as string, bytes: tile.bytes as number };
+      });
+      if (nextY !== item.height || Number(item.width) * Number(item.height) > 384_000_000 || totalBytes > 160 * 1024 * 1024) throw new SnapshotFinalizeError('failed-precondition', 'manifest screenshot tiles do not continuously cover the page or exceed bounds.');
+      return [side, { width: item.width, height: item.height, tiles }];
     }));
-    return { route: record.route as string, routeKey: record.key, before: sides.before, after: sides.after } as {
-      route: string; routeKey: string; before: { path: string; sha256: string }; after: { path: string; sha256: string };
-    };
+    return { route: record.route as string, routeKey: record.key, before: sides.before, after: sides.after };
   });
-  return { git: git as { before: string; after: string }, canonicalRoutes, additionalRoutes, capturedRoutes, screenshotRecords, viewport, capture };
+  return { schemaVersion: manifest.schemaVersion as 1 | 2, git: git as { before: string; after: string }, canonicalRoutes, additionalRoutes, capturedRoutes, screenshotRecords, viewport, capture };
 }
 
 function validateObject(metadata: ObjectMetadata, expected: { path: string; type: string; max: number; custom: Record<string, string> }): void {
@@ -215,19 +237,27 @@ export async function finalizeSnapshotArchiveRequest(
   }
   const publicRoutes = [];
   const expectedPaths = [manifestPath];
+  let archiveScreenshotBytes = 0;
   for (const record of manifest.screenshotRecords) {
     const publicRecord: Record<string, unknown> = { route: record.route, routeKey: record.routeKey };
     for (const side of ['before', 'after'] as const) {
-      const item = record[side];
-      const path = `${prefix}/${item.path}`;
-      expectedPaths.push(path);
-      const objectRecord = await dependencies.loadObject(path);
-      if (!objectRecord) throw new SnapshotFinalizeError('failed-precondition', `archive screenshot is missing: ${item.path}`);
-      validateObject(objectRecord.metadata, {
-        path, type: 'image/png', max: SCREENSHOT_MAX_BYTES,
-        custom: { contributionNumber: String(number), contributionLabel: label, captureId, routeKey: record.routeKey, side, sha256: item.sha256 },
-      });
-      publicRecord[side] = { storagePath: path, sha256: item.sha256 };
+      const sideRecord = record[side];
+      const publicTiles = [];
+      for (const item of sideRecord.tiles) {
+        const path = `${prefix}/${item.path}`;
+        expectedPaths.push(path);
+        const objectRecord = await dependencies.loadObject(path);
+        if (!objectRecord) throw new SnapshotFinalizeError('failed-precondition', `archive screenshot is missing: ${item.path}`);
+        validateObject(objectRecord.metadata, {
+          path, type: 'image/png', max: SCREENSHOT_MAX_BYTES,
+          custom: { contributionNumber: String(number), contributionLabel: label, captureId, routeKey: record.routeKey, side, sha256: item.sha256, ...(manifest.schemaVersion === 2 ? { tileIndex: String(item.index) } : {}) },
+        });
+        if (manifest.schemaVersion === 2 && objectRecord.metadata.size !== item.bytes) throw new SnapshotFinalizeError('failed-precondition', `archive screenshot byte length disagrees: ${item.path}`);
+        archiveScreenshotBytes += objectRecord.metadata.size;
+        if (archiveScreenshotBytes > BUNDLE_SCREENSHOT_MAX_BYTES) throw new SnapshotFinalizeError('failed-precondition', 'archive screenshots exceed total bundle bounds.');
+        publicTiles.push({ storagePath: path, sha256: item.sha256, ...('index' in item ? { index: item.index, y: item.y, width: item.width, height: item.height } : {}) });
+      }
+      publicRecord[side] = manifest.schemaVersion === 1 ? publicTiles[0] : { width: sideRecord.width, height: sideRecord.height, tiles: publicTiles };
     }
     publicRoutes.push(publicRecord);
   }
@@ -236,7 +266,7 @@ export async function finalizeSnapshotArchiveRequest(
     throw new SnapshotFinalizeError('failed-precondition', 'archive object count or paths do not match the manifest.');
   }
   const snapshot = {
-    schemaVersion: 1,
+    schemaVersion: manifest.schemaVersion,
     contributionNumber: number,
     captureId,
     beforeGitSha: manifest.git.before,
@@ -251,7 +281,7 @@ export async function finalizeSnapshotArchiveRequest(
       width: manifest.viewport.width,
       height: manifest.viewport.height,
       deviceScaleFactor: manifest.capture.deviceScaleFactor,
-      fullPage: manifest.capture.fullPage,
+      ...(manifest.schemaVersion === 1 ? { fullPage: true } : { captureMode: 'tiled-document', tileHeight: 3_600 }),
     },
     archivedAt: dependencies.archivedAt(),
   };

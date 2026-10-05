@@ -10,10 +10,10 @@ if (!bundleArgument || args.length > (args[0] === '--bundle' ? 2 : 1)) {
 } else {
   try {
     const manifest = await verifySnapshotBundle(resolve(bundleArgument));
-    console.log(`Verified Contribution #${manifest.contributionLabel}: ${manifest.screenshots.length * 2} screenshots`);
+    const imageCount = manifest.screenshots.reduce((total, record) => total + ['before', 'after'].reduce((sideTotal, side) => sideTotal + (manifest.schemaVersion === 1 ? 1 : record[side].tiles.length), 0), 0);
+    console.log(`Verified Contribution #${manifest.contributionLabel}: ${imageCount} screenshot images`);
   } catch (error) {
     console.error(`Snapshot verification failed: ${error.message}`);
     process.exitCode = 1;
   }
 }
-

@@ -10,22 +10,31 @@ const captureId = '2026-01-01T00-00-00-000Z--abcdef01';
 const checksum = 'c'.repeat(64);
 const auth = (id = '9001') => ({ firebase: { identities: { 'github.com': [id] } } });
 
-function fixture(number = 42, routes = ['/']) {
+// Most finalizer cases deliberately default to historical schema v1 so every
+// security/failure path keeps exercising backward compatibility. `tiled` is
+// the current schema-v2 archive shape and has a dedicated success case below.
+function fixture(number = 42, routes = ['/'], tiled = false) {
   const label = String(number).padStart(3, '0');
   const prefix = `public/history/contributions/${label}/${captureId}`;
   const manifest = {
-    schemaVersion: 1, contributionNumber: number, contributionLabel: label, captureId,
+    schemaVersion: tiled ? 2 : 1, contributionNumber: number, contributionLabel: label, captureId,
     capturedAt: '2026-01-01T00:00:00.000Z',
     git: { before: 'a'.repeat(40), after: 'b'.repeat(40) },
     routeRegistry: { path: 'src/platform/config/editable-routes.json', revision: 'b'.repeat(40) },
     canonicalRoutes: routes, additionalRoutes: [], capturedRoutes: routes,
-    capture: {
+    capture: tiled ? {
+      viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, captureMode: 'tiled-document', tileHeight: 3600,
+      format: 'png', locale: 'en-US', timezoneId: 'UTC', waitMs: 1500, maximumTileCount: 64,
+      maximumTotalScreenshotPixels: 384_000_000, maximumTotalScreenshotBytes: 160 * 1024 * 1024,
+    } : {
       viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, fullPage: true,
       format: 'png', locale: 'en-US', timezoneId: 'UTC', waitMs: 1500,
     },
     screenshots: routes.map((route, index) => {
       const key = index === 0 ? 'home' : `route-${index}`;
-      return { route, key, before: { path: `before/${key}.png`, sha256: checksum }, after: { path: `after/${key}.png`, sha256: checksum } };
+      const legacy = (side: string) => ({ path: `${side}/${key}.png`, sha256: checksum });
+      const tiles = (side: string) => ({ width: 1440, height: 900, tiles: [{ index: 0, y: 0, width: 1440, height: 900, path: `${side}/${key}/tile-000.png`, sha256: checksum, bytes: 1000 }] });
+      return { route, key, before: tiled ? tiles('before') : legacy('before'), after: tiled ? tiles('after') : legacy('after') };
     }),
   };
   const objects = new Map<string, { metadata: { path: string; size: number; contentType: string; metadata: Record<string, string> }; contents?: Buffer }>();
@@ -34,8 +43,11 @@ function fixture(number = 42, routes = ['/']) {
   const manifestContents = Buffer.from(JSON.stringify(manifest));
   objects.set(manifestPath, { metadata: { path: manifestPath, size: manifestContents.length, contentType: 'application/json', metadata: common }, contents: manifestContents });
   for (const record of manifest.screenshots) for (const side of ['before', 'after'] as const) {
-    const path = `${prefix}/${record[side].path}`;
-    objects.set(path, { metadata: { path, size: 1000, contentType: 'image/png', metadata: { ...common, routeKey: record.key, side, sha256: checksum } } });
+    const images = 'tiles' in record[side] ? record[side].tiles : [record[side]];
+    for (const image of images) {
+      const path = `${prefix}/${image.path}`;
+      objects.set(path, { metadata: { path, size: 1000, contentType: 'image/png', metadata: { ...common, routeKey: record.key, side, sha256: checksum, ...('index' in image ? { tileIndex: String(image.index) } : {}) } } });
+    }
   }
   return { manifest, objects, prefix };
 }
@@ -43,9 +55,9 @@ function fixture(number = 42, routes = ['/']) {
 function dependencies(options: {
   number?: number; routes?: string[]; contribution?: boolean; finalized?: boolean;
   conflicting?: boolean; wrongLock?: boolean; wrongShas?: boolean;
-  admin?: Record<string, unknown> | null; mutate?: (value: ReturnType<typeof fixture>) => void;
+  admin?: Record<string, unknown> | null; tiled?: boolean; mutate?: (value: ReturnType<typeof fixture>) => void;
 } = {}) {
-  const value = fixture(options.number ?? 42, options.routes ?? ['/']);
+  const value = fixture(options.number ?? 42, options.routes ?? ['/'], options.tiled ?? false);
   options.mutate?.(value);
   const writes: Array<Record<string, unknown>> = [];
   const number = options.number ?? 42;
@@ -87,7 +99,7 @@ async function expectCode(promise: Promise<unknown>, code: string) {
   await assert.rejects(promise, (error) => error instanceof SnapshotFinalizeError && error.code === code);
 }
 
-test('active owner finalizes a valid complete archive into one public document', async () => {
+test('active owner still finalizes a valid historical schema-v1 archive', async () => {
   const { deps, writes } = dependencies();
   const result = await finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, deps);
   assert.deepEqual(result, { status: 'finalized', contributionNumber: 42 });
@@ -97,6 +109,15 @@ test('active owner finalizes a valid complete archive into one public document',
   assert.equal(created.routes instanceof Array ? created.routes.length : 0, 1);
   assert.equal(created.archivedAt, 'server-time');
   assert.equal('githubUserId' in created, false);
+});
+
+test('active owner finalizes a schema-v2 tiled archive with explicit tile metadata', async () => {
+  const { deps, writes } = dependencies({ tiled: true });
+  await finalizeSnapshotArchiveRequest(auth(), { contributionNumber: 42, captureId }, deps);
+  const created = writes[0] as any;
+  assert.equal(created.schemaVersion, 2);
+  assert.equal(created.routes[0].before.tiles.length, 1);
+  assert.match(created.routes[0].before.tiles[0].storagePath, /before\/home\/tile-000\.png$/);
 });
 
 test('contribution-zero archive requires a permanent founder record, then uses the normal 000 namespace', async () => {

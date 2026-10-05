@@ -8,7 +8,7 @@ import {
   snapshotArchivePrefix,
   validateSelectedSnapshotBundle,
 } from '../src/platform/snapshots/archive.ts';
-import { validateSnapshotManifest } from '../src/platform/snapshots/schema.ts';
+import { snapshotSideTiles, validateSnapshotManifest } from '../src/platform/snapshots/schema.ts';
 import {
   historicalRouteLabel,
   parsePublicContributionSnapshot,
@@ -21,6 +21,7 @@ const checksum = createHash('sha256').update(png).digest('hex');
 const captureId = '2026-01-01T00-00-00-000Z--abcdef01';
 const timestamp = { toDate: () => new Date('2026-01-02T00:00:00Z') };
 
+// Historical schema-v1 fixture retained to prove old permanent archives remain portable.
 function manifest(routes = ['/']) {
   return {
     schemaVersion: 1, contributionNumber: 42, contributionLabel: '042', captureId,
@@ -45,10 +46,17 @@ function selectedFile(contents: BlobPart[], name: string, type: string, relative
 function filesFor(value = manifest()) {
   const files = [selectedFile([JSON.stringify(value)], 'manifest.json', 'application/json', `${captureId}/manifest.json`)];
   for (const screenshot of value.screenshots) {
-    files.push(selectedFile([png], `${screenshot.key}.png`, 'image/png', `${captureId}/${screenshot.before.path}`));
-    files.push(selectedFile([png], `${screenshot.key}.png`, 'image/png', `${captureId}/${screenshot.after.path}`));
+    for (const side of ['before', 'after'] as const) for (const image of snapshotSideTiles(screenshot[side])) files.push(selectedFile([png], image.path.split('/').at(-1)!, 'image/png', `${captureId}/${image.path}`));
   }
   return files;
+}
+
+function tiledManifest() {
+  const value = manifest() as any;
+  value.schemaVersion = 2;
+  value.capture = { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, captureMode: 'tiled-document', tileHeight: 3600, format: 'png', locale: 'en-US', timezoneId: 'UTC', waitMs: 1500, maximumTileCount: 64, maximumTotalScreenshotPixels: 384_000_000, maximumTotalScreenshotBytes: 160 * 1024 * 1024 };
+  for (const record of value.screenshots) for (const side of ['before', 'after']) record[side] = { width: 1, height: 1, tiles: [{ index: 0, y: 0, width: 1, height: 1, path: `${side}/${record.key}/tile-000.png`, sha256: checksum, bytes: png.length }] };
+  return value;
 }
 
 test('browser importer validates a complete reviewed bundle and checksums', async () => {
@@ -56,6 +64,13 @@ test('browser importer validates a complete reviewed bundle and checksums', asyn
   assert.equal(bundle.manifest.contributionNumber, 42);
   assert.equal(bundle.validChecksums, 2);
   assert.equal(bundle.screenshots.size, 2);
+});
+
+test('browser importer validates schema-v2 tiled bundles while schema-v1 history remains readable', async () => {
+  const bundle = await validateSelectedSnapshotBundle(filesFor(tiledManifest()));
+  assert.equal(bundle.manifest.schemaVersion, 2);
+  assert.equal(bundle.validChecksums, 2);
+  assert.equal(isAllowedPublicHistorySnapshotPath(`public/history/contributions/042/${captureId}/before/home/tile-000.png`), true);
 });
 
 test('browser importer rejects missing, changed, duplicate, unsafe, and mismatched files', async () => {
@@ -75,7 +90,7 @@ test('browser importer rejects missing, changed, duplicate, unsafe, and mismatch
 });
 
 test('manifest schema rejects unsupported schema, duplicate routes, and traversal paths', () => {
-  assert.throws(() => validateSnapshotManifest({ ...manifest(), schemaVersion: 2 }), /unsupported/);
+  assert.throws(() => validateSnapshotManifest({ ...manifest(), schemaVersion: 3 }), /unsupported/);
   assert.throws(() => validateSnapshotManifest(manifest(['/', '/'])), /duplicate/);
   const traversal = manifest(); traversal.screenshots[0].before.path = '../home.png';
   assert.throws(() => validateSnapshotManifest(traversal), /disagree|relative/);
@@ -105,15 +120,54 @@ function publicSnapshot(routes = ['/']) {
   };
 }
 
-test('public metadata supports historical three and future four route archives', () => {
+function publicTiledSnapshot(width = 1440, heights = [3600, 1]) {
+  const value = publicSnapshot() as any;
+  value.schemaVersion = 2;
+  value.viewport = { width: 1440, height: 900, deviceScaleFactor: 1, captureMode: 'tiled-document', tileHeight: 3600 };
+  for (const record of value.routes) for (const side of ['before', 'after']) {
+    let y = 0;
+    const root = value.manifestStoragePath.replace('/manifest.json', '');
+    const tiles = heights.map((height, index) => {
+      const tile = { index, y, width, height, storagePath: `${root}/${side}/${record.routeKey}/tile-${String(index).padStart(3, '0')}.png`, sha256: checksum };
+      y += height;
+      return tile;
+    });
+    record[side] = { width, height: y, tiles };
+  }
+  return value;
+}
+
+test('schema-v1 public/history snapshots still parse with legacy single-image sides', () => {
   const three = parsePublicContributionSnapshot(publicSnapshot(['/', '/random', '/thoughts']));
   const four = parsePublicContributionSnapshot(publicSnapshot(['/', '/random', '/thoughts', '/gallery']));
   assert.equal(three?.routes.length, 3);
   assert.equal(snapshotHistorySummary(three!), 'before & after · 3 pages');
   assert.equal(four?.routes.length, 4);
+  assert.equal(three?.schemaVersion, 1);
+  assert.equal('storagePath' in three!.routes[0].before, true);
   assert.equal(historicalRouteLabel('/'), 'home');
   assert.equal(historicalRouteLabel('/gallery'), '/gallery');
   assert.equal(snapshotImageAlt('before', 42, '/random'), 'before contribution #042, /random');
+});
+
+test('schema-v2 public metadata parses bounded tiled sides with continuous offsets', () => {
+  const value = publicTiledSnapshot();
+  const parsed = parsePublicContributionSnapshot(value);
+  assert.equal(parsed?.schemaVersion, 2);
+  assert.equal('tiles' in parsed!.routes[0].before ? parsed!.routes[0].before.tiles.length : 0, 2);
+  value.routes[0].before.tiles[1].y = 3599;
+  assert.equal(parsePublicContributionSnapshot(value), null);
+});
+
+test('schema-v2 public parser rejects excessive dimensions, pixels, tiles, seams, paths, and checksums', () => {
+  assert.equal(parsePublicContributionSnapshot(publicTiledSnapshot(2_881, [1])), null);
+  assert.equal(parsePublicContributionSnapshot(publicTiledSnapshot(2_000, Array(64).fill(3_600))), null);
+  assert.equal(parsePublicContributionSnapshot(publicTiledSnapshot(1, Array(65).fill(3_600))), null);
+  assert.equal(parsePublicContributionSnapshot(publicTiledSnapshot(1, [3_599, 1])), null);
+  const path = publicTiledSnapshot(); path.routes[0].before.tiles[0].storagePath = 'private/tile-000.png';
+  assert.equal(parsePublicContributionSnapshot(path), null);
+  const sha = publicTiledSnapshot(); sha.routes[0].before.tiles[0].sha256 = 'not-a-sha';
+  assert.equal(parsePublicContributionSnapshot(sha), null);
 });
 
 test('public parser fails closed for unsupported schemas and unsafe Storage records', () => {
@@ -122,7 +176,7 @@ test('public parser fails closed for unsupported schemas and unsafe Storage reco
   assert.equal(parsePublicContributionSnapshot(unsafe), null);
 });
 
-test('History detail snapshot UI is complete, lazy, accessible, and failure tolerant', async () => {
+test('History detail supports legacy loading and reserves seamless tiled geometry', async () => {
   const source = await readFile(new URL('../src/platform/components/HistorySnapshots.tsx', import.meta.url), 'utf8');
   assert.match(source, /snapshot\.routes\.map/);
   assert.doesNotMatch(source, /expanded &&/);
@@ -131,4 +185,12 @@ test('History detail snapshot UI is complete, lazy, accessible, and failure tole
   assert.match(source, /loading screenshot/);
   assert.match(source, /screenshot unavailable/);
   assert.match(source, /snapshotImageAlt/);
+  const tiledComponent = source.slice(source.indexOf('function ResolvedTile'), source.indexOf('function SnapshotImage'));
+  assert.match(tiledComponent, /aspectRatio/);
+  assert.doesNotMatch(tiledComponent, /<p/);
+  assert.match(tiledComponent, /history-snapshot-tile-error/);
+  const css = await readFile(new URL('../src/styles/global.css', import.meta.url), 'utf8');
+  assert.match(css, /\.history-snapshot-tile \{ position: relative; display: block; width: 100%; margin: 0;/);
+  assert.match(css, /\.history-snapshot-tile img \{ display: block; width: 100%; height: 100%; margin: 0; border: 0;/);
+  assert.match(css, /\.history-snapshot-image-link img \{ display: block; width: 100%; height: auto; margin: 0; border: 1px solid/);
 });

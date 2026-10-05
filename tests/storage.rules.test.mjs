@@ -184,6 +184,10 @@ test('active owner and admin can create valid immutable PNG and manifest archive
     await assertSucceeds(upload(contextFor(identity), `${prefix}/after/home.png`, 'image/png', new Uint8Array([1]), {
       ...common, routeKey: 'home', side: 'after', sha256: 'b'.repeat(64),
     }));
+    await assertSucceeds(upload(contextFor(identity), `${prefix}/before/home/tile-000.png`, 'image/png', new Uint8Array([1]), {
+      ...common, routeKey: 'home', side: 'before', tileIndex: '0', sha256: 'b'.repeat(64),
+    }));
+    await assertSucceeds(getBytes(mediaReference(environment.unauthenticatedContext(), `${prefix}/before/home/tile-000.png`)));
   }
 });
 
@@ -195,6 +199,8 @@ test('History archive path, content type, size, and metadata are strictly bounde
   await assertFails(upload(ownerContext, `${prefix}/before/home.png`, 'image/jpeg', new Uint8Array([1]), { ...common, routeKey: 'home', side: 'before', sha256: 'b'.repeat(64) }));
   await assertFails(upload(ownerContext, `${prefix}/before/home.png`, 'image/png', new Uint8Array([1]), { ...common, routeKey: 'home', side: 'after', sha256: 'b'.repeat(64) }));
   await assertFails(upload(ownerContext, `${prefix}/manifest.json`, 'text/plain', new Uint8Array([1]), common));
+  await assertFails(upload(ownerContext, `${prefix}/before/home/tile-000.png`, 'image/png', new Uint8Array([1]), { ...common, routeKey: 'home', side: 'before', sha256: 'b'.repeat(64) }));
+  await assertFails(upload(ownerContext, `${prefix}/before/home/not-a-tile.png`, 'image/png', new Uint8Array([1]), { ...common, routeKey: 'home', side: 'before', tileIndex: '0', sha256: 'b'.repeat(64) }));
 });
 
 test('History screenshot and manifest cannot be overwritten, metadata-updated, or deleted by browser admins', async () => {

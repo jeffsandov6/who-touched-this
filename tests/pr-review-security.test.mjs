@@ -139,8 +139,9 @@ test('sandbox arguments disable network, tokens, privilege, and bound resources'
   assert.match(HOSTILE_NODE_IMAGE, /@sha256:[0-9a-f]{64}$/);
 });
 
-test('screenshot dimensions enforce height and pixel-area bounds', () => {
-  assert.deepEqual(validateScreenshotDimensions({ width: 1440, height: 900 }), { width: 1440, height: 900, pixels: 1_296_000 });
-  assert.throws(() => validateScreenshotDimensions({ width: 1440, height: 20_001 }), /exceeds/);
-  assert.throws(() => validateScreenshotDimensions({ width: 20_000, height: 2_000 }), /exceeds/);
+test('screenshot dimensions calculate tiles and enforce route bounds', () => {
+  assert.deepEqual(validateScreenshotDimensions({ width: 1440, height: 900 }), { width: 1440, height: 900, pixels: 1_296_000, tileCount: 1 });
+  assert.deepEqual(validateScreenshotDimensions({ width: 1440, height: 7_201 }).tileCount, 3);
+  assert.throws(() => validateScreenshotDimensions({ width: 1440, height: 230_401 }), /exceeds/);
+  assert.throws(() => validateScreenshotDimensions({ width: 2_881, height: 2_000 }), /exceeds/);
 });

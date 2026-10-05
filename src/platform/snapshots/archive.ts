@@ -1,16 +1,18 @@
 import {
   SNAPSHOT_MANIFEST_MAX_BYTES,
+  SNAPSHOT_BUNDLE_MAX_BYTES,
   SNAPSHOT_SCREENSHOT_MAX_BYTES,
   assertSafeArchiveRelativePath,
   formatSnapshotContributionNumber,
+  snapshotSideTiles,
   validateSnapshotManifest,
-  type SnapshotManifestV1,
+  type SnapshotManifest,
 } from './schema.ts';
 
 export const SNAPSHOT_ARCHIVE_PREFIX = 'public/history/contributions';
 
 export interface ValidatedSnapshotBundle {
-  manifest: SnapshotManifestV1;
+  manifest: SnapshotManifest;
   manifestFile: File;
   screenshots: Map<string, File>;
   validChecksums: number;
@@ -71,18 +73,21 @@ export async function validateSelectedSnapshotBundle(files: File[]): Promise<Val
   }
   const screenshots = new Map<string, File>();
   let validChecksums = 0;
+  let totalScreenshotBytes = 0;
   for (const record of manifest.screenshots) {
     for (const side of ['before', 'after'] as const) {
-      const expected = record[side];
-      const file = relativeFiles.get(expected.path);
-      if (!file) throw new Error(`expected screenshot is missing: ${expected.path}`);
-      if (file.type !== 'image/png' || file.size <= 0 || file.size > SNAPSHOT_SCREENSHOT_MAX_BYTES
-        || !isPng(new Uint8Array(await file.slice(0, 8).arrayBuffer()))) {
-        throw new Error(`expected screenshot is not an allowed png: ${expected.path}`);
+      for (const expected of snapshotSideTiles(record[side])) {
+        const file = relativeFiles.get(expected.path);
+        if (!file) throw new Error(`expected screenshot is missing: ${expected.path}`);
+        if (file.type !== 'image/png' || file.size <= 0 || file.size > SNAPSHOT_SCREENSHOT_MAX_BYTES
+          || !isPng(new Uint8Array(await file.slice(0, 8).arrayBuffer()))) throw new Error(`expected screenshot is not an allowed png: ${expected.path}`);
+        if ('bytes' in expected && file.size !== expected.bytes) throw new Error(`screenshot byte length mismatch: ${expected.path}`);
+        totalScreenshotBytes += file.size;
+        if (totalScreenshotBytes > SNAPSHOT_BUNDLE_MAX_BYTES) throw new Error('snapshot screenshots exceed total bundle bounds.');
+        if (await sha256(file) !== expected.sha256) throw new Error(`screenshot checksum mismatch: ${expected.path}`);
+        screenshots.set(expected.path, file);
+        validChecksums += 1;
       }
-      if (await sha256(file) !== expected.sha256) throw new Error(`screenshot checksum mismatch: ${expected.path}`);
-      screenshots.set(expected.path, file);
-      validChecksums += 1;
     }
   }
   return { manifest, manifestFile: manifestSelection.file, screenshots, validChecksums };
@@ -94,10 +99,10 @@ export function snapshotArchivePrefix(contributionNumber: number, captureId: str
   return `${SNAPSHOT_ARCHIVE_PREFIX}/${label}/${captureId}`;
 }
 
-export function snapshotArchiveObjectPath(manifest: SnapshotManifestV1, relativePath: string): string {
+export function snapshotArchiveObjectPath(manifest: SnapshotManifest, relativePath: string): string {
   return `${snapshotArchivePrefix(manifest.contributionNumber, manifest.captureId)}/${assertSafeArchiveRelativePath(relativePath)}`;
 }
 
 export function isAllowedPublicHistorySnapshotPath(path: string): boolean {
-  return /^public\/history\/contributions\/(?:\d{3,})\/[A-Za-z0-9-]{1,100}\/(?:manifest\.json|(?:before|after)\/[A-Za-z0-9_-]{1,180}\.png)$/.test(path);
+  return /^public\/history\/contributions\/(?:\d{3,})\/[A-Za-z0-9-]{1,100}\/(?:manifest\.json|(?:before|after)\/[A-Za-z0-9_-]{1,180}(?:\.png|\/tile-\d{3}\.png))$/.test(path);
 }
