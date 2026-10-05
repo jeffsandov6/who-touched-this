@@ -82,7 +82,7 @@ function parseChangedTargets(output) {
 
 async function gitChangedTargets(cwd, base) {
   const result = await execFileAsync('git', [
-    'diff', '--name-status', '-z', '--find-renames=50%', '--find-copies=50%', base, '--', 'src/canvas',
+    'diff', '--name-status', '-z', '--no-renames', base, '--', 'src/canvas',
   ], { cwd, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
   return parseChangedTargets(result.stdout);
 }
