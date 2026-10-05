@@ -62,7 +62,7 @@ export default function AdminSnapshotArchive({ pendingArchive, onFinalized }: {
       <p className="admin-private-note">import one reviewed local capture bundle. finalized history archives cannot be replaced or deleted here.</p>
       {!pendingArchive && <p className="notice">no contribution archive is pending. the relay is ready for its next invitation.</p>}
       {error && <p className="notice notice-error" role="alert">{error}</p>}
-      {phase === 'done' && bundle && <p className="notice" role="status">archived contribution #{bundle.manifest.contributionLabel}: {bundle.manifest.capturedRoutes.length} pages, {bundle.validChecksums} screenshots.</p>}
+      {phase === 'done' && bundle && <p className="notice" role="status">archived contribution #{bundle.manifest.contributionLabel}: {bundle.manifest.capturedRoutes.length} pages, {bundle.validChecksums} screenshot images.</p>}
       <div className="form-field">
         <label htmlFor="snapshot-bundle">local snapshot bundle directory</label>
         <input
@@ -82,8 +82,8 @@ export default function AdminSnapshotArchive({ pendingArchive, onFinalized }: {
             <div><dt>before sha</dt><dd><code>{bundle.manifest.git.before}</code></dd></div>
             <div><dt>after sha</dt><dd><code>{bundle.manifest.git.after}</code></dd></div>
             <div><dt>canonical pages</dt><dd>{bundle.manifest.canonicalRoutes.length}</dd></div>
-            <div><dt>screenshots</dt><dd>{bundle.validChecksums}</dd></div>
-            <div><dt>integrity</dt><dd>{bundle.validChecksums} / {bundle.manifest.capturedRoutes.length * 2} checksums valid</dd></div>
+            <div><dt>screenshot images</dt><dd>{bundle.validChecksums}</dd></div>
+            <div><dt>integrity</dt><dd>{bundle.validChecksums} / {bundle.screenshots.size} image checksums valid</dd></div>
           </dl>
           <p>routes: {bundle.manifest.capturedRoutes.join(', ')}</p>
           {phase === 'uploading' && (

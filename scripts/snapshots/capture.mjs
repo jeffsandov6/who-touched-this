@@ -93,13 +93,23 @@ export function validateScreenshotDimensions(dimensions, config = SNAPSHOT_CONFI
   if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 1 || height < 1) {
     throw new Error('Page reported invalid screenshot dimensions.');
   }
-  if (height > config.maximumDocumentHeight || width * height > config.maximumScreenshotPixels) {
+  const tileCount = Math.ceil(height / config.tileHeight);
+  if (width > config.maximumTileWidth || tileCount > config.maximumTileCount
+    || width * height > config.maximumTotalScreenshotPixels) {
     throw new Error(`Page exceeds screenshot safety bounds (${width} × ${height}).`);
   }
-  return { width, height, pixels: width * height };
+  return { width, height, pixels: width * height, tileCount };
 }
 
-export async function captureRevision({ browser, side, sha, routes, routeKeys, distPath, outputPath, waitMs, signal, blockExternalRequests = false }) {
+export function createTilePlan(dimensions, config = SNAPSHOT_CONFIG) {
+  const page = validateScreenshotDimensions(dimensions, config);
+  return Array.from({ length: page.tileCount }, (_, index) => {
+    const y = index * config.tileHeight;
+    return { index, y, width: page.width, height: Math.min(config.tileHeight, page.height - y) };
+  });
+}
+
+export async function captureRevision({ browser, side, sha, routes, routeKeys, distPath, outputPath, waitMs, signal, blockExternalRequests = false, screenshotBudget = { bytes: 0 } }) {
   const server = await startStaticServer(distPath);
   const context = await browser.newContext({
     viewport: SNAPSHOT_CONFIG.viewport,
@@ -108,7 +118,7 @@ export async function captureRevision({ browser, side, sha, routes, routeKeys, d
     timezoneId: SNAPSHOT_CONFIG.timezoneId,
     serviceWorkers: blockExternalRequests ? 'block' : 'allow',
   });
-  const checksums = {};
+  const captures = {};
   try {
     if (blockExternalRequests) {
       await context.route('**/*', async (route) => {
@@ -119,6 +129,7 @@ export async function captureRevision({ browser, side, sha, routes, routeKeys, d
       await context.routeWebSocket(/.*/, (webSocket) => webSocket.close({ code: 1008, reason: 'External network disabled in PR preview.' }));
     }
     const page = await context.newPage();
+    const cdp = await context.newCDPSession(page);
     page.setDefaultNavigationTimeout(SNAPSHOT_CONFIG.navigationTimeoutMs);
     page.setDefaultTimeout(SNAPSHOT_CONFIG.screenshotTimeoutMs);
     for (const route of routes) {
@@ -139,15 +150,53 @@ export async function captureRevision({ browser, side, sha, routes, routeKeys, d
           width: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0, window.innerWidth),
           height: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0, window.innerHeight),
         })));
-        const filePath = join(outputPath, side, `${routeKeys[route]}.png`);
-        await page.screenshot({ path: filePath, fullPage: SNAPSHOT_CONFIG.fullPage, type: 'png', timeout: SNAPSHOT_CONFIG.screenshotTimeoutMs });
-        validatePngScreenshot(await readFile(filePath), SNAPSHOT_CONFIG, intendedDimensions);
-        checksums[route] = await sha256File(filePath);
+        const routeDirectory = join(outputPath, side, routeKeys[route]);
+        await mkdir(routeDirectory, { recursive: true });
+        const tiles = [];
+        let totalBytes = 0;
+        for (const plannedTile of createTilePlan(intendedDimensions)) {
+          signal?.throwIfAborted();
+          const { index, y, height } = plannedTile;
+          const fileName = `tile-${String(index).padStart(3, '0')}.png`;
+          const filePath = join(routeDirectory, fileName);
+          // Chromium captures this document-coordinate rectangle directly. We do not
+          // scroll between tiles, which avoids repeating fixed/sticky viewport UI.
+          let timeout;
+          const screenshot = await Promise.race([
+            cdp.send('Page.captureScreenshot', {
+              format: 'png',
+              fromSurface: true,
+              captureBeyondViewport: true,
+              clip: { x: 0, y, width: intendedDimensions.width, height, scale: 1 },
+            }),
+            new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('Tile screenshot timed out.')), SNAPSHOT_CONFIG.screenshotTimeoutMs); }),
+          ]).finally(() => clearTimeout(timeout));
+          await writeFile(filePath, Buffer.from(screenshot.data, 'base64'), { flag: 'wx' });
+          const contents = await readFile(filePath);
+          validatePngScreenshot(contents, SNAPSHOT_CONFIG, { width: intendedDimensions.width, height });
+          totalBytes += contents.length;
+          screenshotBudget.bytes += contents.length;
+          if (totalBytes > SNAPSHOT_CONFIG.maximumTotalScreenshotBytes) {
+            throw new Error(`Page screenshots exceed ${SNAPSHOT_CONFIG.maximumTotalScreenshotBytes} total bytes.`);
+          }
+          if (screenshotBudget.bytes > SNAPSHOT_CONFIG.maximumBundleScreenshotBytes) throw new Error('Snapshot bundle screenshots exceed total artifact bounds.');
+          tiles.push({
+            index, y, width: intendedDimensions.width, height,
+            path: `${side}/${routeKeys[route]}/${fileName}`,
+            sha256: await sha256File(filePath),
+            bytes: contents.length,
+          });
+        }
+        captures[route] = {
+          width: intendedDimensions.width,
+          height: intendedDimensions.height,
+          tiles,
+        };
       } catch (error) {
         throw new Error(`${side.toUpperCase()} ${sha.slice(0, 12)} route ${route} failed: ${error.message}`);
       }
     }
-    return checksums;
+    return captures;
   } finally {
     await context.close();
     await server.close();
@@ -159,18 +208,19 @@ function escapeHtml(value) {
 }
 
 export function renderReviewPage(manifest) {
+  const stack = (side, label, route) => `<div class="page-stack">${side.tiles.map((tile) => `<img src="${escapeHtml(tile.path)}" alt="${label} ${escapeHtml(route)}, tile ${tile.index + 1} of ${side.tiles.length}">`).join('')}</div>`;
   const comparisons = manifest.screenshots.map((item) => `
     <section>
       <h2>${escapeHtml(item.route)}</h2>
       <div class="comparison">
-        <figure><figcaption>BEFORE</figcaption><img src="${escapeHtml(item.before.path)}" alt="Before ${escapeHtml(item.route)}"></figure>
-        <figure><figcaption>AFTER</figcaption><img src="${escapeHtml(item.after.path)}" alt="After ${escapeHtml(item.route)}"></figure>
+        <figure><figcaption>BEFORE</figcaption>${stack(item.before, 'Before', item.route)}</figure>
+        <figure><figcaption>AFTER</figcaption>${stack(item.after, 'After', item.route)}</figure>
       </div>
     </section>`).join('\n');
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 <title>Contribution #${escapeHtml(manifest.contributionLabel)} snapshot</title>
-<style>body{font:16px system-ui,sans-serif;margin:2rem;background:#f5f5f5;color:#171717}header,section{max-width:1800px;margin:0 auto 2rem}.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}figure{margin:0}figcaption{font-weight:700;margin-bottom:.5rem}img{display:block;width:100%;height:auto;background:white;border:1px solid #bbb}@media(max-width:800px){.comparison{grid-template-columns:1fr}}</style>
+<style>body{font:16px system-ui,sans-serif;margin:2rem;background:#f5f5f5;color:#171717}header,section{max-width:1800px;margin:0 auto 2rem}.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}figure{margin:0}figcaption{font-weight:700;margin-bottom:.5rem}.page-stack{line-height:0;background:white;border:1px solid #bbb;overflow:hidden}.page-stack img{display:block;width:100%;height:auto;margin:0;border:0}@media(max-width:800px){.comparison{grid-template-columns:1fr}}</style>
 </head><body><header><h1>Contribution #${escapeHtml(manifest.contributionLabel)}</h1><p>BEFORE ${escapeHtml(manifest.git.before.slice(0, 12))} · AFTER ${escapeHtml(manifest.git.after.slice(0, 12))}</p></header>${comparisons}</body></html>`;
 }
 
@@ -245,8 +295,9 @@ export async function captureSnapshots(options) {
     } catch (error) {
       throw new Error(`Playwright Chromium could not start. Run "npx playwright install chromium" once, then retry. Cause: ${error.message}`);
     }
-    const beforeChecksums = await captureRevision({ browser, side: 'before', sha: beforeSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: beforeDist, outputPath: stagingPath, waitMs, signal: options.signal });
-    const afterChecksums = await captureRevision({ browser, side: 'after', sha: afterSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: afterDist, outputPath: stagingPath, waitMs, signal: options.signal });
+    const screenshotBudget = { bytes: 0 };
+    const beforeChecksums = await captureRevision({ browser, side: 'before', sha: beforeSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: beforeDist, outputPath: stagingPath, waitMs, signal: options.signal, screenshotBudget });
+    const afterChecksums = await captureRevision({ browser, side: 'after', sha: afterSha, routes: routeSelection.capturedRoutes, routeKeys, distPath: afterDist, outputPath: stagingPath, waitMs, signal: options.signal, screenshotBudget });
     const manifest = buildSnapshotManifest({
       contributionNumber,
       captureId,

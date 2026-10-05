@@ -14,6 +14,7 @@ import {
   type ValidatedSnapshotBundle,
   isAllowedPublicHistorySnapshotPath,
 } from '../snapshots/archive';
+import { snapshotSideTiles } from '../snapshots/schema';
 
 export interface SnapshotArchiveUpload {
   cancel(): void;
@@ -60,15 +61,16 @@ export function uploadSnapshotArchive(
       relativePath: 'manifest.json', file: bundle.manifestFile, contentType: 'application/json',
       metadata: { contributionNumber: String(bundle.manifest.contributionNumber), contributionLabel: bundle.manifest.contributionLabel, captureId: bundle.manifest.captureId },
     },
-    ...bundle.manifest.screenshots.flatMap((record) => (['before', 'after'] as const).map((side) => ({
-      relativePath: record[side].path,
-      file: bundle.screenshots.get(record[side].path)!,
+    ...bundle.manifest.screenshots.flatMap((record) => (['before', 'after'] as const).flatMap((side) => snapshotSideTiles(record[side]).map((image) => ({
+      relativePath: image.path,
+      file: bundle.screenshots.get(image.path)!,
       contentType: 'image/png',
       metadata: {
         contributionNumber: String(bundle.manifest.contributionNumber), contributionLabel: bundle.manifest.contributionLabel, captureId: bundle.manifest.captureId,
-        routeKey: record.key, side, sha256: record[side].sha256,
+        routeKey: record.key, side, sha256: image.sha256,
+        ...('index' in image ? { tileIndex: String(image.index) } : {}),
       },
-    }))),
+    })))),
   ];
   const result = (async () => {
     let completed = 0;

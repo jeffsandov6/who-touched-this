@@ -300,6 +300,7 @@ test('archive status distinguishes pending, finalized, and legacy public records
   assert.equal(parsePublicContribution({ ...base, archiveStatus: 'pending' })?.archiveStatus, 'pending');
   assert.equal(parsePublicContribution({ ...base, archiveStatus: 'finalized' })?.archiveStatus, 'finalized');
   assert.equal(parsePublicContribution({ ...base, archiveStatus: 'broken' }), null);
+  // Historical schema-v1 metadata remains a supported public compatibility shape.
   const mismatchedSnapshot = {
     schemaVersion: 1, contributionNumber: 2, captureId: 'capture',
     beforeGitSha: 'c'.repeat(40), afterGitSha: 'd'.repeat(40),

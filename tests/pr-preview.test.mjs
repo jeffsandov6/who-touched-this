@@ -17,15 +17,16 @@ const headSha = 'b'.repeat(40);
 const exec = promisify(execFile);
 
 async function fixtureBundle(root, routes = ['/', '/random', '/thoughts']) {
-  const emptyChecksums = { before: Object.fromEntries(routes.map((route) => [route, '0'.repeat(64)])), proposedAfter: Object.fromEntries(routes.map((route) => [route, '0'.repeat(64)])) };
-  const preliminary = buildPullRequestPreviewManifest({ pullRequestNumber: 27, baseSha, headSha, routes, capturedAt: '2026-01-01T00:00:00.000Z', waitMs: 1500, checksums: emptyChecksums });
+  const keys = Object.fromEntries(buildPullRequestPreviewManifest({ pullRequestNumber: 27, baseSha, headSha, routes, capturedAt: '2026-01-01T00:00:00.000Z', waitMs: 1500, checksums: { before: {}, proposedAfter: {} } }).screenshots.map((record) => [record.route, record.key]));
   const checksums = { before: {}, proposedAfter: {} };
   for (const directory of ['before', 'proposed-after']) await mkdir(join(root, directory), { recursive: true });
-  for (const record of preliminary.screenshots) {
-    await writeFile(join(root, record.before.path), tinyPng);
-    await writeFile(join(root, record.proposedAfter.path), tinyPng);
-    checksums.before[record.route] = await sha256File(join(root, record.before.path));
-    checksums.proposedAfter[record.route] = await sha256File(join(root, record.proposedAfter.path));
+  for (const route of routes) {
+    for (const [side, directory] of [['before', 'before'], ['proposedAfter', 'proposed-after']]) {
+      const relative = `${directory}/${keys[route]}/tile-000.png`;
+      await mkdir(join(root, directory, keys[route]), { recursive: true });
+      await writeFile(join(root, relative), tinyPng);
+      checksums[side][route] = { width: 1, height: 1, tiles: [{ index: 0, y: 0, width: 1, height: 1, path: relative, sha256: await sha256File(join(root, relative)), bytes: tinyPng.length }] };
+    }
   }
   const manifest = buildPullRequestPreviewManifest({ pullRequestNumber: 27, baseSha, headSha, routes, capturedAt: '2026-01-01T00:00:00.000Z', waitMs: 1500, checksums });
   await writeFile(join(root, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -40,12 +41,15 @@ test('preview manifest distinguishes exact base and proposed head across every c
     assert.equal(manifest.git.base, baseSha);
     assert.equal(manifest.git.proposedHead, headSha);
     assert.deepEqual(manifest.canonicalRoutes, ['/', '/random', '/thoughts']);
-    assert.equal(manifest.screenshots.length * 2, 6);
+    const routeSideRecords = manifest.screenshots.flatMap(() => ['before', 'proposed-after']).length;
+    assert.equal(routeSideRecords, 6);
     assert.deepEqual(await verifyPullRequestPreviewBundle(root), manifest);
     const viewer = await readFile(join(root, 'index.html'), 'utf8');
     assert.equal((viewer.match(/<section>/g) ?? []).length, 3);
     assert.match(viewer, /PROPOSED AFTER/);
     assert.match(viewer, /not a permanent History snapshot/);
+    assert.match(viewer, /\.page-stack img\{display:block;width:100%;height:auto;margin:0;border:0\}/);
+    assert.doesNotMatch(viewer, /tile-000\.png"[^>]*><\/div>\s+<img/);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -56,7 +60,8 @@ test('canonical route selection is deterministic and cannot be replaced or chang
   assert.throws(() => selectCanonicalPreviewRoutes([], []), /malformed/);
   assert.throws(() => selectCanonicalPreviewRoutes(['/admin'], ['/admin']), /Protected operational/);
   const future = ['/', '/random', '/thoughts', '/gallery'];
-  assert.equal(selectCanonicalPreviewRoutes(future, [...future]).length * 2, 8);
+  const routeSideRecords = selectCanonicalPreviewRoutes(future, [...future]).flatMap(() => ['before', 'proposed-after']).length;
+  assert.equal(routeSideRecords, 8);
 });
 
 test('malformed preview identities fail closed', () => {
@@ -68,12 +73,12 @@ test('malformed preview identities fail closed', () => {
 test('preview verification fails for modified, missing, and malformed artifacts', async (t) => {
   await t.test('modified screenshot', async () => {
     const root = await mkdtemp(join(tmpdir(), 'wtt-pr-modified-'));
-    try { const manifest = await fixtureBundle(root); await writeFile(join(root, manifest.screenshots[0].before.path), Buffer.concat([tinyPng, Buffer.from('changed')])); await assert.rejects(verifyPullRequestPreviewBundle(root), /checksum/); }
+    try { const manifest = await fixtureBundle(root); await writeFile(join(root, manifest.screenshots[0].before.tiles[0].path), Buffer.concat([tinyPng, Buffer.from('changed')])); await assert.rejects(verifyPullRequestPreviewBundle(root), /byte length|checksum/); }
     finally { await rm(root, { recursive: true, force: true }); }
   });
   await t.test('missing screenshot', async () => {
     const root = await mkdtemp(join(tmpdir(), 'wtt-pr-missing-'));
-    try { const manifest = await fixtureBundle(root); await rm(join(root, manifest.screenshots[0].proposedAfter.path)); await assert.rejects(verifyPullRequestPreviewBundle(root), /missing/); }
+    try { const manifest = await fixtureBundle(root); await rm(join(root, manifest.screenshots[0].proposedAfter.tiles[0].path)); await assert.rejects(verifyPullRequestPreviewBundle(root), /missing/); }
     finally { await rm(root, { recursive: true, force: true }); }
   });
   await t.test('malformed manifest', async () => {
@@ -108,7 +113,7 @@ test('PR preview browser blocks external requests while retaining loopback rende
       waitMs: 50,
       blockExternalRequests: true,
     });
-    assert.match(checksums['/'], /^[0-9a-f]{64}$/);
+    assert.match(checksums['/'].tiles[0].sha256, /^[0-9a-f]{64}$/);
     assert.equal(externalRequests, 0);
   } finally {
     if (browser) await browser.close();
@@ -151,10 +156,11 @@ for (const route of routes) { const directory = route === '/' ? 'dist' : \`dist\
     await exec('npm', ['run', 'build:contributor'], { cwd: headCheckout });
     const options = { pullRequestNumber: 27, baseRepository: baseCheckout, baseDistPath: join(baseCheckout, 'dist'), proposedDistPath: join(headCheckout, 'dist'), baseSha: actualBaseSha, headSha: actualHeadSha, outputPath: output, waitMs: 0 };
     const result = await capturePullRequestPreview(options);
-    assert.equal(result.manifest.screenshots.length * 2, 6);
+    const routeSideRecords = result.manifest.screenshots.flatMap(() => ['before', 'proposed-after']).length;
+    assert.equal(routeSideRecords, 6);
     assert.deepEqual(result.manifest.canonicalRoutes, ['/', '/random', '/thoughts']);
     assert.equal(result.manifest.capture.externalNetwork, 'container-and-browser-blocked');
-    assert.equal(result.manifest.capture.maximumDocumentHeight, 20_000);
+    assert.equal(result.manifest.capture.tileHeight, 3_600);
     await verifyPullRequestPreviewBundle(output);
     await assert.rejects(capturePullRequestPreview(options), /will not be overwritten/);
   } finally {

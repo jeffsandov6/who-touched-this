@@ -11,16 +11,19 @@ export interface PublicSnapshotImage {
   storagePath: string;
   sha256: string;
 }
+export interface PublicSnapshotTile extends PublicSnapshotImage { index: number; y: number; width: number; height: number }
+export interface PublicSnapshotTiledSide { width: number; height: number; tiles: PublicSnapshotTile[] }
+export type PublicSnapshotSide = PublicSnapshotImage | PublicSnapshotTiledSide;
 
 export interface PublicSnapshotRoute {
   route: string;
   routeKey: string;
-  before: PublicSnapshotImage;
-  after: PublicSnapshotImage;
+  before: PublicSnapshotSide;
+  after: PublicSnapshotSide;
 }
 
 export interface PublicContributionSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   contributionNumber: number;
   captureId: string;
   beforeGitSha: string;
@@ -31,7 +34,7 @@ export interface PublicContributionSnapshot {
   routes: PublicSnapshotRoute[];
   manifestStoragePath: string;
   manifestSha256?: string;
-  viewport: { width: number; height: number; deviceScaleFactor: number; fullPage: boolean };
+  viewport: { width: number; height: number; deviceScaleFactor: number; fullPage?: boolean; captureMode?: string; tileHeight?: number };
   archivedAt: Date;
 }
 
@@ -45,7 +48,7 @@ function dateFromTimestamp(value: unknown): Date | null {
 export function parsePublicContributionSnapshot(value: unknown): PublicContributionSnapshot | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
   const data = value as Record<string, unknown>;
-  if (data.schemaVersion !== SNAPSHOT_METADATA_SCHEMA_VERSION || !Number.isSafeInteger(data.contributionNumber)
+  if (![1, SNAPSHOT_METADATA_SCHEMA_VERSION].includes(Number(data.schemaVersion)) || !Number.isSafeInteger(data.contributionNumber)
     || Number(data.contributionNumber) < 0 || typeof data.captureId !== 'string'
     || !SNAPSHOT_GIT_SHA.test(String(data.beforeGitSha)) || !SNAPSHOT_GIT_SHA.test(String(data.afterGitSha))
     || data.beforeGitSha === data.afterGitSha
@@ -86,19 +89,41 @@ export function parsePublicContributionSnapshot(value: unknown): PublicContribut
       const raw = item[side];
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
       const image = raw as Record<string, unknown>;
-      if (typeof image.storagePath !== 'string' || !isAllowedPublicHistorySnapshotPath(image.storagePath)
-        || image.storagePath !== `${prefix}/${side}/${item.routeKey}.png`
-        || typeof image.sha256 !== 'string' || !SNAPSHOT_SHA256.test(image.sha256)) return null;
-      sides[side] = { storagePath: image.storagePath, sha256: image.sha256 };
+      if (data.schemaVersion === 1) {
+        if (typeof image.storagePath !== 'string' || !isAllowedPublicHistorySnapshotPath(image.storagePath) || image.storagePath !== `${prefix}/${side}/${item.routeKey}.png`
+          || typeof image.sha256 !== 'string' || !SNAPSHOT_SHA256.test(image.sha256)) return null;
+        sides[side] = { storagePath: image.storagePath, sha256: image.sha256 };
+      } else {
+        if (!Number.isSafeInteger(image.width) || Number(image.width) < 1 || Number(image.width) > 2_880
+          || !Number.isSafeInteger(image.height) || Number(image.height) < 1
+          || Number(image.width) * Number(image.height) > 384_000_000
+          || !Array.isArray(image.tiles) || image.tiles.length < 1 || image.tiles.length > 64) return null;
+        const tileValues = image.tiles as unknown[];
+        let nextY = 0;
+        const tiles: PublicSnapshotTile[] = [];
+        for (let tileIndex = 0; tileIndex < tileValues.length; tileIndex += 1) {
+          const rawTile = tileValues[tileIndex];
+          if (!rawTile || typeof rawTile !== 'object' || Array.isArray(rawTile)) return null;
+          const tile = rawTile as Record<string, unknown>;
+          if (tile.index !== tileIndex || tile.y !== nextY || tile.y !== tileIndex * 3_600 || tile.width !== image.width || !Number.isSafeInteger(tile.height) || Number(tile.height) < 1 || Number(tile.height) > 3_600
+            || (tileIndex < tileValues.length - 1 && tile.height !== 3_600)
+            || typeof tile.storagePath !== 'string' || tile.storagePath !== `${prefix}/${side}/${item.routeKey}/tile-${String(tileIndex).padStart(3, '0')}.png`
+            || !isAllowedPublicHistorySnapshotPath(tile.storagePath) || typeof tile.sha256 !== 'string' || !SNAPSHOT_SHA256.test(tile.sha256)) return null;
+          nextY += Number(tile.height);
+          tiles.push({ index: tileIndex, y: tile.y as number, width: tile.width as number, height: tile.height as number, storagePath: tile.storagePath, sha256: tile.sha256 });
+        }
+        if (nextY !== image.height) return null;
+        sides[side] = { width: image.width as number, height: image.height as number, tiles };
+      }
     }
     routes.push({ route, routeKey: item.routeKey, ...sides });
   }
   const archivedAt = dateFromTimestamp(data.archivedAt);
   const viewport = data.viewport as Record<string, unknown> | undefined;
   if (!archivedAt || !viewport || !Number.isSafeInteger(viewport.width) || !Number.isSafeInteger(viewport.height)
-    || viewport.deviceScaleFactor !== 1 || viewport.fullPage !== true) return null;
+    || viewport.deviceScaleFactor !== 1 || (data.schemaVersion === 1 ? viewport.fullPage !== true : viewport.captureMode !== 'tiled-document' || viewport.tileHeight !== 3_600)) return null;
   return {
-    schemaVersion: 1,
+    schemaVersion: data.schemaVersion as 1 | 2,
     contributionNumber: data.contributionNumber as number,
     captureId: data.captureId,
     beforeGitSha: data.beforeGitSha as string,

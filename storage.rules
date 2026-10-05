@@ -57,6 +57,14 @@ service firebase.storage {
       return fileName.matches('^[A-Za-z0-9_-]{1,180}[.]png$');
     }
 
+    function validSnapshotRouteDirectory(routeKey) {
+      return routeKey.matches('^[A-Za-z0-9_-]{1,180}$');
+    }
+
+    function validSnapshotTileName(fileName) {
+      return fileName.matches('^tile-[0-9]{3}[.]png$');
+    }
+
     function validSnapshotIdentity(label, captureId) {
       return request.resource.metadata.contributionNumber is string
         && request.resource.metadata.contributionNumber.matches('^[0-9]+$')
@@ -115,6 +123,30 @@ service firebase.storage {
         && validSnapshotRouteKey(fileName)
         && request.resource.metadata.side == side
         && request.resource.metadata.routeKey + '.png' == fileName
+        && request.resource.metadata.sha256 is string
+        && request.resource.metadata.sha256.matches('^[0-9a-f]{64}$')
+        && request.resource.size > 0
+        && request.resource.size <= 20 * 1024 * 1024
+        && request.resource.contentType == 'image/png';
+      allow update, delete: if false;
+    }
+
+    match /public/history/contributions/{contributionLabel}/{captureId}/{side}/{routeKey}/{fileName} {
+      allow get: if validContributionLabel(contributionLabel)
+        && validSnapshotCaptureId(captureId)
+        && side in ['before', 'after']
+        && validSnapshotRouteDirectory(routeKey)
+        && validSnapshotTileName(fileName);
+      allow create: if isActiveAdmin()
+        && resource == null
+        && validSnapshotIdentity(contributionLabel, captureId)
+        && side in ['before', 'after']
+        && validSnapshotRouteDirectory(routeKey)
+        && validSnapshotTileName(fileName)
+        && request.resource.metadata.side == side
+        && request.resource.metadata.routeKey == routeKey
+        && request.resource.metadata.tileIndex is string
+        && request.resource.metadata.tileIndex.matches('^[0-9]{1,3}$')
         && request.resource.metadata.sha256 is string
         && request.resource.metadata.sha256.matches('^[0-9a-f]{64}$')
         && request.resource.size > 0

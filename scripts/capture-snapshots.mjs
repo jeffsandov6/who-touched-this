@@ -37,10 +37,10 @@ try {
     console.log('Additional routes:');
     for (const route of result.manifest.additionalRoutes) console.log(`  ${route}`);
   }
-  console.log(`Captured ${result.manifest.capturedRoutes.length} routes × 2 revisions = ${result.manifest.screenshots.length * 2} screenshots`);
+  const tileCount = result.manifest.screenshots.reduce((total, record) => total + record.before.tiles.length + record.after.tiles.length, 0);
+  console.log(`Captured ${result.manifest.capturedRoutes.length} routes × 2 revisions = ${tileCount} screenshot tiles`);
   console.log(`Bundle: ${relative(process.cwd(), result.bundlePath)}`);
 } catch (error) {
   console.error(`Snapshot capture failed: ${error.message}`);
   process.exitCode = 1;
 }
-

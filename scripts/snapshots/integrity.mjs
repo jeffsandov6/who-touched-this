@@ -24,17 +24,21 @@ export function pngDimensions(buffer) {
 }
 
 export function validatePngScreenshot(buffer, config, expectedDimensions) {
-  if (buffer.length > config.maximumScreenshotBytes) {
-    throw new Error(`Screenshot PNG exceeds ${config.maximumScreenshotBytes} bytes.`);
+  const maximumBytes = config.maximumTileBytes ?? config.maximumScreenshotBytes;
+  if (buffer.length > maximumBytes) {
+    throw new Error(`Screenshot PNG exceeds ${maximumBytes} bytes.`);
   }
   const dimensions = pngDimensions(buffer);
-  if (dimensions.height > config.maximumDocumentHeight
-    || dimensions.width * dimensions.height > config.maximumScreenshotPixels) {
+  const maximumHeight = config.tileHeight ?? config.maximumDocumentHeight;
+  const maximumWidth = config.maximumTileWidth ?? Number.MAX_SAFE_INTEGER;
+  const maximumPixels = config.maximumTilePixels ?? config.maximumScreenshotPixels;
+  if (dimensions.height > maximumHeight || dimensions.width > maximumWidth
+    || dimensions.width * dimensions.height > maximumPixels) {
     throw new Error(`Screenshot PNG exceeds archive bounds (${dimensions.width} × ${dimensions.height}).`);
   }
   if (expectedDimensions && (dimensions.width !== expectedDimensions.width
     || dimensions.height !== expectedDimensions.height)) {
-    throw new Error(`Full-page screenshot dimensions disagree: expected ${expectedDimensions.width} × ${expectedDimensions.height}, received ${dimensions.width} × ${dimensions.height}.`);
+    throw new Error(`Screenshot dimensions disagree: expected ${expectedDimensions.width} × ${expectedDimensions.height}, received ${dimensions.width} × ${dimensions.height}.`);
   }
   return dimensions;
 }

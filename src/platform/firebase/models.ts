@@ -234,9 +234,7 @@ export interface PublicContributionRecord {
   createdAt: Timestamp;
 }
 
-/** Public-safe immutable visual archive. Written only by trusted Functions. */
-export interface PublicContributionSnapshotRecord {
-  schemaVersion: 1;
+interface PublicContributionSnapshotRecordBase {
   contributionNumber: number;
   captureId: string;
   beforeGitSha: string;
@@ -244,17 +242,25 @@ export interface PublicContributionSnapshotRecord {
   canonicalRoutes: string[];
   additionalRoutes: string[];
   capturedRoutes: string[];
-  routes: Array<{
-    route: string;
-    routeKey: string;
-    before: { storagePath: string; sha256: string };
-    after: { storagePath: string; sha256: string };
-  }>;
   manifestStoragePath: string;
   manifestSha256?: string;
-  viewport: { width: number; height: number; deviceScaleFactor: number; fullPage: boolean };
   archivedAt: Timestamp;
 }
+
+interface PublicSnapshotLegacyImageRecord { storagePath: string; sha256: string }
+interface PublicSnapshotTileRecord extends PublicSnapshotLegacyImageRecord { index: number; y: number; width: number; height: number }
+interface PublicSnapshotTiledSideRecord { width: number; height: number; tiles: PublicSnapshotTileRecord[] }
+
+/** Public-safe immutable visual archive. Written only by trusted Functions. */
+export type PublicContributionSnapshotRecord = PublicContributionSnapshotRecordBase & ({
+  schemaVersion: 1;
+  routes: Array<{ route: string; routeKey: string; before: PublicSnapshotLegacyImageRecord; after: PublicSnapshotLegacyImageRecord }>;
+  viewport: { width: number; height: number; deviceScaleFactor: number; fullPage: true };
+} | {
+  schemaVersion: 2;
+  routes: Array<{ route: string; routeKey: string; before: PublicSnapshotTiledSideRecord; after: PublicSnapshotTiledSideRecord }>;
+  viewport: { width: number; height: number; deviceScaleFactor: number; captureMode: 'tiled-document'; tileHeight: 3600 };
+});
 
 export const HISTORY_EVENT_TYPES = [
   'contribution',

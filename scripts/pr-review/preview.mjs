@@ -4,10 +4,10 @@ import { dirname, join, resolve, sep } from 'node:path';
 import { captureRevision } from '../snapshots/capture.mjs';
 import { SNAPSHOT_CONFIG } from '../snapshots/config.mjs';
 import { readHistoricalRouteRegistry, resolveCommit } from '../snapshots/git.mjs';
-import { isPng, sha256File } from '../snapshots/integrity.mjs';
+import { sha256File, validatePngScreenshot } from '../snapshots/integrity.mjs';
 import { createRouteKeyMap } from '../snapshots/routes.mjs';
 
-export const PR_PREVIEW_SCHEMA_VERSION = 1;
+export const PR_PREVIEW_SCHEMA_VERSION = 2;
 const SHA = /^[0-9a-f]{40}$/;
 
 function escapeHtml(value) {
@@ -73,35 +73,43 @@ export function buildPullRequestPreviewManifest(input) {
     capture: {
       viewport: SNAPSHOT_CONFIG.viewport,
       deviceScaleFactor: SNAPSHOT_CONFIG.deviceScaleFactor,
-      fullPage: SNAPSHOT_CONFIG.fullPage,
+      captureMode: SNAPSHOT_CONFIG.captureMode,
+      tileHeight: SNAPSHOT_CONFIG.tileHeight,
       format: SNAPSHOT_CONFIG.format,
       locale: SNAPSHOT_CONFIG.locale,
       timezoneId: SNAPSHOT_CONFIG.timezoneId,
       waitMs: input.waitMs,
       externalNetwork: 'container-and-browser-blocked',
-      maximumDocumentHeight: SNAPSHOT_CONFIG.maximumDocumentHeight,
-      maximumScreenshotPixels: SNAPSHOT_CONFIG.maximumScreenshotPixels,
+      maximumTileWidth: SNAPSHOT_CONFIG.maximumTileWidth,
+      maximumTilePixels: SNAPSHOT_CONFIG.maximumTilePixels,
+      maximumTileCount: SNAPSHOT_CONFIG.maximumTileCount,
+      maximumTotalScreenshotPixels: SNAPSHOT_CONFIG.maximumTotalScreenshotPixels,
+      maximumTileBytes: SNAPSHOT_CONFIG.maximumTileBytes,
+      maximumTotalScreenshotBytes: SNAPSHOT_CONFIG.maximumTotalScreenshotBytes,
       screenshotTimeoutMs: SNAPSHOT_CONFIG.screenshotTimeoutMs,
     },
     screenshots: input.routes.map((route) => ({
       route,
       key: routeKeys[route],
-      before: { path: `before/${routeKeys[route]}.png`, sha256: input.checksums.before[route] },
-      proposedAfter: { path: `proposed-after/${routeKeys[route]}.png`, sha256: input.checksums.proposedAfter[route] },
+      before: input.checksums.before[route],
+      proposedAfter: input.checksums.proposedAfter[route],
     })),
   };
 }
 
 export function renderPullRequestReviewPage(manifest) {
-  const comparisons = manifest.screenshots.map((record) => `<section><h2>${escapeHtml(record.route)}</h2><div class="comparison"><figure><figcaption>BEFORE</figcaption><img src="${escapeHtml(record.before.path)}" alt="Before ${escapeHtml(record.route)}"></figure><figure><figcaption>PROPOSED AFTER</figcaption><img src="${escapeHtml(record.proposedAfter.path)}" alt="Proposed after ${escapeHtml(record.route)}"></figure></div></section>`).join('\n');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>PR #${manifest.pullRequestNumber} visual review</title><style>body{font:16px system-ui,sans-serif;margin:2rem;background:#f5f5f5;color:#171717}header,section{max-width:1800px;margin:0 auto 2rem}.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}figure{margin:0}figcaption{font-weight:700;margin-bottom:.5rem}img{display:block;width:100%;height:auto;background:white;border:1px solid #bbb}@media(max-width:800px){.comparison{grid-template-columns:1fr}}</style></head><body><header><h1>Pull request #${manifest.pullRequestNumber}</h1><p>Review artifact only — not a permanent History snapshot.</p><p>BASE ${manifest.git.base.slice(0, 12)} · PROPOSED HEAD ${manifest.git.proposedHead.slice(0, 12)}</p></header>${comparisons}</body></html>`;
+  const stack = (side, label, route) => `<div class="page-stack">${side.tiles.map((tile) => `<img src="${escapeHtml(tile.path)}" alt="${label} ${escapeHtml(route)}, tile ${tile.index + 1} of ${side.tiles.length}">`).join('')}</div>`;
+  const comparisons = manifest.screenshots.map((record) => `<section><h2>${escapeHtml(record.route)}</h2><div class="comparison"><figure><figcaption>BEFORE</figcaption>${stack(record.before, 'Before', record.route)}</figure><figure><figcaption>PROPOSED AFTER</figcaption>${stack(record.proposedAfter, 'Proposed after', record.route)}</figure></div></section>`).join('\n');
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>PR #${manifest.pullRequestNumber} visual review</title><style>body{font:16px system-ui,sans-serif;margin:2rem;background:#f5f5f5;color:#171717}header,section{max-width:1800px;margin:0 auto 2rem}.comparison{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}figure{margin:0}figcaption{font-weight:700;margin-bottom:.5rem}.page-stack{line-height:0;background:white;border:1px solid #bbb;overflow:hidden}.page-stack img{display:block;width:100%;height:auto;margin:0;border:0}@media(max-width:800px){.comparison{grid-template-columns:1fr}}</style></head><body><header><h1>Pull request #${manifest.pullRequestNumber}</h1><p>Review artifact only — not a permanent History snapshot.</p><p>BASE ${manifest.git.base.slice(0, 12)} · PROPOSED HEAD ${manifest.git.proposedHead.slice(0, 12)}</p></header>${comparisons}</body></html>`;
 }
 
 export async function verifyPullRequestPreviewBundle(bundlePath) {
   const root = resolve(bundlePath);
   let manifest;
   try {
-    manifest = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'));
+    const serialized = await readFile(join(root, 'manifest.json'));
+    if (serialized.length > SNAPSHOT_CONFIG.maximumManifestBytes) throw new Error('too large');
+    manifest = JSON.parse(serialized.toString('utf8'));
   } catch {
     throw new Error('Preview manifest is missing or malformed.');
   }
@@ -114,9 +122,22 @@ export async function verifyPullRequestPreviewBundle(bundlePath) {
     || manifest.artifactKind !== 'pull-request-visual-preview'
     || manifest.routeRegistry?.path !== SNAPSHOT_CONFIG.routeRegistryPath
     || manifest.routeRegistry?.revision !== manifest.git.base
+    || manifest.capture?.viewport?.width !== SNAPSHOT_CONFIG.viewport.width
+    || manifest.capture?.viewport?.height !== SNAPSHOT_CONFIG.viewport.height
+    || manifest.capture?.deviceScaleFactor !== SNAPSHOT_CONFIG.deviceScaleFactor
+    || manifest.capture?.format !== SNAPSHOT_CONFIG.format
+    || manifest.capture?.locale !== SNAPSHOT_CONFIG.locale
+    || manifest.capture?.timezoneId !== SNAPSHOT_CONFIG.timezoneId
+    || !Number.isInteger(manifest.capture?.waitMs) || manifest.capture.waitMs < 0 || manifest.capture.waitMs > SNAPSHOT_CONFIG.maximumWaitMs
     || manifest.capture?.externalNetwork !== 'container-and-browser-blocked'
-    || manifest.capture?.maximumDocumentHeight !== SNAPSHOT_CONFIG.maximumDocumentHeight
-    || manifest.capture?.maximumScreenshotPixels !== SNAPSHOT_CONFIG.maximumScreenshotPixels
+    || manifest.capture?.captureMode !== SNAPSHOT_CONFIG.captureMode
+    || manifest.capture?.tileHeight !== SNAPSHOT_CONFIG.tileHeight
+    || manifest.capture?.maximumTileWidth !== SNAPSHOT_CONFIG.maximumTileWidth
+    || manifest.capture?.maximumTilePixels !== SNAPSHOT_CONFIG.maximumTilePixels
+    || manifest.capture?.maximumTileCount !== SNAPSHOT_CONFIG.maximumTileCount
+    || manifest.capture?.maximumTotalScreenshotPixels !== SNAPSHOT_CONFIG.maximumTotalScreenshotPixels
+    || manifest.capture?.maximumTileBytes !== SNAPSHOT_CONFIG.maximumTileBytes
+    || manifest.capture?.maximumTotalScreenshotBytes !== SNAPSHOT_CONFIG.maximumTotalScreenshotBytes
     || manifest.capture?.screenshotTimeoutMs !== SNAPSHOT_CONFIG.screenshotTimeoutMs
     || !Array.isArray(manifest.canonicalRoutes) || manifest.canonicalRoutes.length === 0
     || !Array.isArray(manifest.screenshots)
@@ -125,24 +146,41 @@ export async function verifyPullRequestPreviewBundle(bundlePath) {
     throw new Error('Preview manifest metadata is malformed.');
   }
   const keys = createRouteKeyMap(manifest.canonicalRoutes);
+  let bundleBytes = 0;
   for (let index = 0; index < manifest.canonicalRoutes.length; index += 1) {
     const route = manifest.canonicalRoutes[index];
     const record = manifest.screenshots[index];
     if (record?.route !== route || record.key !== keys[route]) throw new Error('Preview route metadata disagrees with screenshot records.');
     for (const [side, expectedDirectory] of [['before', 'before'], ['proposedAfter', 'proposed-after']]) {
       const screenshot = record[side];
-      const expectedPath = `${expectedDirectory}/${record.key}.png`;
-      if (screenshot?.path !== expectedPath || !/^[0-9a-f]{64}$/.test(screenshot?.sha256 ?? '')) {
-        throw new Error('Preview screenshot metadata is malformed.');
+      if (!Number.isSafeInteger(screenshot?.width) || screenshot.width < 1 || screenshot.width > SNAPSHOT_CONFIG.maximumTileWidth
+        || !Number.isSafeInteger(screenshot?.height) || screenshot.height < 1 || !Array.isArray(screenshot?.tiles)
+        || screenshot.tiles.length < 1 || screenshot.tiles.length > SNAPSHOT_CONFIG.maximumTileCount
+        || screenshot.width * screenshot.height > SNAPSHOT_CONFIG.maximumTotalScreenshotPixels) throw new Error('Preview screenshot metadata is malformed.');
+      let nextY = 0;
+      let totalBytes = 0;
+      for (let tileIndex = 0; tileIndex < screenshot.tiles.length; tileIndex += 1) {
+        const tile = screenshot.tiles[tileIndex];
+        const expectedPath = `${expectedDirectory}/${record.key}/tile-${String(tileIndex).padStart(3, '0')}.png`;
+        if (tile?.index !== tileIndex || tile.y !== nextY || tile.y !== tileIndex * SNAPSHOT_CONFIG.tileHeight || tile.width !== screenshot.width || !Number.isSafeInteger(tile.height)
+          || tile.height < 1 || tile.height > SNAPSHOT_CONFIG.tileHeight || (tileIndex < screenshot.tiles.length - 1 && tile.height !== SNAPSHOT_CONFIG.tileHeight) || tile.path !== expectedPath
+          || !/^[0-9a-f]{64}$/.test(tile.sha256 ?? '') || !Number.isSafeInteger(tile.bytes) || tile.bytes < 1 || tile.bytes > SNAPSHOT_CONFIG.maximumTileBytes) throw new Error('Preview tile metadata is malformed.');
+        nextY += tile.height;
+        totalBytes += tile.bytes;
+        bundleBytes += tile.bytes;
+        if (totalBytes > SNAPSHOT_CONFIG.maximumTotalScreenshotBytes) throw new Error('Preview screenshot exceeds total byte bounds.');
+        const file = resolve(root, tile.path);
+        if (!file.startsWith(`${root}${sep}`)) throw new Error('Preview screenshot path escaped its bundle.');
+        let contents;
+        try { contents = await readFile(file); } catch { throw new Error(`Preview screenshot is missing: ${expectedPath}`); }
+        validatePngScreenshot(contents, SNAPSHOT_CONFIG, { width: tile.width, height: tile.height });
+        if (contents.length !== tile.bytes) throw new Error(`Preview screenshot byte length mismatch: ${expectedPath}`);
+        if (await sha256File(file) !== tile.sha256) throw new Error(`Preview screenshot checksum mismatch: ${expectedPath}`);
       }
-      const file = resolve(root, screenshot.path);
-      if (!file.startsWith(`${root}${sep}`)) throw new Error('Preview screenshot path escaped its bundle.');
-      let contents;
-      try { contents = await readFile(file); } catch { throw new Error(`Preview screenshot is missing: ${expectedPath}`); }
-      if (!isPng(contents)) throw new Error(`Preview screenshot is not PNG: ${expectedPath}`);
-      if (await sha256File(file) !== screenshot.sha256) throw new Error(`Preview screenshot checksum mismatch: ${expectedPath}`);
+      if (nextY !== screenshot.height) throw new Error('Preview tiles do not continuously cover the page.');
     }
   }
+  if (bundleBytes > SNAPSHOT_CONFIG.maximumBundleScreenshotBytes) throw new Error('Preview screenshots exceed total artifact bounds.');
   return manifest;
 }
 
@@ -172,8 +210,9 @@ export async function capturePullRequestPreview(options) {
     } catch (error) {
       throw new Error(`Playwright Chromium could not start: ${error.message}`);
     }
-    const before = await captureRevision({ browser, side: 'before', sha: identity.baseSha, routes, routeKeys, distPath: baseDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true });
-    const proposedAfter = await captureRevision({ browser, side: 'proposed-after', sha: identity.headSha, routes, routeKeys, distPath: proposedDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true });
+    const screenshotBudget = { bytes: 0 };
+    const before = await captureRevision({ browser, side: 'before', sha: identity.baseSha, routes, routeKeys, distPath: baseDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true, screenshotBudget });
+    const proposedAfter = await captureRevision({ browser, side: 'proposed-after', sha: identity.headSha, routes, routeKeys, distPath: proposedDistPath, outputPath: stagingPath, waitMs, signal: options.signal, blockExternalRequests: true, screenshotBudget });
     const manifest = buildPullRequestPreviewManifest({ ...identity, routes, waitMs, capturedAt: new Date().toISOString(), checksums: { before, proposedAfter } });
     await writeFile(join(stagingPath, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, { flag: 'wx' });
     await writeFile(join(stagingPath, 'index.html'), renderPullRequestReviewPage(manifest), { flag: 'wx' });

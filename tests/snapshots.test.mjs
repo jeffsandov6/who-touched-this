@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import test from 'node:test';
-import { captureSnapshots, createBundlePaths, createCaptureId, renderReviewPage, startStaticServer } from '../scripts/snapshots/capture.mjs';
+import { captureSnapshots, createBundlePaths, createCaptureId, createTilePlan, renderReviewPage, startStaticServer } from '../scripts/snapshots/capture.mjs';
 import { validateRevisionPair } from '../scripts/snapshots/git.mjs';
 import { pngDimensions, sha256, sha256File, validatePngScreenshot } from '../scripts/snapshots/integrity.mjs';
 import { SNAPSHOT_CONFIG } from '../scripts/snapshots/config.mjs';
@@ -14,6 +14,28 @@ import { createRouteKeyMap, mergeSnapshotRoutes } from '../scripts/snapshots/rou
 
 const exec = promisify(execFile);
 const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+
+function pngHeader(width, height) {
+  const png = Buffer.from(tinyPng);
+  png.writeUInt32BE(width, 16);
+  png.writeUInt32BE(height, 20);
+  return png;
+}
+
+async function tiledSide(root, side, key, heights) {
+  const directory = join(root, side, key);
+  await mkdir(directory, { recursive: true });
+  let y = 0;
+  const tiles = [];
+  for (let index = 0; index < heights.length; index += 1) {
+    const contents = pngHeader(1, heights[index]);
+    const relative = `${side}/${key}/tile-${String(index).padStart(3, '0')}.png`;
+    await writeFile(join(root, relative), contents);
+    tiles.push({ index, y, width: 1, height: heights[index], path: relative, sha256: sha256(contents), bytes: contents.length });
+    y += heights[index];
+  }
+  return { width: 1, height: y, tiles };
+}
 
 test('contribution labels support founder, ordinary, and numbers above 999', () => {
   assert.equal(formatContributionNumber(0), '000');
@@ -35,6 +57,29 @@ test('bundle paths are deterministic and capture IDs make reruns collision-safe'
   const second = createCaptureId(new Date('2026-01-02T03:04:05.000Z'), 'bbbbbbbb');
   assert.notEqual(first, second);
   assert.match(createBundlePaths('/repo', 0, first).finalPath, /\.wtt\/snapshots\/contribution-000\//);
+});
+
+test('tile planning covers short and long pages exactly with a final partial tile', () => {
+  assert.deepEqual(createTilePlan({ width: 1440, height: 900 }), [{ index: 0, y: 0, width: 1440, height: 900 }]);
+  const plan = createTilePlan({ width: 1440, height: 7_201 });
+  assert.deepEqual(plan.map(({ y, height }) => ({ y, height })), [{ y: 0, height: 3_600 }, { y: 3_600, height: 3_600 }, { y: 7_200, height: 1 }]);
+  assert.equal(plan.reduce((height, tile) => height + tile.height, 0), 7_201);
+});
+
+test('tiled manifests allow different revision heights and reject reordered or gapped tiles', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'wtt-tiled-integrity-'));
+  try {
+    const before = await tiledSide(root, 'before', 'home', [3_600, 1]);
+    const after = await tiledSide(root, 'after', 'home', [900]);
+    const manifest = buildSnapshotManifest({ contributionNumber: 0, captureId: 'tiles', capturedAt: '2026-01-01T00:00:00.000Z', beforeSha: 'a'.repeat(40), afterSha: 'b'.repeat(40), canonicalRoutes: ['/'], additionalRoutes: [], capturedRoutes: ['/'], waitMs: 0, checksums: { before: { '/': before }, after: { '/': after } } });
+    await writeFile(join(root, 'manifest.json'), JSON.stringify(manifest));
+    assert.equal((await verifySnapshotBundle(root)).screenshots[0].before.tiles.length, 2);
+    assert.equal(manifest.screenshots[0].after.tiles.length, 1);
+    assert.match(renderReviewPage(manifest), /tile-000\.png"[^>]*><img src="before\/home\/tile-001\.png/);
+    [manifest.screenshots[0].before.tiles[0], manifest.screenshots[0].before.tiles[1]] = [manifest.screenshots[0].before.tiles[1], manifest.screenshots[0].before.tiles[0]];
+    await writeFile(join(root, 'manifest.json'), JSON.stringify(manifest));
+    await assert.rejects(verifySnapshotBundle(root), /tile metadata|continuously cover/);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test('Git revision resolution expands SHAs and rejects identical/non-ancestor pairs', async () => {
@@ -64,9 +109,11 @@ async function createFixtureBundle(root, routes = ['/', '/random', '/thoughts'])
   await mkdir(join(root, 'after'), { recursive: true });
   for (const route of routes) {
     for (const side of ['before', 'after']) {
-      const path = join(root, side, `${keys[route]}.png`);
+      const directory = join(root, side, keys[route]);
+      await mkdir(directory, { recursive: true });
+      const path = join(directory, 'tile-000.png');
       await writeFile(path, tinyPng);
-      checksums[side][route] = await sha256File(path);
+      checksums[side][route] = { width: 1, height: 1, tiles: [{ index: 0, y: 0, width: 1, height: 1, path: `${side}/${keys[route]}/tile-000.png`, sha256: await sha256File(path), bytes: tinyPng.length }] };
     }
   }
   const manifest = buildSnapshotManifest({ contributionNumber: 0, captureId: 'fixture', capturedAt: '2026-01-01T00:00:00.000Z', beforeSha: 'a'.repeat(40), afterSha: 'b'.repeat(40), ...routeSelection, waitMs: 1500, checksums });
@@ -80,7 +127,8 @@ test('manifest is portable, records complete surface, checksums, and viewer sect
   try {
     const manifest = await createFixtureBundle(root);
     assert.equal(manifest.screenshots.length, 3);
-    assert.equal(manifest.screenshots.length * 2, 6);
+    const routeSideRecords = manifest.screenshots.flatMap(() => ['before', 'after']).length;
+    assert.equal(routeSideRecords, 6);
     assert.doesNotMatch(JSON.stringify(manifest), /\/Users\/|contactEmail|firebaseUid/);
     assert.equal((await verifySnapshotBundle(root)).captureId, 'fixture');
     const viewer = await readFile(join(root, 'index.html'), 'utf8');
@@ -88,21 +136,40 @@ test('manifest is portable, records complete surface, checksums, and viewer sect
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
-test('future fourth route automatically expects eight screenshots and unchanged routes remain represented', async () => {
+test('historical schema-v1 single-image bundles remain verifiable', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'wtt-legacy-manifest-'));
+  try {
+    await Promise.all([mkdir(join(root, 'before')), mkdir(join(root, 'after'))]);
+    await Promise.all([writeFile(join(root, 'before/home.png'), tinyPng), writeFile(join(root, 'after/home.png'), tinyPng)]);
+    const checksum = sha256(tinyPng);
+    const manifest = {
+      schemaVersion: 1, contributionNumber: 0, contributionLabel: '000', captureId: 'legacy', capturedAt: '2026-01-01T00:00:00.000Z',
+      git: { before: 'a'.repeat(40), after: 'b'.repeat(40) }, routeRegistry: { path: 'src/platform/config/editable-routes.json', revision: 'b'.repeat(40) },
+      canonicalRoutes: ['/'], additionalRoutes: [], capturedRoutes: ['/'],
+      capture: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, fullPage: true, format: 'png', locale: 'en-US', timezoneId: 'UTC', waitMs: 1500 },
+      screenshots: [{ route: '/', key: 'home', before: { path: 'before/home.png', sha256: checksum }, after: { path: 'after/home.png', sha256: checksum } }],
+    };
+    await writeFile(join(root, 'manifest.json'), JSON.stringify(manifest));
+    assert.equal((await verifySnapshotBundle(root)).schemaVersion, 1);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('future fourth route automatically expects eight route-side records and unchanged routes remain represented', async () => {
   const root = await mkdtemp(join(tmpdir(), 'wtt-four-routes-'));
   try {
     const manifest = await createFixtureBundle(root, ['/', '/random', '/thoughts', '/gallery']);
-    assert.equal(manifest.screenshots.length * 2, 8);
+    const routeSideRecords = manifest.screenshots.flatMap(() => ['before', 'after']).length;
+    assert.equal(routeSideRecords, 8);
     assert.deepEqual(manifest.canonicalRoutes, ['/', '/random', '/thoughts', '/gallery']);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 test('verification rejects changed, missing, malformed, and disagreeing screenshot data', async (t) => {
   await t.test('changed image', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'wtt-changed-')); try { const manifest = await createFixtureBundle(root); await writeFile(join(root, manifest.screenshots[0].before.path), Buffer.concat([tinyPng, Buffer.from('changed')])); await assert.rejects(verifySnapshotBundle(root), /checksum/); } finally { await rm(root, { recursive: true, force: true }); }
+    const root = await mkdtemp(join(tmpdir(), 'wtt-changed-')); try { const manifest = await createFixtureBundle(root); await writeFile(join(root, manifest.screenshots[0].before.tiles[0].path), Buffer.concat([tinyPng, Buffer.from('changed')])); await assert.rejects(verifySnapshotBundle(root), /byte length|checksum/); } finally { await rm(root, { recursive: true, force: true }); }
   });
   await t.test('missing image', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'wtt-missing-')); try { const manifest = await createFixtureBundle(root); await rm(join(root, manifest.screenshots[0].after.path)); await assert.rejects(verifySnapshotBundle(root), /missing/); } finally { await rm(root, { recursive: true, force: true }); }
+    const root = await mkdtemp(join(tmpdir(), 'wtt-missing-')); try { const manifest = await createFixtureBundle(root); await rm(join(root, manifest.screenshots[0].after.tiles[0].path)); await assert.rejects(verifySnapshotBundle(root), /missing/); } finally { await rm(root, { recursive: true, force: true }); }
   });
   await t.test('malformed manifest', async () => {
     const root = await mkdtemp(join(tmpdir(), 'wtt-malformed-')); try { await writeFile(join(root, 'manifest.json'), '{'); await assert.rejects(verifySnapshotBundle(root), /Malformed/); } finally { await rm(root, { recursive: true, force: true }); }
@@ -114,14 +181,14 @@ test('verification rejects changed, missing, malformed, and disagreeing screensh
 
 test('checksum helper is deterministic', () => assert.equal(sha256(Buffer.from('snapshot')), sha256(Buffer.from('snapshot'))));
 
-test('permanent PNG verification enforces dimensions, pixel area, byte size, and full-page consistency', () => {
+test('permanent PNG verification enforces tile dimensions, pixel area, byte size, and consistency', () => {
   assert.deepEqual(pngDimensions(tinyPng), { width: 1, height: 1 });
   assert.deepEqual(validatePngScreenshot(tinyPng, SNAPSHOT_CONFIG, { width: 1, height: 1 }), { width: 1, height: 1 });
   assert.throws(() => validatePngScreenshot(tinyPng, SNAPSHOT_CONFIG, { width: 1, height: 2 }), /dimensions disagree/);
-  assert.throws(() => validatePngScreenshot(tinyPng, { ...SNAPSHOT_CONFIG, maximumScreenshotBytes: tinyPng.length - 1 }), /exceeds/);
-  const tooTall = Buffer.from(tinyPng); tooTall.writeUInt32BE(20_001, 20);
+  assert.throws(() => validatePngScreenshot(tinyPng, { ...SNAPSHOT_CONFIG, maximumTileBytes: tinyPng.length - 1 }), /exceeds/);
+  const tooTall = Buffer.from(tinyPng); tooTall.writeUInt32BE(3_601, 20);
   assert.throws(() => validatePngScreenshot(tooTall, SNAPSHOT_CONFIG), /archive bounds/);
-  const tooManyPixels = Buffer.from(tinyPng); tooManyPixels.writeUInt32BE(20_000, 16); tooManyPixels.writeUInt32BE(2_000, 20);
+  const tooManyPixels = Buffer.from(tinyPng); tooManyPixels.writeUInt32BE(2_881, 16); tooManyPixels.writeUInt32BE(3_600, 20);
   assert.throws(() => validatePngScreenshot(tooManyPixels, SNAPSHOT_CONFIG), /archive bounds/);
 });
 
@@ -162,7 +229,8 @@ const marker = await readFile('marker.txt', 'utf8');
 for (const route of registry.routes) {
   const directory = route === '/' ? 'dist' : \`dist\${route}\`;
   await mkdir(directory, { recursive: true });
-  await writeFile(\`\${directory}/index.html\`, \`<!doctype html><html><body><main><h1>\${route}</h1><p>\${marker}</p></main></body></html>\`);
+  const longContent = route === '/thoughts' ? '<div style="height:25001px">long page beyond the legacy 20000px ceiling</div>' : '';
+  await writeFile(\`\${directory}/index.html\`, \`<!doctype html><html><body><main><h1>\${route}</h1><p>\${marker}</p>\${longContent}</main></body></html>\`);
 }`);
     await writeFile(join(root, 'marker.txt'), 'BEFORE');
     await exec('git', ['add', '.'], { cwd: root });
@@ -173,8 +241,13 @@ for (const route of registry.routes) {
     const after = (await exec('git', ['rev-parse', 'HEAD'], { cwd: root })).stdout.trim();
 
     const result = await captureSnapshots({ repoRoot: root, artifactRoot: '.artifacts', contributionNumber: 0, before, after, captureId: 'smoke', waitMs: 0 });
-    assert.equal(result.manifest.screenshots.length * 2, 6);
+    const routeSideRecords = result.manifest.screenshots.flatMap(() => ['before', 'after']).length;
+    assert.equal(routeSideRecords, 6);
     assert.deepEqual(result.manifest.canonicalRoutes, ['/', '/random', '/thoughts']);
+    const thoughts = result.manifest.screenshots.find((record) => record.route === '/thoughts');
+    assert.ok(thoughts.before.height > 20_000);
+    assert.ok(thoughts.before.tiles.length > 5);
+    assert.equal(thoughts.before.tiles.reduce((height, tile) => height + tile.height, 0), thoughts.before.height);
     assert.equal((await readdir(join(result.bundlePath, 'before'))).length, 3);
     assert.equal((await readdir(join(result.bundlePath, 'after'))).length, 3);
     await verifySnapshotBundle(result.bundlePath);

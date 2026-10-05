@@ -117,18 +117,22 @@ const checksum = createHash('sha256').update(png).digest('hex');
 const routes = ['/', '/random', '/thoughts'];
 const keys = ['home', 'random', 'thoughts'];
 const manifest = {
-  schemaVersion: 1, contributionNumber: 1, contributionLabel: '001', captureId,
+  schemaVersion: 2, contributionNumber: 1, contributionLabel: '001', captureId,
   capturedAt: '2026-01-01T00:00:00.000Z', git: { before: beforeSha, after: afterSha },
   routeRegistry: { path: 'src/platform/config/editable-routes.json', revision: afterSha },
   canonicalRoutes: routes, additionalRoutes: [], capturedRoutes: routes,
-  capture: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, fullPage: true, format: 'png', locale: 'en-US', timezoneId: 'UTC', waitMs: 1500 },
-  screenshots: routes.map((route, index) => ({ route, key: keys[index], before: { path: `before/${keys[index]}.png`, sha256: checksum }, after: { path: `after/${keys[index]}.png`, sha256: checksum } })),
+  capture: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, captureMode: 'tiled-document', tileHeight: 3600, format: 'png', locale: 'en-US', timezoneId: 'UTC', waitMs: 1500, maximumTileCount: 64, maximumTotalScreenshotPixels: 384_000_000, maximumTotalScreenshotBytes: 160 * 1024 * 1024 },
+  screenshots: routes.map((route, index) => ({
+    route, key: keys[index],
+    before: { width: 1, height: 1, tiles: [{ index: 0, y: 0, width: 1, height: 1, path: `before/${keys[index]}/tile-000.png`, sha256: checksum, bytes: png.length }] },
+    after: { width: 1, height: 1, tiles: [{ index: 0, y: 0, width: 1, height: 1, path: `after/${keys[index]}/tile-000.png`, sha256: checksum, bytes: png.length }] },
+  })),
 };
 const bucket = getStorage().bucket();
 const common = { contributionNumber: '1', contributionLabel: '001', captureId };
 await bucket.file(`${prefix}/manifest.json`).save(Buffer.from(JSON.stringify(manifest)), { metadata: { contentType: 'application/json', metadata: common } });
-for (const record of manifest.screenshots) for (const side of ['before', 'after']) {
-  await bucket.file(`${prefix}/${record[side].path}`).save(png, { metadata: { contentType: 'image/png', metadata: { ...common, routeKey: record.key, side, sha256: checksum } } });
+for (const record of manifest.screenshots) for (const side of ['before', 'after']) for (const tile of record[side].tiles) {
+  await bucket.file(`${prefix}/${tile.path}`).save(png, { metadata: { contentType: 'image/png', metadata: { ...common, routeKey: record.key, side, tileIndex: String(tile.index), sha256: checksum } } });
 }
 const finalize = await fetch('http://127.0.0.1:5001/who-touched-this/us-central1/finalizeSnapshotArchive', {
   method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${ownerClient.idToken}` },

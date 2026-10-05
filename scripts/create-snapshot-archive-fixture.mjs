@@ -23,13 +23,15 @@ if (await stat(output).then(() => true).catch(() => false)) {
   throw new Error(`Fixture already exists and was not overwritten: ${output}`);
 }
 await Promise.all([mkdir(`${output}/before`, { recursive: true }), mkdir(`${output}/after`, { recursive: true })]);
+const captures = { before: {}, after: {} };
 for (const route of routes) {
+  await Promise.all([mkdir(`${output}/before/${keys[route]}`, { recursive: true }), mkdir(`${output}/after/${keys[route]}`, { recursive: true })]);
   await Promise.all([
-    writeFile(`${output}/before/${keys[route]}.png`, png),
-    writeFile(`${output}/after/${keys[route]}.png`, png),
+    writeFile(`${output}/before/${keys[route]}/tile-000.png`, png),
+    writeFile(`${output}/after/${keys[route]}/tile-000.png`, png),
   ]);
+  for (const side of ['before', 'after']) captures[side][route] = { width: 1, height: 1, tiles: [{ index: 0, y: 0, width: 1, height: 1, path: `${side}/${keys[route]}/tile-000.png`, sha256: checksum, bytes: png.length }] };
 }
-const checksums = Object.fromEntries(routes.map((route) => [route, checksum]));
 const manifest = buildSnapshotManifest({
   contributionNumber,
   captureId,
@@ -40,7 +42,7 @@ const manifest = buildSnapshotManifest({
   additionalRoutes: [],
   capturedRoutes: routes,
   waitMs: 1500,
-  checksums: { before: checksums, after: checksums },
+  checksums: captures,
 });
 await writeFile(`${output}/manifest.json`, `${JSON.stringify(manifest, null, 2)}\n`);
 await verifySnapshotBundle(output);

@@ -9,8 +9,12 @@ export const REVIEW_LIMITS = Object.freeze({
   containerMemory: '4g',
   containerCpus: '2',
   containerPids: '256',
-  maxDocumentHeight: 20_000,
-  maxScreenshotPixels: 32_000_000,
+  maxTileHeight: 3_600,
+  maxTileWidth: 2_880,
+  maxTilePixels: 10_368_000,
+  maxTileCount: 64,
+  maxTotalScreenshotPixels: 384_000_000,
+  maxTotalScreenshotBytes: 160 * 1024 * 1024,
   screenshotTimeoutMs: 30_000,
 });
 
