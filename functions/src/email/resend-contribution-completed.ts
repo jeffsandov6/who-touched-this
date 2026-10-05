@@ -5,7 +5,7 @@ import {
 } from '../wtt/entitlements.js';
 
 export type ResendContributionErrorCode =
-  | 'unauthenticated' | 'permission-denied' | 'invalid-argument' | 'failed-precondition';
+  | 'unauthenticated' | 'permission-denied' | 'invalid-argument' | 'failed-precondition' | 'unavailable';
 
 export class ResendContributionError extends Error {
   constructor(public readonly code: ResendContributionErrorCode, message: string) {
@@ -22,7 +22,7 @@ export interface ResendContributionDependencies {
     contributionId: string,
     contribution: Record<string, unknown>,
     requestedByGithubUserId: string,
-  ): Promise<{ kind: string }>;
+  ): Promise<{ kind: 'sent' | 'already-sent' | 'busy' | 'failed'; code?: string }>;
 }
 
 export async function resendContributionCompletedEmail(
@@ -56,5 +56,17 @@ export async function resendContributionCompletedEmail(
     throw new ResendContributionError('failed-precondition', 'canonical WTT entitlement is missing or inconsistent.');
   }
   const result = await dependencies.resend(contributionId, contribution, adminId);
+  if (result.kind === 'failed') {
+    throw new ResendContributionError(
+      'failed-precondition',
+      'completion email recipient data is missing or invalid.',
+    );
+  }
+  if (result.kind === 'busy') {
+    throw new ResendContributionError(
+      'unavailable',
+      'completion email delivery is already in progress. try again shortly.',
+    );
+  }
   return { status: result.kind };
 }

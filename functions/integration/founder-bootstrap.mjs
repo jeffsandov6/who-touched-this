@@ -16,15 +16,13 @@ const firestore = getFirestore();
 const now = Timestamp.now();
 await Promise.all([
   firestore.doc('admins/9001').set({ githubUserId: '9001', role: 'owner', active: true, createdAt: now }),
-  firestore.doc('contributors/9001').set({
-    githubUserId: '9001', displayName: 'Founder', email: 'founder@example.test',
-  }),
   firestore.doc('site/admin').set({ activeTurnId: null, pendingInvitationId: null, pendingArchiveContributionNumber: null, updatedAt: now }),
   firestore.doc('site/public').set({
     currentVersion: 0, totalContributions: 0, turnStatus: 'none', targetContributionNumber: null,
     currentContributor: null, dueAt: null, updatedAt: now,
   }),
 ]);
+assert.equal((await firestore.collection('contributors').get()).empty, true);
 
 await getAuth().importUsers([{
   uid: 'founder-owner',
@@ -40,7 +38,7 @@ const response = await fetch('http://127.0.0.1:5001/who-touched-this/us-central1
   method: 'POST',
   headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
   body: JSON.stringify({ data: {
-    publicDisplayName: 'Founder', prNumber: 27, summary: 'Initial creative seed',
+    publicDisplayName: 'Founder', contactEmail: 'founder@example.test', prNumber: 27, summary: 'Initial creative seed',
     beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40),
   } }),
 });
@@ -67,9 +65,9 @@ assert.equal(founderWtt.entitlement.amount, 1);
 assert.equal(founderWtt.entitlement.status, 'unclaimed');
 assert.match(founderWtt.mailbox.text, /\/wtt\/claim/);
 
-const [contribution, history, publicSite, queue, participation, invitations, turns] = await Promise.all([
+const [contribution, history, publicSite, contributors, queue, participation, invitations, turns] = await Promise.all([
   firestore.doc('contributions/0').get(), firestore.doc('historyEvents/founder_seed_000').get(),
-  firestore.doc('site/public').get(), firestore.collection('queue').get(),
+  firestore.doc('site/public').get(), firestore.collection('contributors').get(), firestore.collection('queue').get(),
   firestore.collection('participation').get(), firestore.collection('invitations').get(),
   firestore.collection('turns').get(),
 ]);
@@ -82,12 +80,18 @@ assert.equal(history.data()?.contributionNumber, 0);
 assert.equal(publicSite.data()?.currentVersion, 0);
 assert.equal(publicSite.data()?.totalContributions, 1);
 assert.equal(publicSite.data()?.turnStatus, 'none');
-for (const snapshot of [queue, participation, invitations, turns]) assert.equal(snapshot.empty, true);
+for (const snapshot of [contributors, queue, participation, invitations, turns]) assert.equal(snapshot.empty, true);
+const founderAdmin = (await firestore.doc('admins/9001').get()).data();
+assert.deepEqual(Object.keys(founderAdmin).sort(), [
+  'active', 'createdAt', 'founderCompletionEmail', 'founderCompletionEmailUpdatedAt',
+  'githubUserId', 'role',
+]);
+assert.equal(founderAdmin.founderCompletionEmail, 'founder@example.test');
 
 const duplicate = await fetch('http://127.0.0.1:5001/who-touched-this/us-central1/recordFounderContributionZero', {
   method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${idToken}` },
   body: JSON.stringify({ data: {
-    publicDisplayName: 'Founder', prNumber: 27, summary: 'Initial creative seed',
+    publicDisplayName: 'Founder', contactEmail: 'founder@example.test', prNumber: 27, summary: 'Initial creative seed',
     beforeGitSha: 'a'.repeat(40), afterGitSha: 'b'.repeat(40),
   } }),
 });

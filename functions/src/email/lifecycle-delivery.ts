@@ -13,11 +13,21 @@ const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 export interface DateLike { toDate(): Date }
 export interface ContributorData { email: unknown; displayName: unknown }
+export interface FounderOwnerData {
+  githubUserId: unknown;
+  role: unknown;
+  active: unknown;
+  founderCompletionEmail: unknown;
+}
 export interface LifecycleDeliveryDependencies {
   appOrigin: string;
   deliveryStore: DeliveryStore;
   emailProvider: EmailProvider;
   loadContributor(githubUserId: string): Promise<ContributorData | null>;
+}
+
+export interface FounderCompletionDeliveryDependencies extends LifecycleDeliveryDependencies {
+  loadFounderOwner(githubUserId: string): Promise<FounderOwnerData | null>;
 }
 
 export type LifecycleDeliveryResult = NotificationDeliveryResult | { kind: 'failed'; code: string };
@@ -58,6 +68,41 @@ async function deliverToContributor(
   return deliverNotification(
     identity,
     build({ email: contributor.email, displayName: contributor.displayName }),
+    dependencies.deliveryStore,
+    dependencies.emailProvider,
+    true,
+  );
+}
+
+async function deliverToFounder(
+  identity: DeliveryIdentity,
+  displayName: unknown,
+  dependencies: FounderCompletionDeliveryDependencies,
+  build: (recipient: { email: string; displayName: string }) => SendEmailInput,
+): Promise<LifecycleDeliveryResult> {
+  const claim = await dependencies.deliveryStore.claim(identity);
+  if (claim.kind === 'already-sent') return { kind: 'already-sent' };
+  if (claim.kind === 'busy') return { kind: 'busy' };
+  const owner = await dependencies.loadFounderOwner(identity.githubUserId);
+  if (!owner || owner.githubUserId !== identity.githubUserId
+    || owner.role !== 'owner' || owner.active !== true) {
+    await dependencies.deliveryStore.markFailed(identity, 'missing_founder_owner');
+    return { kind: 'failed', code: 'missing_founder_owner' };
+  }
+  if (typeof owner.founderCompletionEmail !== 'string'
+    || owner.founderCompletionEmail.length > 254
+    || !EMAIL_PATTERN.test(owner.founderCompletionEmail)) {
+    await dependencies.deliveryStore.markFailed(identity, 'missing_contact_email');
+    return { kind: 'failed', code: 'missing_contact_email' };
+  }
+  if (typeof displayName !== 'string' || !displayName.trim()
+    || displayName.trim().length > 50) {
+    await dependencies.deliveryStore.markFailed(identity, 'invalid_founder_display_name');
+    return { kind: 'failed', code: 'invalid_founder_display_name' };
+  }
+  return deliverNotification(
+    identity,
+    build({ email: owner.founderCompletionEmail, displayName }),
     dependencies.deliveryStore,
     dependencies.emailProvider,
     true,
@@ -152,6 +197,8 @@ export async function sendTurnNotification(
 export interface ContributionData {
   number: unknown;
   githubUserId: unknown;
+  contributionKind?: unknown;
+  displayName?: unknown;
   summary: unknown;
   prUrl: unknown;
 }
@@ -192,6 +239,37 @@ export async function sendContributionCompletedFromContribution(
       : {}),
   }, dependencies, ({ email, displayName }) => buildContributionCompletedEmail({
     to: email, displayName, contributionNumber: number,
+    summary: contribution.summary as string, prUrl: contribution.prUrl as string,
+    appOrigin: dependencies.appOrigin, idempotencyKey: deliveryId,
+  }));
+}
+
+export async function sendFounderContributionCompletedFromContribution(
+  contributionId: string,
+  contribution: ContributionData,
+  claimToken: string,
+  dependencies: FounderCompletionDeliveryDependencies,
+  options: ContributionDeliveryOptions = {},
+): Promise<LifecycleDeliveryResult> {
+  if (contributionId !== '0' || contribution.number !== 0
+    || contribution.contributionKind !== 'founder_seed'
+    || !validGitHubId(contribution.githubUserId)
+    || typeof contribution.summary !== 'string' || !contribution.summary.trim()
+    || typeof contribution.prUrl !== 'string') {
+    return { kind: 'failed', code: 'malformed_founder_contribution' };
+  }
+  const deliveryId = options.deliveryId ?? deliveryIds.contributionCompleted(0);
+  return deliverToFounder({
+    deliveryId,
+    type: options.type ?? 'contribution_completed',
+    contributionNumber: 0,
+    githubUserId: contribution.githubUserId,
+    claimToken,
+    ...(options.requestedByGithubUserId
+      ? { requestedByGithubUserId: options.requestedByGithubUserId }
+      : {}),
+  }, contribution.displayName, dependencies, ({ email, displayName }) => buildContributionCompletedEmail({
+    to: email, displayName, contributionNumber: 0,
     summary: contribution.summary as string, prUrl: contribution.prUrl as string,
     appOrigin: dependencies.appOrigin, idempotencyKey: deliveryId,
   }));

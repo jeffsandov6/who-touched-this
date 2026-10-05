@@ -15,7 +15,9 @@ const contribution = {
 
 function setup(entitlement: Record<string, unknown> = buildContributionEntitlement(
   '12', contribution,
-) as unknown as Record<string, unknown>) {
+) as unknown as Record<string, unknown>, result: {
+  kind: 'sent' | 'already-sent' | 'busy' | 'failed'; code?: string;
+} = { kind: 'sent' }) {
   let sends = 0;
   return {
     sends: () => sends,
@@ -24,7 +26,7 @@ function setup(entitlement: Record<string, unknown> = buildContributionEntitleme
       async loadAdmin() { return { githubUserId: '12345', active: true, role: 'owner' }; },
       async loadContribution() { return contribution; },
       async loadEntitlement() { return entitlement; },
-      async resend() { sends += 1; return { kind: 'sent' }; },
+      async resend() { sends += 1; return result; },
     },
   };
 }
@@ -66,4 +68,21 @@ test('resend refuses a missing or inconsistent entitlement', async () => {
     auth, { contributionNumber: 12 }, state.dependencies,
   ), 'failed-precondition');
   assert.equal(state.sends(), 0);
+});
+
+test('resend treats only sent and already-sent as successful outcomes', async () => {
+  for (const kind of ['sent', 'already-sent'] as const) {
+    const state = setup(undefined, { kind });
+    assert.deepEqual(await resendContributionCompletedEmail(
+      auth, { contributionNumber: 12 }, state.dependencies,
+    ), { status: kind });
+  }
+  await rejectsCode(resendContributionCompletedEmail(
+    auth, { contributionNumber: 12 }, setup(undefined, {
+      kind: 'failed', code: 'missing_contact_email',
+    }).dependencies,
+  ), 'failed-precondition');
+  await rejectsCode(resendContributionCompletedEmail(
+    auth, { contributionNumber: 12 }, setup(undefined, { kind: 'busy' }).dependencies,
+  ), 'unavailable');
 });

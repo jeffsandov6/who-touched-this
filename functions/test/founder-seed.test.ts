@@ -11,7 +11,7 @@ const before = 'a'.repeat(40);
 const after = 'b'.repeat(40);
 const auth = (id = '9001') => ({ firebase: { identities: { 'github.com': [id] } } });
 const input = {
-  publicDisplayName: 'Founder', prNumber: 27, summary: 'Initial creative seed',
+  publicDisplayName: 'Founder', contactEmail: 'founder@example.test', prNumber: 27, summary: 'Initial creative seed',
   contributorMessage: 'Here we go.', beforeGitSha: before, afterGitSha: after,
 };
 
@@ -47,6 +47,9 @@ function setup(overrides: Partial<State> = {}) {
         founderContributionExists: async () => state.contributions.has(0),
         founderHistoryExists: async () => state.history.has('founder_seed_000')
           || [...state.history.values()].some((record) => record.contributionNumber === 0),
+        setFounderCompletionContact: (id, data) => {
+          state.admins.set(id, { ...state.admins.get(id), ...data });
+        },
         createContribution: (data) => state.contributions.set(0, data),
         createHistory: (data) => state.history.set('founder_seed_000', data),
         setPublicSite: (data) => { state.publicSite = data; },
@@ -68,6 +71,8 @@ test('founder input is bounded, trimmed, normalized, and rejects unknown fields'
   }), { ...input, contributorMessage: 'Note' });
   for (const invalid of [
     { ...input, publicDisplayName: ' ' }, { ...input, publicDisplayName: 'x'.repeat(51) },
+    { ...input, contactEmail: '' }, { ...input, contactEmail: 'invalid' },
+    { ...input, contactEmail: `${'x'.repeat(250)}@x.test` },
     { ...input, prNumber: 0 }, { ...input, prNumber: 1.5 }, { ...input, summary: '' },
     { ...input, summary: 'x'.repeat(161) }, { ...input, contributorMessage: 'x'.repeat(281) },
     { ...input, beforeGitSha: 'nope' }, { ...input, afterGitSha: 'nope' },
@@ -112,6 +117,11 @@ test('active owner atomically records public founder contribution, History, and 
   assert.equal(contribution.githubUserId, '9001');
   assert.equal('firebaseUid' in contribution, false);
   assert.deepEqual(state.otherWrites, []);
+  assert.deepEqual(state.admins.get('9001'), {
+    githubUserId: '9001', active: true, role: 'owner',
+    founderCompletionEmail: 'founder@example.test',
+    founderCompletionEmailUpdatedAt: timestamp,
+  });
 });
 
 test('founder recording creates no operational or email records', async () => {

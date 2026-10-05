@@ -343,7 +343,7 @@ export default function AdminPage() {
       const status = await resendContributionCompletedEmail(contributionNumber);
       setCompletionEmailMessage(status === 'already-sent'
         ? 'this resend was already delivered.'
-        : 'completion and WTT email resend processed.');
+        : 'completion and WTT email sent.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'the completion email could not be resent.');
     } finally {

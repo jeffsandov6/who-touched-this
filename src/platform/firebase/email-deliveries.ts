@@ -61,7 +61,11 @@ export async function retryFailedInvitationEmail(invitationId: string): Promise<
   }
 }
 
-export async function resendContributionCompletedEmail(contributionNumber: number): Promise<string> {
+export type CompletionEmailResendStatus = 'sent' | 'already-sent';
+
+export async function resendContributionCompletedEmail(
+  contributionNumber: number,
+): Promise<CompletionEmailResendStatus> {
   if (!Number.isSafeInteger(contributionNumber) || contributionNumber < 0) {
     throw new Error('contribution number is invalid.');
   }
@@ -75,6 +79,9 @@ export async function resendContributionCompletedEmail(contributionNumber: numbe
     const result = await httpsCallable<
       { contributionNumber: number }, { status: string }
     >(functions, 'resendContributionCompletedEmail')({ contributionNumber });
+    if (result.data.status !== 'sent' && result.data.status !== 'already-sent') {
+      throw new Error('the completion email was not sent. try again later.');
+    }
     return result.data.status;
   } catch (error) {
     if (error instanceof FirebaseError) {
@@ -82,8 +89,14 @@ export async function resendContributionCompletedEmail(contributionNumber: numbe
         throw new Error('admin authorization could not be verified.');
       }
       if (error.code === 'functions/failed-precondition') {
-        throw new Error('the contribution or its WTT entitlement is missing or inconsistent.');
+        throw new Error('the contribution, WTT entitlement, or recipient contact is missing or inconsistent.');
       }
+      if (error.code === 'functions/unavailable') {
+        throw new Error('completion email delivery is already in progress. try again shortly.');
+      }
+    }
+    if (error instanceof Error && error.message === 'the completion email was not sent. try again later.') {
+      throw error;
     }
     throw new Error('the completion email could not be resent. try again later.');
   }

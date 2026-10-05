@@ -16,17 +16,19 @@ const timestamp = { toDate: () => new Date('2026-01-01T00:00:00Z') };
 
 test('founder form validation trims public data and normalizes full SHAs', () => {
   assert.deepEqual(validateFounderSeedForm({
-    publicDisplayName: ' Founder ', prNumber: '27', summary: ' Initial creative seed ',
+    publicDisplayName: ' Founder ', contactEmail: ' founder@example.test ', prNumber: '27', summary: ' Initial creative seed ',
     contributorMessage: ' Hello ', beforeGitSha: before.toUpperCase(), afterGitSha: after.toUpperCase(),
   }), {
-    publicDisplayName: 'Founder', prNumber: 27, summary: 'Initial creative seed',
+    publicDisplayName: 'Founder', contactEmail: 'founder@example.test', prNumber: 27, summary: 'Initial creative seed',
     contributorMessage: 'Hello', beforeGitSha: before, afterGitSha: after,
   });
   for (const invalid of [
-    { publicDisplayName: '', prNumber: '27', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
-    { publicDisplayName: 'Founder', prNumber: '0', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
-    { publicDisplayName: 'Founder', prNumber: '27', summary: '', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
-    { publicDisplayName: 'Founder', prNumber: '27', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: before },
+    { publicDisplayName: '', contactEmail: 'founder@example.test', prNumber: '27', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
+    { publicDisplayName: 'Founder', contactEmail: '', prNumber: '27', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
+    { publicDisplayName: 'Founder', contactEmail: 'invalid', prNumber: '27', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
+    { publicDisplayName: 'Founder', contactEmail: 'founder@example.test', prNumber: '0', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
+    { publicDisplayName: 'Founder', contactEmail: 'founder@example.test', prNumber: '27', summary: '', contributorMessage: '', beforeGitSha: before, afterGitSha: after },
+    { publicDisplayName: 'Founder', contactEmail: 'founder@example.test', prNumber: '27', summary: 'x', contributorMessage: '', beforeGitSha: before, afterGitSha: before },
   ]) assert.throws(() => validateFounderSeedForm(invalid));
 });
 
@@ -90,6 +92,18 @@ test('Admin founder UI is owner-gated, confirms once, then presents immutable re
   assert.match(source, /founderSnapshotCommand/);
   assert.doesNotMatch(source, />Delete</);
   assert.doesNotMatch(source, />Edit</);
+});
+
+test('Admin completion resend UI reports only confirmed delivery outcomes as success', async () => {
+  const [page, service] = await Promise.all([
+    readFile(new URL('../src/platform/pages/AdminPage.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../src/platform/firebase/email-deliveries.ts', import.meta.url), 'utf8'),
+  ]);
+  assert.match(page, /status === 'already-sent'/);
+  assert.match(page, /completion and WTT email sent\./);
+  assert.doesNotMatch(page, /resend processed/);
+  assert.match(service, /status !== 'sent' && result\.data\.status !== 'already-sent'/);
+  assert.match(service, /functions\/unavailable/);
 });
 
 test('History gives founder seed distinct contribution wording without a founder turn', async () => {

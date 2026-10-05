@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
 import { after, before, beforeEach, test } from 'node:test';
 import {
   assertFails,
@@ -436,6 +437,19 @@ test('an authenticated GitHub user may get only their own admin authorization re
   const firestore = githubFirestore(adminIdentity);
   await assertSucceeds(getDoc(doc(firestore, 'admins/9001')));
   await assertFails(getDoc(doc(firestore, 'admins/1001')));
+});
+
+test('Founder completion contact fields do not break normal admin authorization or loading', async () => {
+  await seedAdmin(adminIdentity, {
+    founderCompletionEmail: 'founder@example.test',
+    founderCompletionEmailUpdatedAt: Timestamp.now(),
+  });
+  await assertSucceeds(joinBatch(githubFirestore()));
+  const firestore = githubFirestore(adminIdentity);
+  const ownAdmin = await assertSucceeds(getDoc(doc(firestore, 'admins/9001')));
+  assert.equal(ownAdmin.data().role, 'owner');
+  assert.equal(ownAdmin.data().founderCompletionEmail, 'founder@example.test');
+  await assertSucceeds(getDocs(collection(firestore, 'queue')));
 });
 
 test('clients cannot create admin records', async () => {

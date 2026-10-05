@@ -10,6 +10,9 @@ export interface AdminRecord {
   role: AdminRole;
   active: boolean;
   createdAt?: Timestamp;
+  /** Private address used only for Founder Contribution #000 completion email delivery. */
+  founderCompletionEmail?: string;
+  founderCompletionEmailUpdatedAt?: Timestamp;
 }
 
 export const PARTICIPATION_STATUSES = [

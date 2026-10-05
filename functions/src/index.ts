@@ -20,6 +20,7 @@ import { processInvitationCreated } from './email/invitation-delivery.js';
 import {
   sendContributionCompleted,
   sendContributionCompletedFromContribution,
+  sendFounderContributionCompletedFromContribution,
   sendTurnNotification,
   type LifecycleDeliveryDependencies,
 } from './email/lifecycle-delivery.js';
@@ -79,6 +80,21 @@ function dependencies(): LifecycleDeliveryDependencies {
     async loadContributor(githubUserId) {
       const snapshot = await getFirestore().doc(`contributors/${githubUserId}`).get();
       return snapshot.exists ? snapshot.data() as { email: unknown; displayName: unknown } : null;
+    },
+  };
+}
+
+function founderCompletionDependencies() {
+  return {
+    ...dependencies(),
+    async loadFounderOwner(githubUserId: string) {
+      const snapshot = await getFirestore().doc(`admins/${githubUserId}`).get();
+      return snapshot.exists ? snapshot.data() as {
+        githubUserId: unknown;
+        role: unknown;
+        active: unknown;
+        founderCompletionEmail: unknown;
+      } : null;
     },
   };
 }
@@ -237,8 +253,8 @@ export const sendFounderContributionCompletedEmail = onDocumentCreated({
       });
       return;
     }
-    const result = await sendContributionCompletedFromContribution(
-      '0', contribution as never, randomUUID(), dependencies(),
+    const result = await sendFounderContributionCompletedFromContribution(
+      '0', contribution as never, randomUUID(), founderCompletionDependencies(),
     );
     if (result.kind === 'failed') throw new Error(result.code);
   } catch (error) {
@@ -273,14 +289,22 @@ export const resendContributionCompletedEmail = onCall({
           const deliveryId = deliveryIds.contributionCompletedResend(
             Number(contributionId), requestId,
           );
-          const result = await sendContributionCompletedFromContribution(
-            contributionId, contribution as never, requestId, dependencies(), {
-              deliveryId,
-              type: 'contribution_completed_resend',
-              requestedByGithubUserId,
-            },
-          );
-          logger.info('WTT completion email resend processed.', {
+          const options = {
+            deliveryId,
+            type: 'contribution_completed_resend' as const,
+            requestedByGithubUserId,
+          };
+          const result = contributionId === '0'
+            ? await sendFounderContributionCompletedFromContribution(
+              contributionId, contribution as never, requestId,
+              founderCompletionDependencies(), options,
+            )
+            : await sendContributionCompletedFromContribution(
+              contributionId, contribution as never, requestId, dependencies(), options,
+            );
+          const logResendResult = result.kind === 'failed' || result.kind === 'busy'
+            ? logger.warn : logger.info;
+          logResendResult('WTT completion email resend delivery result.', {
             event: 'wtt_completion_email_resent',
             contributionNumber: Number(contributionId),
             deliveryId,
@@ -563,6 +587,9 @@ export const recordFounderContributionZero = onCall({ region: 'us-central1' }, a
         },
         createHistory(data) {
           transaction.create(firestore.doc('historyEvents/founder_seed_000'), data);
+        },
+        setFounderCompletionContact(githubUserId, data) {
+          transaction.set(firestore.doc(`admins/${githubUserId}`), data, { merge: true });
         },
         setPublicSite(data) {
           transaction.set(firestore.doc('site/public'), data);

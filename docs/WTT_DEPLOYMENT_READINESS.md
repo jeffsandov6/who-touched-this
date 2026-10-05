@@ -139,12 +139,28 @@ Stop if any item does not match.
 5. Run `npm --prefix functions run wtt:reconcile -- --project=who-touched-this`
    in dry-run mode. Review every conflict. Do not apply until the report is
    clean and the intended contribution record exists.
-6. Confirm `contributors/<founder numeric GitHub ID>` already has the intended
-   private contact email and display name. Then inspect `contributions/0` and
+6. Confirm `admins/<founder numeric GitHub ID>.founderCompletionEmail` has the intended
+   private contact email and the record is the matching active owner. Founder #000 must not have
+   contributor, participation, queue, invitation, or turn records. Then inspect `contributions/0` and
    `wttEntitlements/contribution:0` through an authorized read-only admin path.
    Exactly one canonical entitlement must exist, be owned by that same numeric
    GitHub provider ID, have amount `1`, and be `unclaimed`. There must be no
    fake/test production entitlement.
+
+   For an already-recorded Founder contribution, inspect the dry-run first:
+
+   ```sh
+   npm --prefix functions run founder:repair-contact -- \
+     --project=who-touched-this --email='<intended private address>'
+   ```
+
+   After reviewing the identity checks and exact two-field write, separately approve apply mode:
+
+   ```sh
+   npm --prefix functions run founder:repair-contact -- \
+     --project=who-touched-this --email='<intended private address>' \
+     --apply --confirm-project=who-touched-this
+   ```
 7. If the canonical entitlement is missing and the dry-run reports only valid
    missing records, separately approve and run:
 
@@ -154,8 +170,10 @@ Stop if any item does not match.
    ```
 
 8. Confirm the completion email contains the universal `/wtt/claim` URL and
-   that its delivery record is sent. Use the admin resend only if recovery is
-   needed; it does not alter the entitlement.
+   that its delivery record is sent. After a contact repair, first allow the retry-enabled original
+   delivery to settle; use the admin resend only if the canonical delivery remains failed. A resend
+   uses a new delivery ID, so sending it while the original retry is live can duplicate the email.
+   Neither path alters the entitlement.
 9. Smoke-test the three callable endpoints. Unauthenticated issue, verify, and
    claim calls must reject. A normal authenticated challenge must work. Direct
    browser get/list/create/update/delete against `wttClaimChallenges` and
