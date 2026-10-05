@@ -1,4 +1,4 @@
-## What did you change? (this appear in your public History entry in https://whotouchedthis.website/history)
+## What did you change? (this will appear in your public History entry at https://whotouchedthis.website/history)
 
 <!-- In a concise sentence or two, describe your one coherent contribution in plain language.
 If accepted, the maintainer uses this as the public History summary. -->
