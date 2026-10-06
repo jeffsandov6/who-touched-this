@@ -92,6 +92,13 @@ test('Founder #000 provenance memo text is exact and identifies the original cla
     'who touched this | provenance for contribution #000 | https://whotouchedthis.website/history/0 | original WTT claim: 37KoKvEXBuzCXStqkFts7ZbJUS3yLCqZRnKSW2KWC3PJ33YBd3ZMK7SH3EWrN8NqULpP2aoYBV84EVbHhcap9k7F');
 });
 
+test('Solana mainnet-beta genesis hash is the full canonical value', () => {
+  assert.equal(
+    SOLANA_MAINNET_GENESIS_HASH,
+    '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d',
+  );
+});
+
 test('configured Founder ATA is canonical for the official mint and recipient', () => {
   assert.equal(getAssociatedTokenAddressSync(
     new PublicKey(WTT_MINT_ADDRESS),
