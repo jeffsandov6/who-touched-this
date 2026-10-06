@@ -13,7 +13,7 @@ import {
 } from './config.js';
 import { WTT_MEMO_PROGRAM_ID } from './solana-claims.js';
 
-export const SOLANA_MAINNET_GENESIS_HASH = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as const;
+export const SOLANA_MAINNET_GENESIS_HASH = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d' as const;
 export const FOUNDER_PROVENANCE_CONFIRMATION_FLAG = '--confirm-mainnet-provenance' as const;
 export const FOUNDER_WALLET = 'J6vtKLJtv9teZiPapgq2sb5rs8CkJxLpbx2WsL89woeb' as const;
 export const FOUNDER_ATA = 'BzA5LsSoKqhukmwRwvcLXasXjDo8kFJd237MDYHUdtDm' as const;
