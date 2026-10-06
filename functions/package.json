@@ -23,6 +23,7 @@
     "wtt:reconcile": "npm run build && node scripts/reconcile-wtt-entitlements.mjs",
     "wtt:reconcile-stats": "npm run build && node scripts/reconcile-wtt-public-stats.mjs",
     "founder:repair-contact": "npm run build && node scripts/repair-founder-completion-contact.mjs",
+    "wtt:founder-provenance": "npm run build && node --env-file-if-exists=.env.who-touched-this --env-file-if-exists=.env.local scripts/send-founder-000-provenance.mjs",
     "email:preview": "npm run build && node scripts/preview-emails.mjs",
     "email:test-send": "npm run build && node --env-file-if-exists=.secret.local scripts/send-test-emails.mjs"
   },

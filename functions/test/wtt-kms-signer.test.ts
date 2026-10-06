@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createPublicKey } from 'node:crypto';
+import { ed25519 } from '@noble/curves/ed25519.js';
 import crc32c from 'fast-crc32c';
 import { GoogleKmsWttMessageSigner, type WttKmsClient } from '../src/wtt/kms-signer.js';
 import { WTT_OPERATIONAL_KMS_KEY_VERSION } from '../src/wtt/config.js';
@@ -59,6 +61,31 @@ test('KMS malformed signature and integrity failures are rejected', async () => 
       /integrity|no signature/,
     );
   }
+});
+
+test('KMS public-key inspection verifies integrity and returns exact Ed25519 bytes', async () => {
+  const publicKey = ed25519.keygen().publicKey;
+  const der = Buffer.concat([
+    Buffer.from('302a300506032b6570032100', 'hex'),
+    Buffer.from(publicKey),
+  ]);
+  const pem = createPublicKey({ key: der, format: 'der', type: 'spki' })
+    .export({ format: 'pem', type: 'spki' }).toString();
+  const client = clientFor({}) as WttKmsClient;
+  client.getPublicKey = async ({ name }) => [{
+    name,
+    pem,
+    pemCrc32c: { value: crc32c.calculate(Buffer.from(pem, 'utf8')) },
+  }];
+  assert.deepEqual(
+    await new GoogleKmsWttMessageSigner(client).getPublicKeyBytes(),
+    new Uint8Array(publicKey),
+  );
+  client.getPublicKey = async ({ name }) => [{ name, pem, pemCrc32c: { value: 1 } }];
+  await assert.rejects(
+    new GoogleKmsWttMessageSigner(client).getPublicKeyBytes(),
+    /integrity/,
+  );
 });
 
 test('production signer source contains no local private-key fallback', async () => {
