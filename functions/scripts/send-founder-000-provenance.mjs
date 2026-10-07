@@ -12,6 +12,7 @@ import {
   FOUNDER_PROVENANCE_MEMO,
   FOUNDER_WALLET,
   ORIGINAL_FOUNDER_CLAIM_SIGNATURE,
+  assertFounderMemoOnlySignedTransaction,
   assertFounderMemoOnlyTransaction,
   createFounderProvenanceInstruction,
   hasExactFounderProvenanceConfirmation,
@@ -93,7 +94,7 @@ const signed = await buildExternallySignedTransaction({
   signer,
 });
 const raw = Buffer.from(signed.rawTransactionBase64, 'base64');
-assertFounderMemoOnlyTransaction(Transaction.from(raw));
+assertFounderMemoOnlySignedTransaction(Transaction.from(raw));
 const duplicateBeforeSend = await rpc.findDuplicateMemo();
 if (duplicateBeforeSend) {
   console.log('Founder #000 provenance memo was confirmed during preparation; no transaction was sent.');

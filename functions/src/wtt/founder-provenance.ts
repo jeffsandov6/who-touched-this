@@ -175,18 +175,32 @@ export function createFounderProvenanceInstruction(): TransactionInstruction {
   });
 }
 
-export function assertFounderMemoOnlyTransaction(transaction: Transaction): void {
+function assertFounderMemoOnlyTransactionShape(
+  transaction: Transaction,
+  allowCompiledFeePayerWritable: boolean,
+): void {
+  const authority = new PublicKey(WTT_OPERATIONAL_AUTHORITY);
   const instruction = transaction.instructions[0];
-  if (!transaction.feePayer?.equals(new PublicKey(WTT_OPERATIONAL_AUTHORITY))
+  const authoritySignature = transaction.signatures.find(({ publicKey }) => publicKey.equals(authority));
+  if (!transaction.feePayer?.equals(authority)
     || transaction.instructions.length !== 1
     || !instruction?.programId.equals(WTT_MEMO_PROGRAM_ID)
     || instruction.data.toString('utf8') !== FOUNDER_PROVENANCE_MEMO
     || instruction.keys.length !== 1
-    || !instruction.keys[0]!.pubkey.equals(new PublicKey(WTT_OPERATIONAL_AUTHORITY))
+    || !instruction.keys[0]!.pubkey.equals(authority)
     || !instruction.keys[0]!.isSigner
-    || instruction.keys[0]!.isWritable) {
+    || (!allowCompiledFeePayerWritable && instruction.keys[0]!.isWritable)
+    || (allowCompiledFeePayerWritable && !authoritySignature?.signature)) {
     throw new FounderProvenanceError('Transaction is not the exact authorized Memo-only transaction.');
   }
+}
+
+export function assertFounderMemoOnlyTransaction(transaction: Transaction): void {
+  assertFounderMemoOnlyTransactionShape(transaction, false);
+}
+
+export function assertFounderMemoOnlySignedTransaction(transaction: Transaction): void {
+  assertFounderMemoOnlyTransactionShape(transaction, true);
 }
 
 export function validateFounderProvenancePostSend(state: FounderProvenancePostSend): void {
