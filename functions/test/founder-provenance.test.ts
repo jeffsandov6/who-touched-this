@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
-import { Keypair, PublicKey, Transaction } from '@solana/web3.js';
+import {
+  Keypair,
+  PublicKey,
+  SystemProgram,
+  Transaction,
+  TransactionInstruction,
+} from '@solana/web3.js';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token';
 import {
   WTT_DECIMALS,
@@ -19,6 +25,7 @@ import {
   FounderProvenanceError,
   ORIGINAL_FOUNDER_CLAIM_SIGNATURE,
   SOLANA_MAINNET_GENESIS_HASH,
+  assertFounderMemoOnlySignedTransaction,
   assertFounderMemoOnlyTransaction,
   createFounderProvenanceInstruction,
   findSuccessfulFounderProvenanceDuplicate,
@@ -87,6 +94,17 @@ function validPost(): FounderProvenancePostSend {
   };
 }
 
+function roundTripWithTestSignatures(transaction: Transaction): Transaction {
+  transaction.serializeMessage();
+  for (const { publicKey } of transaction.signatures) {
+    transaction.addSignature(publicKey, Buffer.alloc(64, 1));
+  }
+  return Transaction.from(transaction.serialize({
+    requireAllSignatures: true,
+    verifySignatures: false,
+  }));
+}
+
 test('Founder #000 provenance memo text is exact and identifies the original claim', () => {
   assert.equal(FOUNDER_PROVENANCE_MEMO,
     'who touched this | provenance for contribution #000 | https://whotouchedthis.website/history/0 | original WTT claim: 37KoKvEXBuzCXStqkFts7ZbJUS3yLCqZRnKSW2KWC3PJ33YBd3ZMK7SH3EWrN8NqULpP2aoYBV84EVbHhcap9k7F');
@@ -133,6 +151,80 @@ test('transaction contains only the signed provenance Memo instruction', () => {
     pubkey: pubkey.toBase58(), isSigner, isWritable,
   })), [{ pubkey: WTT_OPERATIONAL_AUTHORITY, isSigner: true, isWritable: false }]);
   assert.equal(transaction.feePayer?.toBase58(), WTT_OPERATIONAL_AUTHORITY);
+});
+
+test('signed transaction accepts only fee-payer writability introduced by message compilation', () => {
+  const authority = new PublicKey(WTT_OPERATIONAL_AUTHORITY);
+  const blockhash = Keypair.generate().publicKey.toBase58();
+  const transaction = new Transaction({
+    feePayer: authority,
+    blockhash,
+    lastValidBlockHeight: 123,
+  }).add(createFounderProvenanceInstruction());
+  const reconstructed = roundTripWithTestSignatures(transaction);
+
+  assert.equal(reconstructed.instructions[0]!.keys[0]!.isWritable, true);
+  assert.doesNotThrow(() => assertFounderMemoOnlySignedTransaction(reconstructed));
+
+  const exactMemo = Buffer.from(FOUNDER_PROVENANCE_MEMO, 'utf8');
+  const memoInstruction = (overrides: Partial<{
+    programId: PublicKey;
+    data: Buffer;
+    keys: { pubkey: PublicKey; isSigner: boolean; isWritable: boolean }[];
+  }> = {}) => new TransactionInstruction({
+    programId: WTT_MEMO_PROGRAM_ID,
+    data: exactMemo,
+    keys: [{ pubkey: authority, isSigner: true, isWritable: false }],
+    ...overrides,
+  });
+  const roundTrip = (
+    instructions: TransactionInstruction[],
+    feePayer: PublicKey = authority,
+  ) => roundTripWithTestSignatures(new Transaction({
+    feePayer,
+    blockhash,
+    lastValidBlockHeight: 123,
+  }).add(...instructions));
+  const extraAccount = Keypair.generate().publicKey;
+
+  for (const invalid of [
+    roundTrip([memoInstruction(), memoInstruction()]),
+    roundTrip([SystemProgram.transfer({
+      fromPubkey: authority,
+      toPubkey: extraAccount,
+      lamports: 1,
+    })]),
+    roundTrip([memoInstruction({ programId: TOKEN_PROGRAM_ID })]),
+    roundTrip([memoInstruction({ programId: SystemProgram.programId })]),
+    roundTrip([memoInstruction({ data: Buffer.from('altered memo', 'utf8') })]),
+    roundTrip([memoInstruction()], Keypair.generate().publicKey),
+    roundTrip([memoInstruction({
+      keys: [
+        { pubkey: authority, isSigner: true, isWritable: false },
+        { pubkey: extraAccount, isSigner: false, isWritable: false },
+      ],
+    })]),
+  ]) assert.throws(
+    () => assertFounderMemoOnlySignedTransaction(invalid),
+    FounderProvenanceError,
+  );
+
+  const wrongSigner = new Transaction({
+    feePayer: authority,
+    blockhash,
+    lastValidBlockHeight: 123,
+  }).add(memoInstruction({
+    keys: [{ pubkey: authority, isSigner: false, isWritable: false }],
+  }));
+  const writableInstruction = new Transaction({
+    feePayer: authority,
+    blockhash,
+    lastValidBlockHeight: 123,
+  }).add(memoInstruction({
+    keys: [{ pubkey: authority, isSigner: true, isWritable: true }],
+  }));
+  assert.throws(() => assertFounderMemoOnlyTransaction(wrongSigner), FounderProvenanceError);
+  assert.throws(() => assertFounderMemoOnlyTransaction(writableInstruction), FounderProvenanceError);
 });
 
 test('duplicate detection returns only a successful exact memo transaction', () => {
