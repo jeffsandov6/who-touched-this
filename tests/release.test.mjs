@@ -26,7 +26,6 @@ const browser = {
 const functionsConfig = {
   EMAIL_PROVIDER_MODE: 'resend', APP_ORIGIN: 'https://whotouchedthis.website',
   GITHUB_REPOSITORY: 'jeffsandov6/who-touched-this', GITHUB_BASE_BRANCH: 'main',
-  WTT_SOLANA_RPC_URL: 'https://api.mainnet-beta.solana.com',
 };
 
 test('production identity contract accepts only the intended project and HTTPS origin', () => {
@@ -56,6 +55,10 @@ test('repository and Node policies require clean main and Node 22.12+', () => {
 
 test('production WTT RPC configuration rejects non-mainnet and local endpoints', () => {
   assert.equal(validateProductionSolanaRpcUrl('https://api.mainnet-beta.solana.com'), 'https://api.mainnet-beta.solana.com/');
+  assert.equal(
+    validateProductionSolanaRpcUrl('https://mainnet.helius-rpc.com/?api-key=synthetic-test-key'),
+    'https://mainnet.helius-rpc.com/?api-key=synthetic-test-key',
+  );
   for (const value of [
     'http://api.mainnet-beta.solana.com', 'https://api.devnet.solana.com',
     'https://api.testnet.solana.com', 'https://localhost:8899',
@@ -68,7 +71,7 @@ test('production artifact scan rejects emulator, localhost, preview, and server-
   try {
     await writeFile(join(root, 'index.html'), '<title>Who Touched This</title>');
     assert.equal((await scanProductionArtifact(root)).filesScanned, 1);
-    for (const marker of ['localhost:9099', '127.0.0.1:8080', 'demo-who-touched-this', 'Local canvas preview', 'GITHUB_WEBHOOK_SECRET']) {
+    for (const marker of ['localhost:9099', '127.0.0.1:8080', 'demo-who-touched-this', 'Local canvas preview', 'GITHUB_WEBHOOK_SECRET', 'WTT_SOLANA_RPC_URL']) {
       await writeFile(join(root, 'index.html'), marker);
       await assert.rejects(scanProductionArtifact(root), /forbidden/);
     }

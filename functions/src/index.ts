@@ -58,6 +58,7 @@ import { refreshPublicWttStats as refreshPublicWttStatsRecord } from './wtt/publ
 import {
   WTT_CLAIM_SERVICE_ACCOUNT,
   configuredWttSolanaRpcUrl,
+  wttSolanaRpcUrl,
 } from './wtt/config.js';
 
 if (getApps().length === 0) initializeApp();
@@ -203,7 +204,10 @@ export const grantWttContributionEntitlement = onDocumentCreated({
 });
 
 export const refreshPublicWttStats = onDocumentWritten({
-  document: 'wttEntitlements/{entitlementId}', region: 'us-central1', retry: true,
+  document: 'wttEntitlements/{entitlementId}',
+  region: 'us-central1',
+  retry: true,
+  secrets: [wttSolanaRpcUrl],
 }, async (event) => {
   if (process.env.FUNCTIONS_EMULATOR === 'true') {
     logger.info('Public WTT aggregate refresh skipped in the emulator; unit tests use a mocked supply reader.', {
@@ -360,6 +364,7 @@ export const claimWtt = onCall({
   serviceAccount: WTT_CLAIM_SERVICE_ACCOUNT,
   timeoutSeconds: 120,
   memory: '512MiB',
+  secrets: [wttSolanaRpcUrl],
 }, async (request) => {
   if (process.env.FUNCTIONS_EMULATOR === 'true') {
     throw new HttpsError(
