@@ -16,6 +16,7 @@ import {
   assertFounderMemoOnlyTransaction,
   createFounderProvenanceInstruction,
   hasExactFounderProvenanceConfirmation,
+  runFounderProvenanceSendGate,
   validateFounderProvenancePostSend,
   validateFounderProvenancePreflight,
   validateFounderProvenanceFee,
@@ -52,11 +53,11 @@ const rpc = new FounderProvenanceRpc(rpcUrl);
 const preflight = await rpc.loadPreflight(kmsPublicKey);
 validateFounderProvenancePreflight(preflight);
 
-const duplicate = await rpc.findDuplicateMemo();
-if (duplicate) {
+const duplicateScan = await rpc.scanDuplicateMemoHistory();
+if (duplicateScan.duplicateSignature) {
   console.log('Founder #000 provenance memo is already confirmed; no transaction was sent.');
-  console.log(`signature=${duplicate}`);
-  console.log(`explorer=https://explorer.solana.com/tx/${duplicate}`);
+  console.log(`signature=${duplicateScan.duplicateSignature}`);
+  console.log(`explorer=https://explorer.solana.com/tx/${duplicateScan.duplicateSignature}`);
   process.exit(0);
 }
 
@@ -95,15 +96,18 @@ const signed = await buildExternallySignedTransaction({
 });
 const raw = Buffer.from(signed.rawTransactionBase64, 'base64');
 assertFounderMemoOnlySignedTransaction(Transaction.from(raw));
-const duplicateBeforeSend = await rpc.findDuplicateMemo();
-if (duplicateBeforeSend) {
+const sendResult = await runFounderProvenanceSendGate({
+  findDuplicate: () => rpc.findDuplicateMemoSince(duplicateScan.checkpointSignature),
+  simulate: () => rpc.simulate(raw),
+  send: () => rpc.sendOnce(raw),
+});
+if (sendResult.status === 'duplicate') {
   console.log('Founder #000 provenance memo was confirmed during preparation; no transaction was sent.');
-  console.log(`signature=${duplicateBeforeSend}`);
-  console.log(`explorer=https://explorer.solana.com/tx/${duplicateBeforeSend}`);
+  console.log(`signature=${sendResult.signature}`);
+  console.log(`explorer=https://explorer.solana.com/tx/${sendResult.signature}`);
   process.exit(0);
 }
-await rpc.simulate(raw);
-const signature = await rpc.sendOnce(raw);
+const signature = sendResult.signature;
 if (signature !== signed.transactionSignature) {
   throw new Error('Solana RPC returned an unexpected transaction signature.');
 }

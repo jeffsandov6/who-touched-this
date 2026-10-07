@@ -203,6 +203,20 @@ export function assertFounderMemoOnlySignedTransaction(transaction: Transaction)
   assertFounderMemoOnlyTransactionShape(transaction, true);
 }
 
+export async function runFounderProvenanceSendGate(input: {
+  findDuplicate: () => Promise<string | null>;
+  simulate: () => Promise<void>;
+  send: () => Promise<string>;
+}): Promise<
+  { status: 'duplicate'; signature: string }
+  | { status: 'sent'; signature: string }
+> {
+  const duplicate = await input.findDuplicate();
+  if (duplicate) return { status: 'duplicate', signature: duplicate };
+  await input.simulate();
+  return { status: 'sent', signature: await input.send() };
+}
+
 export function validateFounderProvenancePostSend(state: FounderProvenancePostSend): void {
   if (!state.succeeded || state.feePayer !== WTT_OPERATIONAL_AUTHORITY
     || !state.signerAddresses.includes(WTT_OPERATIONAL_AUTHORITY)

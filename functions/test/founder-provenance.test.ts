@@ -30,6 +30,7 @@ import {
   createFounderProvenanceInstruction,
   findSuccessfulFounderProvenanceDuplicate,
   hasExactFounderProvenanceConfirmation,
+  runFounderProvenanceSendGate,
   validateFounderProvenancePostSend,
   validateFounderProvenancePreflight,
   validateFounderProvenanceFee,
@@ -37,7 +38,13 @@ import {
   type FounderProvenancePreflight,
 } from '../src/wtt/founder-provenance.js';
 import { WTT_MEMO_PROGRAM_ID } from '../src/wtt/solana-claims.js';
-import { inspectOriginalClaimTransaction } from '../src/wtt/founder-provenance-rpc.js';
+import {
+  inspectOriginalClaimTransaction,
+  scanFounderDuplicateDelta,
+  scanFounderDuplicateHistory,
+  withFounderRpcRateLimitRetry,
+  type FounderDuplicateHistoryReader,
+} from '../src/wtt/founder-provenance-rpc.js';
 
 function validPreflight(): FounderProvenancePreflight {
   return {
@@ -103,6 +110,16 @@ function roundTripWithTestSignatures(transaction: Transaction): Transaction {
     requireAllSignatures: true,
     verifySignatures: false,
   }));
+}
+
+function parsedMemoTransaction(memo: string | null = null): unknown {
+  return {
+    meta: { err: null, innerInstructions: [] },
+    transaction: { message: { instructions: memo === null ? [] : [{
+      programId: WTT_MEMO_PROGRAM_ID,
+      parsed: memo,
+    }] } },
+  };
 }
 
 test('Founder #000 provenance memo text is exact and identifies the original claim', () => {
@@ -238,6 +255,155 @@ test('duplicate detection returns only a successful exact memo transaction', () 
   ]), null);
 });
 
+test('initial duplicate scan searches to the Founder claim and establishes the newest checkpoint', async () => {
+  const parsedRequests: string[][] = [];
+  const reader: FounderDuplicateHistoryReader = {
+    async loadSignatures() {
+      return [
+        { signature: 'newest-at-scan-start', err: null },
+        { signature: 'older', err: null },
+        { signature: ORIGINAL_FOUNDER_CLAIM_SIGNATURE, err: null },
+      ];
+    },
+    async loadParsedTransactions(signatures) {
+      parsedRequests.push([...signatures]);
+      return signatures.map(() => parsedMemoTransaction());
+    },
+  };
+
+  assert.deepEqual(await scanFounderDuplicateHistory(reader), {
+    duplicateSignature: null,
+    checkpointSignature: 'newest-at-scan-start',
+  });
+  assert.deepEqual(parsedRequests.flat(), [
+    'newest-at-scan-start',
+    'older',
+    ORIGINAL_FOUNDER_CLAIM_SIGNATURE,
+  ]);
+});
+
+test('unchanged duplicate checkpoint avoids another parsed-transaction scan', async () => {
+  let parsedCalls = 0;
+  const reader: FounderDuplicateHistoryReader = {
+    async loadSignatures(options) {
+      assert.deepEqual(options, { limit: 1 });
+      return [{ signature: 'checkpoint', err: null }];
+    },
+    async loadParsedTransactions() {
+      parsedCalls += 1;
+      return [];
+    },
+  };
+
+  assert.equal(await scanFounderDuplicateDelta(reader, 'checkpoint'), null);
+  assert.equal(parsedCalls, 0);
+});
+
+test('post-sign duplicate scan parses only signatures newer than its checkpoint', async () => {
+  let signatureCalls = 0;
+  const parsedRequests: string[][] = [];
+  const reader: FounderDuplicateHistoryReader = {
+    async loadSignatures() {
+      signatureCalls += 1;
+      return signatureCalls === 1
+        ? [{ signature: 'delta-2', err: null }]
+        : [
+          { signature: 'delta-2', err: null },
+          { signature: 'delta-1', err: null },
+          { signature: 'checkpoint', err: null },
+          { signature: 'older-must-not-be-inspected', err: null },
+        ];
+    },
+    async loadParsedTransactions(signatures) {
+      parsedRequests.push([...signatures]);
+      return signatures.map(() => parsedMemoTransaction());
+    },
+  };
+
+  assert.equal(await scanFounderDuplicateDelta(reader, 'checkpoint'), null);
+  assert.deepEqual(parsedRequests.flat(), ['delta-2', 'delta-1']);
+});
+
+test('exact duplicate in the delta stops before simulation or broadcast', async () => {
+  let signatureCalls = 0;
+  let simulated = false;
+  let sent = false;
+  const reader: FounderDuplicateHistoryReader = {
+    async loadSignatures() {
+      signatureCalls += 1;
+      return signatureCalls === 1
+        ? [{ signature: 'duplicate', err: null }]
+        : [
+          { signature: 'duplicate', err: null },
+          { signature: 'checkpoint', err: null },
+        ];
+    },
+    async loadParsedTransactions(signatures) {
+      return signatures.map(() => parsedMemoTransaction(FOUNDER_PROVENANCE_MEMO));
+    },
+  };
+
+  assert.deepEqual(await runFounderProvenanceSendGate({
+    findDuplicate: () => scanFounderDuplicateDelta(reader, 'checkpoint'),
+    simulate: async () => { simulated = true; },
+    send: async () => { sent = true; return 'sent'; },
+  }), { status: 'duplicate', signature: 'duplicate' });
+  assert.equal(simulated, false);
+  assert.equal(sent, false);
+});
+
+test('429 retry honors Retry-After, uses bounded backoff, and eventually succeeds', async () => {
+  let attempts = 0;
+  const delays: number[] = [];
+  const result = await withFounderRpcRateLimitRetry(async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      throw Object.assign(new Error('429 Too many requests'), { status: 429 });
+    }
+    if (attempts === 2) {
+      throw Object.assign(new Error('rate limited'), {
+        response: { status: 429, headers: { 'retry-after': '0.02' } },
+      });
+    }
+    return 'ok';
+  }, {
+    maxRetries: 3,
+    baseDelayMs: 5,
+    maxDelayMs: 25,
+    sleep: async (delayMs) => { delays.push(delayMs); },
+  });
+
+  assert.equal(result, 'ok');
+  assert.equal(attempts, 3);
+  assert.deepEqual(delays, [5, 20]);
+});
+
+test('exhausted 429 retries fail closed and duplicate-check errors prevent broadcast', async () => {
+  let attempts = 0;
+  const delays: number[] = [];
+  const verification = () => withFounderRpcRateLimitRetry(async () => {
+    attempts += 1;
+    throw Object.assign(new Error('429 Too many requests'), { statusCode: 429 });
+  }, {
+    maxRetries: 2,
+    baseDelayMs: 5,
+    maxDelayMs: 10,
+    sleep: async (delayMs) => { delays.push(delayMs); },
+  });
+  let simulated = false;
+  let sent = false;
+
+  await assert.rejects(runFounderProvenanceSendGate({
+    findDuplicate: verification,
+    simulate: async () => { simulated = true; },
+    send: async () => { sent = true; return 'sent'; },
+  }), /429 Too many requests/);
+  assert.equal(attempts, 3);
+  assert.deepEqual(delays, [5, 10]);
+  assert.equal(simulated, false);
+  assert.equal(sent, false);
+});
+
 test('preflight accepts only supply one and the exact frozen Founder ATA', () => {
   assert.doesNotThrow(() => validateFounderProvenancePreflight(validPreflight()));
   for (const invalid of [
@@ -333,10 +499,11 @@ test('operational script reuses KMS signing and contains no state-mutation integ
   assert.equal((script.match(/sendOnce\(/g) ?? []).length, 1);
   assert.ok(script.indexOf('if (!hasExactFounderProvenanceConfirmation')
     < script.indexOf('new GoogleKmsWttMessageSigner()'));
-  assert.ok(script.indexOf('if (duplicate)')
+  assert.ok(script.indexOf('const duplicateScan = await rpc.scanDuplicateMemoHistory()')
     < script.indexOf('const signed = await buildExternallySignedTransaction'));
-  assert.ok(script.indexOf('const duplicateBeforeSend = await rpc.findDuplicateMemo()')
-    < script.indexOf('const signature = await rpc.sendOnce(raw)'));
+  assert.ok(script.indexOf('findDuplicate: () => rpc.findDuplicateMemoSince')
+    < script.indexOf('send: () => rpc.sendOnce(raw)'));
+  assert.match(script, /runFounderProvenanceSendGate/);
   const packageJson = JSON.parse(await readFile(
     new URL('../../package.json', import.meta.url), 'utf8',
   )) as { scripts: Record<string, string> };
