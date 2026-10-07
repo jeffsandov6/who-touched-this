@@ -35,7 +35,11 @@ export async function validateFirebaseFiles(repoRoot) {
 }
 
 export async function validateSecretBindings(repoRoot) {
-  const source = await readFile(join(repoRoot, 'functions/src/config.ts'), 'utf8');
+  const sources = await Promise.all([
+    'functions/src/config.ts',
+    'functions/src/wtt/config.ts',
+  ].map((path) => readFile(join(repoRoot, path), 'utf8')));
+  const source = sources.join('\n');
   for (const name of RELEASE_CONFIG.secretNames) {
     if (!source.includes(`defineSecret('${name}')`)) throw new Error(`Functions source is missing the ${name} Secret Manager binding.`);
     if (name.startsWith('PUBLIC_')) throw new Error('Server secret names must never use PUBLIC_.');

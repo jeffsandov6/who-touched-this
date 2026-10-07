@@ -66,12 +66,11 @@ export function validateProductionEnvironment(browser, functionsConfig) {
   if (browser.PUBLIC_CONTRIBUTOR_PREVIEW === 'true' || browser.MODE === 'contributor') throw new Error('Contributor-preview mode is forbidden for production release.');
   if (normalizeOrigin(browser.APP_ORIGIN) !== 'https://whotouchedthis.website') throw new Error('Production APP_ORIGIN must be https://whotouchedthis.website.');
 
-  for (const name of ['EMAIL_PROVIDER_MODE', 'APP_ORIGIN', 'GITHUB_REPOSITORY', 'GITHUB_BASE_BRANCH', 'WTT_SOLANA_RPC_URL']) requireValue(functionsConfig, name);
+  for (const name of ['EMAIL_PROVIDER_MODE', 'APP_ORIGIN', 'GITHUB_REPOSITORY', 'GITHUB_BASE_BRANCH']) requireValue(functionsConfig, name);
   if (functionsConfig.EMAIL_PROVIDER_MODE !== 'resend') throw new Error('Production Functions must use EMAIL_PROVIDER_MODE=resend.');
   if (normalizeOrigin(functionsConfig.APP_ORIGIN) !== 'https://whotouchedthis.website') throw new Error('Functions APP_ORIGIN is incorrect.');
   if (functionsConfig.GITHUB_REPOSITORY !== 'jeffsandov6/who-touched-this') throw new Error('Functions canonical GitHub repository is incorrect.');
   if (functionsConfig.GITHUB_BASE_BRANCH !== 'main') throw new Error('Functions base branch must be main.');
-  validateProductionSolanaRpcUrl(functionsConfig.WTT_SOLANA_RPC_URL);
   return { indexingEnabled: browser.PUBLIC_SITE_INDEXING_ENABLED === 'true' };
 }
 

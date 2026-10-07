@@ -8,7 +8,7 @@ const FORBIDDEN = [
   /demo-who-touched-this/i,
   /PUBLIC_USE_FIREBASE_EMULATORS\s*=\s*true/i,
   /Local canvas preview/i,
-  /RESEND_API_KEY|GITHUB_WEBHOOK_SECRET/,
+  /RESEND_API_KEY|GITHUB_WEBHOOK_SECRET|WTT_SOLANA_RPC_URL/,
 ];
 
 async function filesBelow(path) {

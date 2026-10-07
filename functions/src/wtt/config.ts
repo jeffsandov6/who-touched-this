@@ -1,4 +1,4 @@
-import { defineString } from 'firebase-functions/params';
+import { defineSecret } from 'firebase-functions/params';
 
 export const WTT_SOLANA_NETWORK = 'mainnet-beta' as const;
 export const WTT_SOLANA_RPC_DEFAULT = 'https://api.mainnet-beta.solana.com' as const;
@@ -12,10 +12,7 @@ export const WTT_CLAIM_SERVICE_ACCOUNT =
   'wtt-claim-signer@who-touched-this.iam.gserviceaccount.com' as const;
 export const WTT_OPERATIONAL_MINIMUM_LAMPORTS = 10_000_000 as const;
 
-export const wttSolanaRpcUrl = defineString('WTT_SOLANA_RPC_URL', {
-  default: WTT_SOLANA_RPC_DEFAULT,
-  description: 'Server-only Solana mainnet-beta RPC URL used by the WTT claim executor.',
-});
+export const wttSolanaRpcUrl = defineSecret('WTT_SOLANA_RPC_URL');
 
 function isPrivateIpv4(hostname: string): boolean {
   const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
