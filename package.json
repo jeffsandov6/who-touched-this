@@ -63,7 +63,7 @@
     "@astrojs/vue": "7.0.3",
     "@solana/wallet-standard-features": "1.5.0",
     "@wallet-standard/core": "1.1.2",
-    "astro": "7.3.5",
+    "astro": "7.3.6",
     "firebase": "12.19.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -76,7 +76,7 @@
     "@firebase/rules-unit-testing": "5.0.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "firebase-tools": "15.31.0",
+    "firebase-tools": "15.32.1",
     "playwright": "1.56.0",
     "typescript": "6.0.3"
   }
