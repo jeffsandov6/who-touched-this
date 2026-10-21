@@ -344,8 +344,9 @@ test('detail loader reads only deterministic public contribution and snapshot do
 
 test('Firebase Hosting rewrite is narrow to one canonical numeric History segment', async () => {
   const firebase = JSON.parse(await readFile(new URL('../firebase.json', import.meta.url), 'utf8'));
-  assert.equal(firebase.hosting.rewrites.length, 1);
-  const rewrite = firebase.hosting.rewrites[0];
+  const historyRewrites = firebase.hosting.rewrites.filter((item: { regex?: string }) => item.regex?.startsWith('^/history/'));
+  assert.equal(historyRewrites.length, 1);
+  const rewrite = historyRewrites[0];
   assert.equal(rewrite.regex, '^/history/(0|[1-9][0-9]*)/?$');
   assert.equal(rewrite.destination, '/history/detail-shell/index.html');
   const matcher = new RegExp(rewrite.regex);

@@ -18,6 +18,13 @@
     "cleanUrls": true,
     "rewrites": [
       {
+        "source": "/api/odds/nfl",
+        "function": {
+          "functionId": "nflOdds",
+          "region": "us-central1"
+        }
+      },
+      {
         "regex": "^/history/(0|[1-9][0-9]*)/?$",
         "destination": "/history/detail-shell/index.html"
       }

@@ -71,7 +71,7 @@ test('production artifact scan rejects emulator, localhost, preview, and server-
   try {
     await writeFile(join(root, 'index.html'), '<title>Who Touched This</title>');
     assert.equal((await scanProductionArtifact(root)).filesScanned, 1);
-    for (const marker of ['localhost:9099', '127.0.0.1:8080', 'demo-who-touched-this', 'Local canvas preview', 'GITHUB_WEBHOOK_SECRET', 'WTT_SOLANA_RPC_URL']) {
+    for (const marker of ['localhost:9099', '127.0.0.1:8080', 'demo-who-touched-this', 'Local canvas preview', 'GITHUB_WEBHOOK_SECRET', 'WTT_SOLANA_RPC_URL', 'ODDS_API_KEY']) {
       await writeFile(join(root, 'index.html'), marker);
       await assert.rejects(scanProductionArtifact(root), /forbidden/);
     }
