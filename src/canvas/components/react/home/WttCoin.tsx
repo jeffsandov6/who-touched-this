@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
+import { useContributorPreview } from '../../../../platform/firebase/client';
 import { subscribeToPublicWttStats } from '../../../../platform/firebase/public-wtt-stats';
 
 import './WttCoin.css';
@@ -24,14 +25,27 @@ const unavailableStats: DisplayStats = {
     supply: '—',
 };
 
+const contributorPreviewStats: DisplayStats = {
+    earned: 0,
+    claimed: 0,
+    unclaimed: 0,
+    holders: 0,
+    supply: 0,
+};
+
 export default function WttCoin() {
+    const contributorPreview = useContributorPreview();
     const [showBuyMessage, setShowBuyMessage] = useState(false);
-    const [stats, setStats] = useState<DisplayStats>(unavailableStats);
+    const [stats, setStats] = useState<DisplayStats>(
+        contributorPreview ? contributorPreviewStats : unavailableStats,
+    );
     const [statsStatus, setStatsStatus] = useState<
-        'loading' | 'ready' | 'missing' | 'error'
-    >('loading');
+        'preview' | 'loading' | 'ready' | 'missing' | 'error'
+    >(contributorPreview ? 'preview' : 'loading');
 
     useEffect(() => {
+        if (contributorPreview) return undefined;
+
         return subscribeToPublicWttStats((state) => {
             setStatsStatus(state.status);
 
@@ -48,9 +62,10 @@ export default function WttCoin() {
                 supply: state.stats.supply,
             });
         });
-    }, []);
+    }, [contributorPreview]);
 
     const statsStatusText = {
+        preview: 'preview stats · not live.',
         loading: 'loading live stats...',
         ready: null,
         missing: 'live stats not available yet.',
