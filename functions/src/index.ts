@@ -12,6 +12,7 @@ import {
   githubBaseBranch,
   githubRepository,
   githubWebhookSecret,
+  oddsApiKey,
   resendApiKey,
 } from './config.js';
 import { FirestoreDeliveryStore } from './email/firestore-delivery-store.js';
@@ -35,6 +36,9 @@ import {
 import { deliveryIds } from './email/notification-eligibility.js';
 import type { EmailProvider } from './email/types.js';
 import { handleGitHubWebhook } from './github/webhook.js';
+import { firestoreOddsBudget } from './odds/firestore-budget.js';
+import { firestoreOddsCache } from './odds/firestore-cache.js';
+import { handleOddsRequest } from './odds/http.js';
 import { finalizeSnapshotArchiveRequest, SnapshotFinalizeError } from './snapshots/finalize.js';
 import { recordFounderSeedContribution, FounderSeedError } from './founder/record.js';
 import { ensureFirestoreContributionEntitlement } from './wtt/firestore-entitlements.js';
@@ -654,4 +658,25 @@ export const githubWebhook = onRequest({
     safeLogFailure('GitHub webhook processing failed.', 'github-webhook', error);
     response.status(500).json({ ok: false, result: 'processing_error' });
   }
+});
+
+export const odds = onRequest({
+  region: 'us-central1',
+  secrets: [oddsApiKey],
+  cors: false,
+  timeoutSeconds: 20,
+  memory: '256MiB',
+  maxInstances: 3,
+}, async (request, response) => {
+  const firestore = getFirestore();
+  await handleOddsRequest(request, response, {
+    apiKey: oddsApiKey.value(),
+    cacheForLeague: (league) => firestoreOddsCache(firestore, league),
+    budget: firestoreOddsBudget(firestore),
+    logFailure: (code, leagueId) => logger.warn('Public odds request could not be served.', {
+      event: 'odds_request_failed',
+      failureCode: code,
+      leagueId,
+    }),
+  });
 });
