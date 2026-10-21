@@ -1,20 +1,24 @@
+import { leagueByPath, type LeagueConfig } from './leagues.js';
 import {
-  NflOddsError,
-  resolveNflOdds,
-  type NflOddsCache,
-  type PublicNflOddsResponse,
-} from './nfl-odds.js';
+  OddsError,
+  resolveOdds,
+  type OddsBudget,
+  type OddsCache,
+  type PublicOddsResponse,
+} from './odds.js';
 
-interface NflOddsHttpDependencies {
+interface OddsHttpDependencies {
   apiKey: string;
-  cache: NflOddsCache;
+  cacheForLeague(league: LeagueConfig): OddsCache;
+  budget: OddsBudget;
   fetchImpl?: typeof fetch;
   now?: () => Date;
-  logFailure?: (code: string) => void;
+  logFailure?: (code: string, leagueId?: string) => void;
 }
 
 interface OddsHttpRequest {
   method: string;
+  path: string;
   query: object;
 }
 
@@ -24,16 +28,16 @@ interface OddsHttpResponse {
   json(body: unknown): unknown;
 }
 
-function cacheControl(response: PublicNflOddsResponse): string {
+function cacheControl(response: PublicOddsResponse): string {
   return response.cache.status === 'fresh'
     ? 'public, max-age=300, s-maxage=900, stale-while-revalidate=300'
-    : 'public, max-age=30, s-maxage=60, stale-while-revalidate=60';
+    : 'public, max-age=30, s-maxage=60';
 }
 
-export async function handleNflOddsRequest(
+export async function handleOddsRequest(
   request: OddsHttpRequest,
   response: OddsHttpResponse,
-  dependencies: NflOddsHttpDependencies,
+  dependencies: OddsHttpDependencies,
 ): Promise<void> {
   response.set('X-Content-Type-Options', 'nosniff');
   if (request.method !== 'GET') {
@@ -47,24 +51,41 @@ export async function handleNflOddsRequest(
     response.status(400).json({ error: { code: 'invalid_request', message: 'Query parameters are not supported.' } });
     return;
   }
+  const league = leagueByPath(request.path);
+  if (!league) {
+    response.set('Cache-Control', 'no-store');
+    response.status(404).json({ error: { code: 'unsupported_league', message: 'That odds league is not supported.' } });
+    return;
+  }
   try {
-    const result = await resolveNflOdds({
+    const result = await resolveOdds({
       apiKey: dependencies.apiKey,
-      cache: dependencies.cache,
+      league,
+      cache: dependencies.cacheForLeague(league),
+      budget: dependencies.budget,
       ...(dependencies.fetchImpl ? { fetchImpl: dependencies.fetchImpl } : {}),
       ...(dependencies.now ? { now: dependencies.now } : {}),
     });
     response.set('Cache-Control', cacheControl(result));
     response.status(200).json(result);
   } catch (error) {
-    const code = error instanceof NflOddsError ? error.code : 'internal_error';
-    dependencies.logFailure?.(code);
+    const code = error instanceof OddsError ? error.code : 'internal_error';
+    dependencies.logFailure?.(code, league.id);
     response.set('Cache-Control', 'no-store');
-    response.set('Retry-After', '300');
+    response.set('Retry-After', code === 'quota_exhausted' || code === 'budget_limit' ? '21600' : '300');
+    if (code === 'quota_exhausted') {
+      response.status(503).json({
+        error: {
+          code: 'ODDS_QUOTA_EXHAUSTED',
+          message: 'Odds data is unavailable because the monthly provider quota is exhausted.',
+        },
+      });
+      return;
+    }
     response.status(503).json({
       error: {
-        code: 'odds_temporarily_unavailable',
-        message: 'NFL odds are temporarily unavailable.',
+        code: 'ODDS_TEMPORARILY_UNAVAILABLE',
+        message: `${league.name} odds are temporarily unavailable.`,
       },
     });
   }

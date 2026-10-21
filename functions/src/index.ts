@@ -36,8 +36,9 @@ import {
 import { deliveryIds } from './email/notification-eligibility.js';
 import type { EmailProvider } from './email/types.js';
 import { handleGitHubWebhook } from './github/webhook.js';
-import { firestoreNflOddsCache } from './odds/firestore-cache.js';
-import { handleNflOddsRequest } from './odds/http.js';
+import { firestoreOddsBudget } from './odds/firestore-budget.js';
+import { firestoreOddsCache } from './odds/firestore-cache.js';
+import { handleOddsRequest } from './odds/http.js';
 import { finalizeSnapshotArchiveRequest, SnapshotFinalizeError } from './snapshots/finalize.js';
 import { recordFounderSeedContribution, FounderSeedError } from './founder/record.js';
 import { ensureFirestoreContributionEntitlement } from './wtt/firestore-entitlements.js';
@@ -659,7 +660,7 @@ export const githubWebhook = onRequest({
   }
 });
 
-export const nflOdds = onRequest({
+export const odds = onRequest({
   region: 'us-central1',
   secrets: [oddsApiKey],
   cors: false,
@@ -667,12 +668,15 @@ export const nflOdds = onRequest({
   memory: '256MiB',
   maxInstances: 3,
 }, async (request, response) => {
-  await handleNflOddsRequest(request, response, {
+  const firestore = getFirestore();
+  await handleOddsRequest(request, response, {
     apiKey: oddsApiKey.value(),
-    cache: firestoreNflOddsCache(getFirestore()),
-    logFailure: (code) => logger.warn('Public NFL odds request could not be served.', {
-      event: 'nfl_odds_request_failed',
+    cacheForLeague: (league) => firestoreOddsCache(firestore, league),
+    budget: firestoreOddsBudget(firestore),
+    logFailure: (code, leagueId) => logger.warn('Public odds request could not be served.', {
+      event: 'odds_request_failed',
       failureCode: code,
+      leagueId,
     }),
   });
 });

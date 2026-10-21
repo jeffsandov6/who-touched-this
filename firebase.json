@@ -18,9 +18,9 @@
     "cleanUrls": true,
     "rewrites": [
       {
-        "source": "/api/odds/nfl",
+        "source": "/api/odds/**",
         "function": {
-          "functionId": "nflOdds",
+          "functionId": "odds",
           "region": "us-central1"
         }
       },
