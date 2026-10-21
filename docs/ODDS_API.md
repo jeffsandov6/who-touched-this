@@ -76,7 +76,7 @@ Outcome IDs deliberately exclude price and point. A client must retain the accep
 
 ## Bookmakers
 
-NFL and NBA use DraftKings only. Soccer requests DraftKings, FanDuel, and BetMGM in one US-region-equivalent bookmaker request and selects one bookmaker for the entire league response in that priority order. Events are never assembled from different bookmakers. If the selected bookmaker lacks a market for an event, that event has empty markets; if no configured bookmaker has usable data, source bookmaker fields are `null`.
+NFL and NBA use DraftKings only. Soccer requests DraftKings, FanDuel, and BetMGM in one US-region-equivalent bookmaker request, then selects the bookmaker with valid match-winner markets for the greatest number of upcoming games. Coverage ties use that priority order. Events are never assembled from different bookmakers. If the selected bookmaker lacks a market for an event, that event has empty markets; if no configured bookmaker has usable data, source bookmaker fields are `null`.
 
 Provider availability and public display/licensing terms must be reviewed before production launch. Attribution should identify The Odds API and the returned bookmaker; this integration does not imply endorsement by a bookmaker.
 
@@ -102,7 +102,7 @@ Validated snapshots are fresh for 12 hours and may be served explicitly stale fo
 - `quotaExhausted`, `quotaExhaustedAt`, and `quotaRecheckAt`;
 - `updatedAt`.
 
-A Firestore transaction reserves credits before each provider request. The local ceiling is 475 of 500 credits, preserving a 25-credit safety margin. Active reservations count against the ceiling. Expired reservations are conservatively charged because the process may have stopped after sending a billable request. Settlement reconciles the estimate with valid `x-requests-used`, `x-requests-remaining`, and `x-requests-last` headers.
+A Firestore transaction reserves credits before each provider request. The local ceiling is 475 of 500 credits, preserving a 25-credit safety margin. Active reservations count against the ceiling. Expired reservations are conservatively charged because the process may have stopped after sending a billable request. Settlement reconciles the estimate with valid `x-requests-used`, `x-requests-remaining`, and `x-requests-last` headers. At local month rollover, the last provider observation remains authoritative until a new response confirms that provider counters reset.
 
 Confirmed `OUT_OF_USAGE_CREDITS` state blocks all leagues. The first recheck is permitted no earlier than noon UTC on the first day of the next month; noon is a conservative implementation boundary, not a claim about the provider's reset timezone. A failed recheck waits six hours before one later request may retry. A successful provider response clears exhaustion. `EXCEEDED_FREQ_LIMIT` and generic HTTP 429 responses are temporary rate limits, not quota exhaustion.
 

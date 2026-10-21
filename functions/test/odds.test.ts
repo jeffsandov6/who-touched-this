@@ -200,16 +200,44 @@ test('soccer normalizes home, draw, and away and permits an absent draw', () => 
   assert.deepEqual(normalizeOdds([input], NOW, LEAGUES.epl).events[0]?.markets.moneyline?.outcomes.map(({ side }) => side), ['home', 'away']);
 });
 
-test('soccer bookmaker fallback is deterministic and never mixes books between events', () => {
-  const first = upstreamEvent(LEAGUES.epl, { id: 'first', bookmakers: [] });
+test('soccer selects the bookmaker covering the greatest number of upcoming games', () => {
+  const first = upstreamEvent(LEAGUES.epl, { id: 'first' });
   const second = upstreamEvent(LEAGUES.epl, { id: 'second' });
-  const draftKings = (second.bookmakers as unknown[])[0];
-  first.bookmakers = [{ ...(draftKings as object), key: 'fanduel', title: 'FanDuel' }];
-  second.bookmakers = [draftKings, { ...(draftKings as object), key: 'fanduel', title: 'FanDuel' }];
+  const expired = upstreamEvent(LEAGUES.epl, { id: 'expired', commence_time: NOW.toISOString() });
+  const draftKings = structuredClone((first.bookmakers as unknown[])[0]);
+  const fanDuel = { ...structuredClone(draftKings as object), key: 'fanduel', title: 'FanDuel' };
+  first.bookmakers = [draftKings, fanDuel];
+  second.bookmakers = [structuredClone(fanDuel)];
+  expired.bookmakers = [structuredClone(draftKings)];
+  const result = normalizeOdds([first, second, expired], NOW, LEAGUES.epl);
+  assert.equal(result.source.bookmakerKey, 'fanduel');
+  assert.equal(result.events.length, 2);
+  assert.ok(result.events.every(({ markets }) => markets.moneyline));
+});
+
+test('soccer coverage ties use configured bookmaker priority without mixing prices', () => {
+  const first = upstreamEvent(LEAGUES.epl, { id: 'first' });
+  const second = upstreamEvent(LEAGUES.epl, { id: 'second' });
+  const draftKings = structuredClone((first.bookmakers as unknown[])[0]);
+  const fanDuel = { ...structuredClone(draftKings as object), key: 'fanduel', title: 'FanDuel' };
+  first.bookmakers = [draftKings];
+  second.bookmakers = [fanDuel];
   const result = normalizeOdds([first, second], NOW, LEAGUES.epl);
   assert.equal(result.source.bookmakerKey, 'draftkings');
-  assert.deepEqual(result.events.find(({ id }) => id === 'epl:first')?.markets, {});
-  assert.ok(result.events.find(({ id }) => id === 'epl:second')?.markets.moneyline);
+  assert.ok(result.events.find(({ id }) => id === 'epl:first')?.markets.moneyline);
+  assert.deepEqual(result.events.find(({ id }) => id === 'epl:second')?.markets, {});
+});
+
+test('soccer coverage ignores bookmaker entries with missing match-winner markets', () => {
+  const first = upstreamEvent(LEAGUES.epl, { id: 'first' });
+  const second = upstreamEvent(LEAGUES.epl, { id: 'second' });
+  const draftKings = structuredClone((first.bookmakers as Array<Record<string, unknown>>)[0]!);
+  const fanDuel = { ...structuredClone(draftKings), key: 'fanduel', title: 'FanDuel' };
+  first.bookmakers = [{ ...draftKings, markets: [] }, fanDuel];
+  second.bookmakers = [{ ...structuredClone(draftKings), markets: [] }, structuredClone(fanDuel)];
+  const result = normalizeOdds([first, second], NOW, LEAGUES.epl);
+  assert.equal(result.source.bookmakerKey, 'fanduel');
+  assert.ok(result.events.every(({ markets }) => markets.moneyline));
 });
 
 test('missing bookmaker/markets, empty schedules, and expired events remain safe', () => {
@@ -425,6 +453,46 @@ test('expired budget reservations are conservatively charged and provider header
   });
   state = documents.get(ODDS_BUDGET_DOCUMENT)!;
   assert.equal(state.estimatedUsed, 40); assert.equal(state.providerRemaining, 460); assert.equal(state.providerLastCost, 1);
+});
+
+test('month rollover preserves the last provider limit until new headers confirm reset', async () => {
+  const { firestore } = fakeFirestore();
+  const budget = firestoreOddsBudget(firestore);
+  const monthEnd = new Date('2026-11-30T23:00:00Z');
+  const seeded = await budget.reserve(monthEnd, 'nfl:month-end', 3);
+  assert.equal(seeded.kind, 'acquired');
+  if (seeded.kind !== 'acquired') return;
+  await budget.settle(seeded.reservation, monthEnd, {
+    quota: { used: 470, remaining: 30, last: 3 }, quotaExhausted: false, successful: true,
+  });
+
+  const rollover = new Date('2026-12-01T00:01:00Z');
+  const first = await budget.reserve(rollover, 'epl:first-new-month', 3);
+  const parallel = await budget.reserve(rollover, 'nba:parallel-new-month', 3);
+  assert.equal(first.kind, 'acquired');
+  assert.equal(parallel.kind, 'blocked');
+  if (first.kind !== 'acquired') return;
+  await budget.settle(first.reservation, rollover, {
+    quota: { used: 3, remaining: 497, last: 3 }, quotaExhausted: false, successful: true,
+  });
+  assert.equal((await budget.reserve(rollover, 'nba:after-confirmed-reset', 3)).kind, 'acquired');
+});
+
+test('month rollover permits a bounded recheck when prior remaining credits equal the safety margin', async () => {
+  const { firestore } = fakeFirestore();
+  const budget = firestoreOddsBudget(firestore);
+  const monthEnd = new Date('2026-11-30T23:00:00Z');
+  const seeded = await budget.reserve(monthEnd, 'nfl:at-margin', 3);
+  assert.equal(seeded.kind, 'acquired');
+  if (seeded.kind !== 'acquired') return;
+  await budget.settle(seeded.reservation, monthEnd, {
+    quota: { used: 475, remaining: 25, last: 3 }, quotaExhausted: false, successful: true,
+  });
+  const early = await budget.reserve(new Date('2026-12-01T00:01:00Z'), 'epl:early-recheck', 1);
+  assert.equal(early.kind, 'blocked');
+  const bounded = await budget.reserve(new Date('2026-12-01T12:01:00Z'), 'epl:bounded-recheck', 1);
+  assert.equal(bounded.kind, 'acquired');
+  if (bounded.kind === 'acquired') assert.equal(bounded.reservation.quotaRecheck, true);
 });
 
 test('confirmed monthly exhaustion blocks all leagues then permits one bounded rollover recheck', async () => {

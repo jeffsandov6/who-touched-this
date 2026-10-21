@@ -120,6 +120,9 @@ function persisted(state: BudgetState, now: Date): Record<string, unknown> {
 }
 
 function applyObservation(state: BudgetState, observation: ProviderQuotaObservation, now: Date): void {
+  if (state.providerObservedAt && periodKey(state.providerObservedAt) !== periodKey(now)) {
+    state.estimatedUsed = 0;
+  }
   state.providerUsed = observation.used;
   state.providerRemaining = observation.remaining;
   state.providerLastCost = observation.last;
@@ -146,9 +149,13 @@ export function firestoreOddsBudget(firestore: Firestore): OddsBudget {
 
       const currentPeriod = periodKey(now);
       if (state.periodKey !== currentPeriod && !state.quotaExhausted) {
-        if (state.providerRemaining !== null && state.providerRemaining < ODDS_CREDIT_SAFETY_MARGIN) {
+        if (state.providerRemaining !== null && state.providerRemaining <= ODDS_CREDIT_SAFETY_MARGIN) {
           state.quotaExhausted = true;
           state.quotaRecheckAt = currentPeriodRecheck(now);
+        } else if (state.providerObservedAt) {
+          // Preserve the last authoritative observation until a new provider response confirms reset.
+          state.periodKey = currentPeriod;
+          state.estimatedUsed = 0;
         } else {
           state = emptyState(now);
         }

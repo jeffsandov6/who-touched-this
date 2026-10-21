@@ -198,6 +198,12 @@ function normalizeMarket(
       ...(applicablePoint === undefined ? {} : { point: applicablePoint }),
     } satisfies PublicOddsOutcome;
   });
+  const requiredSides: readonly OutcomeSide[] = key === 'totals'
+    ? ['over', 'under']
+    : ['home', 'away'];
+  if (!requiredSides.every((side) => sides.has(side))) {
+    throw new OddsError('upstream_malformed', 'Upstream market is missing a required outcome.');
+  }
   const updatedAt = timestamp(record.last_update, 'Upstream market update timestamp', false);
   const names = {
     h2h: ['moneyline', 'Moneyline'],
@@ -215,7 +221,26 @@ function configuredBookmaker(event: Record<string, unknown>, key: string): Recor
   return matching.length === 0 ? null : object(matching[0], 'Configured upstream bookmaker');
 }
 
-function chooseBookmaker(events: Record<string, unknown>[], league: LeagueConfig): BookmakerConfig | null {
+function chooseBookmaker(
+  events: Record<string, unknown>[],
+  league: LeagueConfig,
+  nowMilliseconds: number,
+): BookmakerConfig | null {
+  if (league.allowDraw) {
+    let selected: BookmakerConfig | null = null;
+    let greatestCoverage = 0;
+    for (const candidate of league.bookmakers) {
+      const coverage = events.reduce((count, event) => {
+        const normalized = normalizeEvent(event, nowMilliseconds, league, candidate);
+        return count + (normalized?.markets.moneyline ? 1 : 0);
+      }, 0);
+      if (coverage > greatestCoverage) {
+        selected = candidate;
+        greatestCoverage = coverage;
+      }
+    }
+    return selected;
+  }
   for (const candidate of league.bookmakers) {
     for (const event of events) {
       const bookmaker = configuredBookmaker(event, candidate.key);
@@ -278,7 +303,7 @@ export function normalizeOdds(input: unknown, fetchedAt: Date, league: LeagueCon
     throw new OddsError('upstream_malformed', 'Upstream schedule is malformed.');
   }
   const records = input.map((event) => object(event, 'Upstream event'));
-  const bookmaker = chooseBookmaker(records, league);
+  const bookmaker = chooseBookmaker(records, league, fetchedAt.getTime());
   const identifiers = new Set<string>();
   const events: PublicOddsEvent[] = [];
   for (const record of records) {
@@ -655,12 +680,17 @@ export function isOddsSnapshot(value: unknown, expectedLeagueId?: LeagueId): val
     ] as const) {
       if (!(publicKey in markets)) continue;
       const market = markets[publicKey] as Record<string, unknown>;
+      const outcomeSides = Array.isArray(market?.outcomes)
+        ? new Set(market.outcomes.map((outcome) => (outcome as Record<string, unknown>)?.side))
+        : new Set<unknown>();
+      const requiredSides = providerKey === 'totals' ? ['over', 'under'] : ['home', 'away'];
       if (!market || typeof market !== 'object' || Array.isArray(market)
         || !exactKeys(market, ['key', 'name', 'updatedAt', 'outcomes'])
         || market.key !== providerKey || market.name !== name || !league.markets.includes(providerKey)
         || ('updatedAt' in market && !validIsoTimestamp(market.updatedAt))
         || !Array.isArray(market.outcomes) || market.outcomes.length < 1 || market.outcomes.length > 3
-        || new Set(market.outcomes.map((outcome) => (outcome as Record<string, unknown>)?.side)).size !== market.outcomes.length
+        || outcomeSides.size !== market.outcomes.length
+        || !requiredSides.every((side) => outcomeSides.has(side))
         || !market.outcomes.every((outcome) => validOutcome(outcome, event, providerKey, league))) return false;
     }
   }
