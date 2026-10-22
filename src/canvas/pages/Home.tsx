@@ -6,6 +6,7 @@ import WttCoin from '../components/react/home/WttCoin';
 import GameSection from '../components/react/home/GameSection';
 import UndertakerSequence from '../components/react/home/UndertakerSequence';
 import O2LiftAd from '../components/react/home/O2LiftAd';
+import MultiLeagueParlayBuilder from '../components/react/home/MultiLeagueParlayBuilder';
 
 import CanvasPageNavigation from '../components/react/CanvasPageNavigation';
 
@@ -36,6 +37,8 @@ export default function Home() {
         <section className="canvas-home-o2lift">
           <O2LiftAd />
         </section>
+
+        <MultiLeagueParlayBuilder />
       </main>
     </div>
   );
