@@ -4,6 +4,9 @@ export const REVIEW_LIMITS = Object.freeze({
   maxArtifactFiles: 20_000,
   maxArtifactFileBytes: 25 * 1024 * 1024,
   maxArtifactBytes: 250 * 1024 * 1024,
+  // Chromium needs a temporary file larger than the sanitized artifact limit
+  // while encoding the largest permitted screenshot tile.
+  previewProcessFileBytes: 64 * 1024 * 1024,
   hostilePhaseSeconds: 480,
   previewPhaseSeconds: 420,
   containerMemory: '4g',
@@ -22,13 +25,14 @@ export const REVIEW_LIMITS = Object.freeze({
 export const HOSTILE_NODE_IMAGE = 'node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3';
 export const HOSTILE_PLAYWRIGHT_IMAGE = 'mcr.microsoft.com/playwright:v1.56.0-noble@sha256:35246d87a7c88ea9b771c65d33171b2611b02a8253b4b12ce6f94376c55f99f2';
 
-export function hostileContainerArguments({ image, workspace, workspaceReadonly = false, command, timeoutSeconds, outputMounts = [] }) {
+export function hostileContainerArguments({ image, workspace, workspaceReadonly = false, command, timeoutSeconds, outputMounts = [], processFileBytes = REVIEW_LIMITS.maxArtifactFileBytes }) {
   if (!Array.isArray(command) || command.length === 0) throw new Error('A bounded hostile container command is required.');
+  if (!Number.isSafeInteger(processFileBytes) || processFileBytes < 1) throw new Error('The process file-size limit must be a positive integer.');
   return [
     'run', '--rm', '--read-only', '--network', 'none', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
     '--memory', REVIEW_LIMITS.containerMemory, '--memory-swap', REVIEW_LIMITS.containerMemory,
     '--cpus', REVIEW_LIMITS.containerCpus, '--pids-limit', REVIEW_LIMITS.containerPids,
-    '--ulimit', `fsize=${REVIEW_LIMITS.maxArtifactFileBytes}:${REVIEW_LIMITS.maxArtifactFileBytes}`,
+    '--ulimit', `fsize=${processFileBytes}:${processFileBytes}`,
     '--user', '1001:1001', '--workdir', '/workspace',
     '--tmpfs', '/tmp:rw,noexec,nosuid,nodev,size=1g,uid=1001,gid=1001',
     '--env', 'CI=true', '--env', 'HOME=/tmp/wtt-home',

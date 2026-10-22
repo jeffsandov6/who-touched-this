@@ -53,6 +53,7 @@ try {
       workspace: trusted,
       workspaceReadonly: true,
       timeoutSeconds: REVIEW_LIMITS.previewPhaseSeconds,
+      processFileBytes: REVIEW_LIMITS.previewProcessFileBytes,
       outputMounts: [
         { source: baseDist, target: '/review/base-dist', readonly: true },
         { source: proposedDist, target: '/review/proposed-dist', readonly: true },
