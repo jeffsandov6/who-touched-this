@@ -2,6 +2,7 @@ import { defineSecret, defineString } from 'firebase-functions/params';
 
 export const resendApiKey = defineSecret('RESEND_API_KEY');
 export const githubWebhookSecret = defineSecret('GITHUB_WEBHOOK_SECRET');
+export const oddsApiKey = defineSecret('ODDS_API_KEY');
 export const appOrigin = defineString('APP_ORIGIN', {
   default: 'https://whotouchedthis.website',
   description: 'Canonical public application origin used in transactional email links.',

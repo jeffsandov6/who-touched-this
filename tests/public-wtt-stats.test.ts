@@ -35,3 +35,18 @@ test('public client subscribes only to the aggregate and exposes all non-fake UI
   assert.match(source, /status: 'error'/);
   assert.doesNotMatch(source, /wttEntitlements|wttClaims|wttClaimChallenges|claimedWallet/);
 });
+
+test('WTT coin uses deterministic stats without Firebase in contributor preview', async () => {
+  const source = await readFile(new URL(
+    '../src/canvas/components/react/home/WttCoin.tsx',
+    import.meta.url,
+  ), 'utf8');
+  const previewGuard = source.indexOf('if (contributorPreview) return undefined;');
+  const liveSubscription = source.indexOf('return subscribeToPublicWttStats');
+
+  assert.match(source, /const contributorPreview = useContributorPreview\(\)/);
+  assert.match(source, /contributorPreview \? contributorPreviewStats : unavailableStats/);
+  assert.match(source, /preview: 'preview stats · not live\.'/);
+  assert.equal(previewGuard >= 0 && previewGuard < liveSubscription, true);
+  assert.match(source, /\}, \[contributorPreview\]\);/);
+});
