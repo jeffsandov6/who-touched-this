@@ -212,6 +212,7 @@ test('preview resolves Playwright from lockfile-pinned trusted dependencies moun
   assert.match(capture, /--trusted \.wtt-ci\/trusted/);
   assert.match(sandboxRunner, /workspaceReadonly: true/);
   assert.match(sandboxRunner, /workspace: trusted/);
+  assert.match(sandboxRunner, /processFileBytes: REVIEW_LIMITS\.previewProcessFileBytes/);
 });
 
 test('contributor output cannot replace trusted preview code, manifests, dependencies, or mounts', () => {

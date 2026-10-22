@@ -135,6 +135,9 @@ test('sandbox arguments disable network, tokens, privilege, and bound resources'
   const args = hostileContainerArguments({ image: HOSTILE_NODE_IMAGE, workspace: '/tmp/workspace', timeoutSeconds: 60, command: ['node', 'build.mjs'] });
   const joined = args.join(' ');
   for (const expected of ['--network none', '--read-only', '--cap-drop ALL', 'no-new-privileges', '--memory 4g', '--memory-swap 4g', '--cpus 2', '--pids-limit 256', '--ulimit fsize=26214400:26214400', '--user 1001:1001', '--rm']) assert.match(joined, new RegExp(expected));
+  const preview = hostileContainerArguments({ image: HOSTILE_NODE_IMAGE, workspace: '/tmp/workspace', timeoutSeconds: 60, command: ['node', 'preview.mjs'], processFileBytes: REVIEW_LIMITS.previewProcessFileBytes }).join(' ');
+  assert.match(preview, /--ulimit fsize=67108864:67108864/);
+  assert.throws(() => hostileContainerArguments({ image: HOSTILE_NODE_IMAGE, workspace: '/tmp/workspace', timeoutSeconds: 60, command: ['node'], processFileBytes: 0 }), /positive integer/);
   assert.doesNotMatch(joined, /GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|docker\.sock|RESEND|FIREBASE/);
   assert.match(HOSTILE_NODE_IMAGE, /@sha256:[0-9a-f]{64}$/);
 });
