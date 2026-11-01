@@ -618,12 +618,14 @@ export const recordFounderContributionZero = onCall({ region: 'us-central1' }, a
 export const dispatchEmailReminders = onSchedule({
   schedule: 'every 60 minutes', region: 'us-central1', secrets: [resendApiKey],
 }, async () => {
-  const firestore = getFirestore();
-  const [invitationSnapshots, turnSnapshots] = await Promise.all([
-    firestore.collection('invitations').where('status', '==', 'pending').limit(10).get(),
-    firestore.collection('turns').where('status', '==', 'active').limit(10).get(),
-  ]);
+  let stage: 'load-candidates' | 'dispatch' = 'load-candidates';
   try {
+    const firestore = getFirestore();
+    const [invitationSnapshots, turnSnapshots] = await Promise.all([
+      firestore.collection('invitations').where('status', '==', 'pending').limit(10).get(),
+      firestore.collection('turns').where('status', '==', 'active').limit(10).get(),
+    ]);
+    stage = 'dispatch';
     await dispatchEligibleNotifications({
       now: new Date(),
       invitations: invitationSnapshots.docs.map((snapshot) => ({
@@ -638,7 +640,8 @@ export const dispatchEmailReminders = onSchedule({
       ),
     }, dependencies());
   } catch (error) {
-    safeLogFailure('Scheduled email dispatcher encountered a delivery failure.', 'hourly-sweep', error);
+    safeLogFailure(`Scheduled email dispatcher failed during ${stage}.`, 'hourly-sweep', error);
+    throw error;
   }
 });
 
