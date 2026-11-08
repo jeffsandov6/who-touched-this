@@ -9,6 +9,8 @@ import ViewMasterPeephole from '../components/react/random/view-master/ViewMaste
 import WrongPerspectiveObject from '../components/react/random/WrongPerspectiveObject';
 import BigRandomizer from '../components/react/random/big-randomizer/BigRandomizer';
 import ThingsOnTheInternet from '../components/react/random/things-on-the-internet/ThingsOnTheInternet';
+import ParticleBlast from '../components/react/random/particle-blast/ParticleBlast';
+import logoData from '../assets/random/particle-blast/logoData.js';
 
 import './Random.css';
 
@@ -30,7 +32,9 @@ export default function Random() {
           <div className="canvas-random-toy-row">
             <ThingsOnTheInternet />
             <BigRandomizer />
+            <ParticleBlast src={logoData} />
           </div>
+
         </main>
       </RareAlternateReality>
 
